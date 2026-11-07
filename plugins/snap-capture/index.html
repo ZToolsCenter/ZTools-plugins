@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>轻影截图</title>
+  <link rel="stylesheet" href="src/app.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="head">
+      <img class="mark" id="mark" alt="" />
+      <div>
+        <h1>轻影截图</h1>
+        <div class="sub" id="version">截图 · 标注 · 悬浮 · OCR · 翻译</div>
+      </div>
+      <span class="spacer"></span>
+      <span class="sign-inline" id="sign-author">一个成熟的剪辑猿</span>
+      <span class="badge" id="ocr-badge"><i></i><span>检测中</span></span>
+    </header>
+
+    <main class="body">
+      <section class="group">
+        <div class="title">保存</div>
+        <div class="row">
+          <label>保存目录</label>
+          <input class="grow" type="text" id="saveDir" placeholder="默认放在图片文件夹" spellcheck="false" />
+          <button class="btn small" id="pickDir">选择</button>
+        </div>
+        <div class="row">
+          <label>每次询问</label>
+          <button class="switch" id="askEveryTime" role="switch" aria-checked="false"></button>
+          <span class="grow" style="color: var(--faint); font-size: 12px;">打开时弹出保存对话框，自己挑位置</span>
+        </div>
+        <div class="row">
+          <label>文件名</label>
+          <input class="grow" type="text" id="fileNamePattern" spellcheck="false" />
+        </div>
+        <div class="note">
+          占位符：<code>{y}</code> 年 <code>{M}</code> 月 <code>{d}</code> 日 <code>{H}</code> 时 <code>{m}</code> 分 <code>{S}</code> 秒。同名文件会自动加序号。
+        </div>
+      </section>
+
+      <section class="group">
+        <div class="title">识别与翻译</div>
+        <div class="row">
+          <label>文字识别</label>
+          <select class="grow" id="ocrProvider" title="来自 ZTools 的 OCR 提供商"></select>
+          <button class="btn small" id="checkProvider">刷新</button>
+        </div>
+        <div class="row">
+          <label>翻译通道</label>
+          <select class="grow" id="translationProvider" title="来自 ZTools 的翻译提供商"></select>
+          <button class="btn small" id="testTranslate">测试</button>
+        </div>
+        <div class="note" id="provider-note">识别与翻译都优先走 ZTools 的提供商：装一个 f-provider，微信 OCR / AI 识图 / 谷歌 / 微软 / 百度 / 有道 / AI 翻译就都在这里了。</div>
+        <div class="row" id="ocr-dir-row" hidden>
+          <label>备用 OCR 引擎</label>
+          <select class="grow" id="ocrDir" title="没装提供商时才用：自动探测到的微信 OCR 引擎位置"></select>
+          <button class="btn small" id="browseOcr">浏览</button>
+          <button class="btn small" id="checkOcr">检测</button>
+        </div>
+        <div class="row" id="fallback-trans-row" hidden>
+          <label>备用翻译</label>
+          <select class="grow" id="translator">
+            <option value="microsoft">微软（免配置，推荐）</option>
+            <option value="google">谷歌（免配置，国内可能需代理）</option>
+            <option value="baidu">百度（需 AppID）</option>
+          </select>
+        </div>
+        <div class="note" id="trans-note" hidden>上面没装提供商时，才用这里的免密钥通道兜底。</div>
+        <div class="row" id="baidu-row" hidden>
+          <label>百度密钥</label>
+          <input class="grow" type="text" id="baiduAppId" placeholder="AppID" spellcheck="false" />
+          <input class="grow" type="text" id="baiduKey" placeholder="密钥" spellcheck="false" />
+        </div>
+        <div class="row">
+          <label>默认译成</label>
+          <select class="grow" id="targetLang"></select>
+        </div>
+        <div class="note" id="ocr-note">中文界面默认译成英文，其他语言默认译成中文；译文以白块盖回原图对应位置。识别 / OCR 复用本机微信引擎，图片不出本机。</div>
+      </section>
+
+      <section class="group">
+        <div class="title">贴图与历史</div>
+        <div class="row">
+          <label>截图历史</label>
+          <button class="switch" id="historyEnabled" role="switch" aria-checked="true"></button>
+          <span class="grow" style="color: var(--faint); font-size: 12px;">每次截图在本机留一份，截完忘了复制也找得回来</span>
+        </div>
+        <div class="row">
+          <label>保留张数</label>
+          <input class="num" type="number" id="historyLimit" min="10" max="2000" step="10" value="100" />
+          <span class="unit">张</span>
+          <span class="grow"></span>
+          <button class="btn small" id="historyTrim" hidden>按此清理</button>
+        </div>
+        <div class="row">
+          <label>面板</label>
+          <button class="btn small" id="openPins">贴图板</button>
+          <button class="btn small" id="openHistory">历史记录</button>
+        </div>
+        <div class="note" id="history-note">读不到历史信息。</div>
+        <div class="note">
+          贴图窗口：拖动可移动，滚轮缩放，<code>Ctrl</code>+滚轮改透明度，按 <code>C</code> 拖边裁剪，快速左右晃两下鼠标就先藏起其他贴图。
+        </div>
+      </section>
+
+      <section class="group">
+        <div class="title">用法</div>
+        <div class="row">
+          <span class="grow" style="color: var(--muted);">
+            在 ZTools「设置 → 快捷键」里给 <b style="color: var(--text);">轻影截图 / 截图</b> 绑定一个顺手的组合键即可全局唤起。
+          </span>
+        </div>
+        <div class="hintline">
+          <span class="kbd">拖动</span> 框选
+          <span class="kbd">Enter</span> 复制
+          <span class="kbd">Ctrl</span><span class="kbd">S</span> 保存
+          <span class="kbd">Esc</span> 退出
+        </div>
+        <div class="hintline">
+          选区出现后可直接在图上画矩形 / 箭头 / 文字 / 马赛克 / 橡皮擦，<span class="kbd">Ctrl</span><span class="kbd">Z</span> 撤销。
+        </div>
+      </section>
+
+      <footer class="sign">
+        <span>轻影截图 <i id="ver">v1.0.0</i></span>
+        <span class="dot">·</span>
+        <span id="sign-author-foot">一个成熟的剪辑猿</span>
+      </footer>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="src/shared.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+{
+  "name": "snap-capture",
+  "title": "轻影截图",
+  "version": "1.8.0",
+  "description": "框一次就够：矩形/椭圆/箭头/画笔/荧光笔/马赛克/橡皮擦/文字标注、复制、另存、悬浮置顶、微信 OCR 抠字、图片翻译。悬浮图可拖动、裁剪、摇一摇藏起其他贴图，贴图板统一收放；每次截图自动留历史，截完忘了复制也找得回来。",
+  "author": "一个成熟的剪辑猿",
+  "homepage": "https://github.com/akahoz94/snap-capture",
+  "logo": "logo.png",
+  "main": "index.html",
+  "preload": "preload.js",
+  "platform": [
+    "win32",
+    "darwin"
+  ],
+  "categories": [
+    "media"
+  ],
+  "features": [
+    {
+      "code": "ui.capture",
+      "explain": "截图标注",
+      "mainHide": true,
+      "cmds": [
+        "截图",
+        "截图标注",
+        "截屏",
+        "snap",
+        "轻影截图"
+      ]
+    },
+    {
+      "code": "function.capture-copy",
+      "explain": "截图并复制",
+      "mainHide": true,
+      "cmds": [
+        "截图并复制",
+        "snapcopy"
+      ]
+    },
+    {
+      "code": "function.capture-save",
+      "explain": "截图并保存",
+      "mainHide": true,
+      "cmds": [
+        "截图并保存",
+        "snapsave"
+      ]
+    },
+    {
+      "code": "function.capture-pin",
+      "explain": "截图并悬浮",
+      "mainHide": true,
+      "cmds": [
+        "截图并悬浮",
+        "截图置顶",
+        "snappin"
+      ]
+    },
+    {
+      "code": "function.pin-image",
+      "explain": "悬浮图片",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "img",
+          "label": "悬浮图片"
+        },
+        {
+          "type": "files",
+          "label": "悬浮图片",
+          "fileType": "file",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "bmp",
+            "webp"
+          ],
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "function.edit-image",
+      "explain": "编辑图片",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "img",
+          "label": "编辑图片"
+        }
+      ]
+    },
+    {
+      "code": "function.ocr-image",
+      "explain": "OCR 识别",
+      "mainHide": true,
+      "cmds": [
+        {
+          "type": "img",
+          "label": "OCR 识别"
+        },
+        {
+          "type": "files",
+          "label": "OCR 识别",
+          "fileType": "file",
+          "extensions": [
+            "png",
+            "jpg",
+            "jpeg",
+            "bmp",
+            "webp"
+          ],
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "ui.board",
+      "explain": "贴图板与历史",
+      "mainHide": true,
+      "cmds": [
+        "贴图板",
+        "贴图管理",
+        "截图历史",
+        "历史截图",
+        "snapboard"
+      ]
+    },
+    {
+      "code": "ui.settings",
+      "explain": "设置",
+      "cmds": [
+        "轻影截图设置",
+        "截图设置",
+        "偏好设置"
+      ]
+    }
+  ]
+}

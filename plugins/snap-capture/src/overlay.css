@@ -1,0 +1,368 @@
+/* 截图覆盖层：冻结画面 + 选区 + 标注工具条
+   坐标系：所有几何量以「图像像素」为准，界面上按 scale 换算。 */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* display:flex 会盖掉 hidden 的默认样式，这里强制回来 */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #07080a;
+  color: #eef1f5;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* ── 选区编辑器（微信式小窗）：窗口本身等于选区，背景必须是透明的 ── */
+html.win-mode,
+html.win-mode body {
+  background: transparent;
+  cursor: default;
+}
+
+html.win-mode #hint {
+  display: none;
+}
+
+/* 图片下方 / 上方那条工具条留白，透出桌面 */
+html.win-mode #toolbar {
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* 截图边缘内描边：inset 画在图片内缘、不被裁，任何底色都跟桌面区分开（不动 preload/坐标） */
+html.win-mode #edge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+
+/* 窄选区：动作按钮只留图标，工具条才不会撑破窗口 */
+html.win-mode.compact #toolbar .chip span {
+  display: none;
+}
+
+html.win-mode.compact #toolbar .chip {
+  padding: 0 7px;
+}
+
+html.win-mode.compact #toolbar {
+  gap: 1px;
+  padding: 5px 7px;
+}
+
+#shot,
+#ink {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  transform-origin: 0 0;
+}
+
+#ink {
+  pointer-events: none;
+}
+
+/* 选区外压暗：用超大 box-shadow 一次性盖住四周 */
+#dim {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.12s ease;
+}
+
+#frame {
+  position: fixed;
+  border: 1px solid rgba(96, 165, 250, 0.95);
+  pointer-events: none;
+}
+
+#frame .handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid rgba(37, 99, 235, 0.9);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+#frame .handle[data-h="nw"] { left: 0; top: 0; cursor: nwse-resize; }
+#frame .handle[data-h="n"] { left: 50%; top: 0; cursor: ns-resize; }
+#frame .handle[data-h="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
+#frame .handle[data-h="e"] { left: 100%; top: 50%; cursor: ew-resize; }
+#frame .handle[data-h="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
+#frame .handle[data-h="s"] { left: 50%; top: 100%; cursor: ns-resize; }
+#frame .handle[data-h="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
+#frame .handle[data-h="w"] { left: 0; top: 50%; cursor: ew-resize; }
+
+#hud {
+  position: fixed;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(12, 14, 18, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e6ebf2;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+#hint {
+  position: fixed;
+  left: 50%;
+  top: 30px;
+  transform: translateX(-50%);
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(12, 14, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #cfd6e0;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  transition: opacity 0.2s ease;
+}
+
+#hint.hide {
+  opacity: 0;
+}
+
+#magnifier {
+  position: fixed;
+  width: 132px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(12, 14, 18, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+#magnifier-canvas {
+  display: block;
+  width: 132px;
+  height: 132px;
+  image-rendering: pixelated;
+}
+
+#magnifier-text {
+  display: block;
+  padding: 4px 0 5px;
+  text-align: center;
+  font-size: 11px;
+  color: #9aa4b2;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 工具条 ─────────────────────────────────────────── */
+#toolbar,
+#palette {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(16, 18, 23, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(18px);
+  z-index: 20;
+}
+
+#toolbar.wrap {
+  flex-wrap: wrap;
+  max-width: calc(100vw - 24px);
+  justify-content: center;
+}
+
+#toolbar button,
+#palette button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #b9c2cf;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+#toolbar button:hover,
+#palette button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+#toolbar button:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+#toolbar button.active {
+  background: rgba(96, 165, 250, 0.18);
+  color: #bfdbfe;
+}
+
+#toolbar button:disabled {
+  opacity: 0.32;
+  cursor: default;
+  background: transparent;
+}
+
+#toolbar svg,
+#palette svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#toolbar .chip {
+  width: auto;
+  padding: 0 8px;
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+  gap: 4px;
+}
+
+#toolbar .danger:hover {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
+/* 调色板 */
+#palette {
+  padding: 7px 9px;
+  gap: 8px;
+  border-radius: 11px;
+}
+
+#palette .swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 0;
+  transition: transform 0.12s ease;
+}
+
+#palette .swatch:hover {
+  transform: scale(1.12);
+}
+
+#palette .swatch.active {
+  box-shadow: 0 0 0 2px rgba(16, 18, 23, 0.95), 0 0 0 3.5px rgba(255, 255, 255, 0.7);
+}
+
+#palette .widths {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 2px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#palette .wbtn {
+  width: 24px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+#palette .wbtn i {
+  display: block;
+  border-radius: 999px;
+  background: #cdd6e2;
+}
+
+#palette .wbtn.active i {
+  background: #93c5fd;
+}
+
+/* 文字输入 */
+#editor {
+  position: fixed;
+  z-index: 30;
+}
+
+#editor-input {
+  display: block;
+  min-width: 18px;
+  padding: 1px 3px;
+  border: 1px dashed rgba(96, 165, 250, 0.75);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #ffffff;
+  font-family: "Microsoft YaHei", "PingFang SC", -apple-system, sans-serif;
+  line-height: 1.35;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  white-space: pre;
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #07080a;
+  color: #8b95a5;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  z-index: 50;
+}
+
+#loading.done {
+  display: none;
+}
