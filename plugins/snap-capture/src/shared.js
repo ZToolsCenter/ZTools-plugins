@@ -10,6 +10,37 @@
     return window.ztools || window.utools || null;
   }
 
+  // ── 页面缩放拦截 ────────────────────────────────────────
+  // Chromium 默认让 Ctrl+滚轮 / Ctrl+加减号 / 触摸屏捏合直接缩放页面，
+  // 而且普通滚轮缩不回去——在截图编辑器里的表现就是「图片突然放很大、没法缩小」。
+  // 这里统一掐掉：preventDefault 只取消缩放这个默认行为，事件照常派发，
+  // 所以悬浮窗自己的 Ctrl+滚轮调透明度不受影响。
+  (function blockPageZoom() {
+    let warned = false;
+    const report = (via) => {
+      if (warned) return;
+      warned = true;
+      try {
+        window.SNAP && window.SNAP.sendToParent('diag', { message: `已拦截页面缩放（${via}）` });
+      } catch {
+        // 忽略
+      }
+    };
+    window.addEventListener('wheel', (event) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      report('Ctrl+滚轮/捏合');
+    }, { passive: false, capture: true });
+    window.addEventListener('keydown', (event) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = String(event.key || '').toLowerCase();
+      if (key === '=' || key === '+' || key === '-' || key === '0') {
+        event.preventDefault();
+        report('Ctrl+加减号');
+      }
+    }, { capture: true });
+  })();
+
   // ── 设置 ────────────────────────────────────────────────
   const DEFAULTS = {
     saveDir: '',
@@ -22,7 +53,9 @@
     targetLang: 'auto',
     sourceLang: 'auto',
     copyAfterSave: false,
-    pinAutoClose: false,
+    exportFormat: 'png',
+    jpegQuality: 92,
+    captureDelay: 3,
     historyEnabled: true,
     historyLimit: 100,
     lastTool: 'none',
@@ -210,8 +243,24 @@
     return false;
   }
 
-  // 同一 partition 下所有页面共享 localStorage，作为消息通道的兜底传图方式
+  // 兜底传图：整张 4K PNG 塞进 localStorage 会撞 5MB 配额、还会同步阻塞主线程。
+  // 优先请父窗口写到临时文件，localStorage 里只留一个几十字节的路径标记；
+  // 桥不可用时（例如纯浏览器 CDP 回归）自动退回老办法，行为不劣化。
+  const FILE_TAG = '__snapfile__:';
+
   function stashImage(key, dataUrl) {
+    const bridge = window.zsnap;
+    if (bridge && typeof bridge.stashImage === 'function') {
+      try {
+        const res = bridge.stashImage(key, dataUrl);
+        if (res && res.ok && res.path) {
+          window.localStorage.setItem(key, FILE_TAG + res.path);
+          return true;
+        }
+      } catch (error) {
+        console.warn('[snap] 文件暂存失败，回退 localStorage', error);
+      }
+    }
     try {
       window.localStorage.setItem(key, dataUrl);
       return true;
@@ -222,18 +271,38 @@
   }
 
   function takeImage(key) {
+    let value = '';
     try {
-      return window.localStorage.getItem(key) || '';
+      value = window.localStorage.getItem(key) || '';
     } catch {
       return '';
     }
+    if (!value.startsWith(FILE_TAG)) return value;
+    const file = value.slice(FILE_TAG.length);
+    const bridge = window.zsnap;
+    if (bridge && typeof bridge.takeStashed === 'function') {
+      try {
+        const res = bridge.takeStashed(file);
+        if (res && res.ok) return res.dataUrl || '';
+      } catch (error) {
+        console.warn('[snap] 读取暂存文件失败', error);
+      }
+    }
+    return '';
   }
 
   function dropImage(key) {
+    let value = '';
     try {
+      value = window.localStorage.getItem(key) || '';
       window.localStorage.removeItem(key);
     } catch {
-      // 忽略
+      return;
+    }
+    if (!value.startsWith(FILE_TAG)) return;
+    const bridge = window.zsnap;
+    if (bridge && typeof bridge.dropStashed === 'function') {
+      try { bridge.dropStashed(value.slice(FILE_TAG.length)); } catch { /* 下次启动清理 */ }
     }
   }
 

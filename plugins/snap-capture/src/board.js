@@ -23,6 +23,7 @@
     search: document.getElementById('search'),
     btnClear: document.getElementById('btnClear'),
     btnFolder: document.getElementById('btnFolder'),
+    btnRestorePins: document.getElementById('btnRestorePins'),
     btnClose: document.getElementById('btnClose'),
     toast: document.getElementById('toast')
   };
@@ -108,14 +109,21 @@
   // ─────────────── 贴图板 ───────────────
 
   function renderPins() {
-    el.pinCount.textContent = String(pins.length);
+    const q = String(el.search.value || '').trim().toLowerCase();
+    const shown = q ? pins.filter((pin, index) => {
+      const file = String(pin.path || '').split(/[\\/]/).pop();
+      const label = `屏幕贴图 ${index + 1} ${pin.width}x${pin.height} `
+        + `${pin.hidden ? '已收起' : ''} ${pin.cropped ? '已裁剪' : ''} ${file}`;
+      return label.toLowerCase().includes(q);
+    }) : pins;
+    el.pinCount.textContent = String(shown.length);
     el.pinGrid.innerHTML = '';
-    el.pinEmpty.hidden = pins.length > 0;
+    el.pinEmpty.hidden = shown.length > 0;
     el.pinShowAll.disabled = pins.length === 0;
     el.pinHideAll.disabled = pins.length === 0;
     el.pinCloseAll.disabled = pins.length === 0;
 
-    pins.forEach((pin, index) => {
+    shown.forEach((pin, index) => {
       const card = document.createElement('div');
       card.className = 'card' + (pin.hidden ? ' hidden-pin' : '');
       card.innerHTML = `
@@ -187,6 +195,8 @@
           </div>
           <div class="row-actions">
             <button class="icon-btn" data-act="pin" title="悬浮到屏幕上">◱</button>
+            <button class="icon-btn" data-act="edit" title="编辑标注">✎</button>
+            <button class="icon-btn" data-act="ocr" title="识别文字">文</button>
             <button class="icon-btn" data-act="reveal" title="在文件夹中显示">▤</button>
             <button class="icon-btn danger" data-act="remove" title="删除">✕</button>
           </div>
@@ -218,6 +228,19 @@
         }
         const opened = B.openPin ? B.openPin(shot.dataUrl) : { ok: false };
         toast(opened && opened.ok ? '已悬浮到屏幕上' : '悬浮失败');
+        return;
+      }
+
+      if (act === 'edit' || act === 'ocr') {
+        const shot = B.readShot ? B.readShot(item.path) : { ok: false };
+        if (!shot || !shot.ok) {
+          toast('这张图已经不在了');
+          return;
+        }
+        const opened = act === 'edit'
+          ? (B.openEditor ? B.openEditor(shot.dataUrl) : null)
+          : (B.openResult ? B.openResult(shot.dataUrl, 'ocr') : null);
+        toast(opened && opened.ok ? (act === 'edit' ? '已打开编辑器' : '已开始识别') : '打开失败');
         return;
       }
 
@@ -293,7 +316,10 @@
     document.querySelectorAll('.tab-tools:not(#historyTools)').forEach((node) => {
       node.hidden = tab !== 'pins';
     });
-    el.historyTools.hidden = tab !== 'history';
+    // 搜索框两个页签共用：历史搜时间/尺寸/来源，贴图搜序号/尺寸/状态/文件名
+    el.historyTools.hidden = false;
+    el.btnClear.hidden = tab !== 'history';
+    el.search.placeholder = tab === 'pins' ? '搜贴图序号、尺寸、状态…' : '搜时间、尺寸、来源…';
     el.btnFolder.hidden = tab !== 'history';
 
     if (tab === 'pins') refreshPins();
@@ -327,7 +353,16 @@
   let searchTimer = null;
   el.search.addEventListener('input', () => {
     if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(loadHistory, 180);
+    searchTimer = setTimeout(() => {
+      if (tab === 'pins') renderPins();
+      else loadHistory();
+    }, 180);
+  });
+
+  el.btnRestorePins.addEventListener('click', () => {
+    const result = B.restorePinsSession ? B.restorePinsSession() : { ok: false };
+    toast(result && result.ok ? `已恢复 ${result.count} 张贴图` : '没有可恢复的贴图');
+    refreshPins();
   });
 
   el.paneHistory.addEventListener('scroll', maybeLoadMoreHistory, { passive: true });

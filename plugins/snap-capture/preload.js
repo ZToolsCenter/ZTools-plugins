@@ -803,6 +803,29 @@ const bridge = {
     }
   },
 
+  stashImage(key, dataUrl) {
+    try {
+      fs.mkdirSync(SHOT_DIR, { recursive: true });
+      const safe = String(key || 'img').replace(/[^\w.-]/g, '_');
+      const file = path.join(SHOT_DIR, `stash-${safe}.png`);
+      writeImageFile(file, dataUrl);
+      return { ok: true, path: file };
+    } catch (error) {
+      return { ok: false, error: error.message || String(error) };
+    }
+  },
+
+  takeStashed(file) {
+    try { return { ok: true, dataUrl: readImageAsDataUrl(file) }; } catch (error) {
+      return { ok: false, error: error.message || String(error) };
+    }
+  },
+
+  dropStashed(file) {
+    try { fs.unlinkSync(file); } catch { /* 文件可能已不在 */ }
+    return { ok: true };
+  },
+
   copyText(text) {
     try {
       const { clipboard } = electron;
@@ -909,17 +932,22 @@ function writeTempShot(dataUrl) {
 }
 
 // 临时截图清理：写临时图是为了绕开大 dataUrl 走 IPC，但没人删就会一直堆
-// （实测几天能堆到上百个、十几 MB）。只清 2 小时前的 —— 还在用的窗口
-// 引用到的底图都是刚写的，不会被误删。
+// （实测几天能堆到上百个、十几 MB）。只清 2 小时前的；存活贴图引用的底图
+// 豁免 —— 贴图可以挂好几天，清了它图就变「文件已失效」。
 function cleanupTempShots() {
   try {
     if (!fs.existsSync(SHOT_DIR)) return 0;
     const now = Date.now();
     const maxAge = 2 * 60 * 60 * 1000;
+    const pinned = new Set();
+    for (const entry of PINS.values()) {
+      if (entry.path) pinned.add(entry.path);
+    }
     let removed = 0;
     for (const name of fs.readdirSync(SHOT_DIR)) {
-      if (!name.startsWith('shot-') || !name.endsWith('.png')) continue;
+      if (!(name.startsWith('shot-') || name.startsWith('stash-')) || !name.endsWith('.png')) continue;
       const file = path.join(SHOT_DIR, name);
+      if (pinned.has(file)) continue;
       try {
         if (now - fs.statSync(file).mtimeMs > maxAge) {
           fs.unlinkSync(file);
@@ -969,6 +997,16 @@ const CHILD_WEB_PREFERENCES = {
   preload: path.join(__dirname, 'preload.js')
 };
 
+// 触摸屏捏合会合成 Ctrl+滚轮，把页面无钳制地放大（shared.js 已拦 Ctrl+滚轮，
+// 这里再用宿主白名单方法把视觉缩放级别也钉死，双保险）
+function freezeVisualZoom(win) {
+  try {
+    win?.setVisualZoomLevelLimits?.(1, 1);
+  } catch {
+    // 宿主未暴露时忽略
+  }
+}
+
 // 全屏框选层：铺满当前显示器
 function openOverlay(shotPath, action) {
   const display = primaryDisplay();
@@ -1008,11 +1046,12 @@ function openOverlay(shotPath, action) {
     }, () => {
       try {
         if (typeof win.setAlwaysOnTop === 'function') win.setAlwaysOnTop(true, 'screen-saver');
-        if (typeof win.focus === 'function') win.focus();
-        if (typeof win.moveTop === 'function') win.moveTop();
+        win.focus?.();
+        win.moveTop?.();
       } catch {
         // 忽略
       }
+      freezeVisualZoom(win);
     });
   } catch (error) {
     console.warn('[snap] 创建覆盖层失败', error);
@@ -1072,7 +1111,7 @@ function pngSizeOfFile(file) {
   return { width: 0, height: 0 };
 }
 
-function openEditorWindow(shotPath, bounds, action, expectPx, targetWin) {
+function openEditorWindow(shotPath, bounds, action, expectPx) {
   const display = displayFor(bounds);
   const area = display.workArea || display.bounds || { x: 0, y: 0, width: 1920, height: 1040 };
   const sf = scaleFactorOf(display);
@@ -1143,18 +1182,6 @@ function openEditorWindow(shotPath, bounds, action, expectPx, targetWin) {
   ].join('&');
 
   const editorUrl = `overlay.html?${query}`;
-  // 原地变身：把传进来的浮窗直接导航成编辑器，全程只有一扇窗（无双窗口）
-  if (targetWin && typeof targetWin.loadURL === 'function') {
-    editor.win = targetWin;
-    editor.bounds = { x, y, width: winW, height: winH };
-    try {
-      targetWin.loadURL(editorUrl);
-      diag('编辑器原地挂载到已有浮窗窗口（来自浮窗内编辑）');
-    } catch (error) {
-      console.warn('[snap] 原地导航编辑器失败', error);
-    }
-    return targetWin;
-  }
 
   let win = null;
   try {
@@ -1180,23 +1207,112 @@ function openEditorWindow(shotPath, bounds, action, expectPx, targetWin) {
     }, () => {
       try {
         if (typeof win.setAlwaysOnTop === 'function') win.setAlwaysOnTop(true, 'screen-saver');
-        if (typeof win.focus === 'function') win.focus();
-        if (typeof win.moveTop === 'function') win.moveTop();
+        win.focus?.();
+        win.moveTop?.();
       } catch {
         // 忽略
       }
+      freezeVisualZoom(win);
     });
   } catch (error) {
     console.warn('[snap] 创建选区编辑器失败', error);
   }
+  retireEditor(win);
   editor.win = win;
   editor.bounds = { x, y, width: winW, height: winH };
+  onWinClosed(win, () => {
+    if (editor.win === win) {
+      editor.win = null;
+      editor.wc = 0;
+    }
+  });
   return win;
 }
 
 // 选区编辑器（微信式小窗）也归父窗口管：拖动它需要 setBounds，
 // 而子窗口自己拿不到窗口身份，只能发消息回来。
 const editor = { win: null, wc: 0, bounds: null, pendingShot: '' };
+
+// 编辑器是单例槽位：新编辑器上任前把旧的那扇关掉（与 resultWindow 互斥同一策略），
+// 否则旧窗脱离 windowOfWc 的跟踪，拖动/高清补图全部失灵
+function retireEditor(exceptWin) {
+  const old = editor.win;
+  editor.win = null;
+  editor.wc = 0;
+  editor.pendingShot = '';
+  if (old && old !== exceptWin) {
+    try { old.close?.(); } catch { /* 忽略 */ }
+  }
+}
+
+// 子窗被宿主/用户直接关掉（Alt+F4、宿主回收）时清掉登记，别留幽灵状态
+function onWinClosed(win, cleanup) {
+  try {
+    win?.on?.('closed', cleanup);
+  } catch {
+    // 宿主代理不支持事件时忽略
+  }
+}
+
+// 原地导航：宿主的窗口代理白名单里没有 loadURL，官方类型也只有 reload()，
+// 之前所有 `typeof win.loadURL === 'function'` 的判断在真机上永远为假，
+// 「原地变身」从来没生效过，一直在走开新窗的兜底（= 用户看到的双窗口）。
+// 白名单里有 webContents.executeJavaScript，借它改 location.href 真正原地导航。
+function navigateInPlace(win, url) {
+  try {
+    const wc = win && win.webContents;
+    if (wc && typeof wc.executeJavaScript === 'function') {
+      Promise.resolve(wc.executeJavaScript(`location.href = ${JSON.stringify(url)}; true`, true))
+        .catch(() => { /* 导航开始后 promise 可能被打断，忽略 */ });
+      return true;
+    }
+  } catch {
+    // 忽略
+  }
+  return false;
+}
+
+// 把一扇已有子窗原地变成结果窗：登记迁移 + 尺寸/置顶调整一次做完。
+// 成功返回 true；失败（窗没了 / 原地导航不可用）返回 false，调用方走独立结果窗兜底。
+function takeoverWindowAsResult(win, dataUrl, mode) {
+  if (!win || win.isDestroyed?.()) return false;
+  const shotPath = writeTempShot(dataUrl);
+  if (!shotPath) return false;
+  const rk = mode === 'translate' ? 'translate' : 'ocr';
+  if (!navigateInPlace(win, `result.html?mode=${rk}&shot=${encodeURIComponent(shotPath)}`)) return false;
+  // 来源窗口在原单例里的注册要注销，否则贴图板/贴图管家还把
+  // 这扇结果窗当 pin/board 使唤
+  if (editor.win === win) { editor.win = null; editor.wc = 0; }
+  if (board.win === win) { board.win = null; board.wc = 0; }
+  for (const [id, entry] of Array.from(PINS.entries())) {
+    if (entry.win === win) PINS.delete(id);
+  }
+  if (resultWindow && resultWindow !== win) {
+    try { resultWindow.close?.(); } catch { /* ignore */ }
+  }
+  resultWindow = win;
+  const display = primaryDisplay();
+  const area = display.workArea || display.bounds || { x: 0, y: 0, width: 1920, height: 1040 };
+  const width = Math.min(1080, Math.round(area.width * 0.66));
+  const height = Math.min(800, Math.round(area.height * 0.8));
+  try {
+    win.setBounds({
+      x: Math.round(area.x + (area.width - width) / 2),
+      y: Math.round(area.y + (area.height - height) / 2),
+      width,
+      height
+    });
+  } catch { /* ignore */ }
+  // 编辑器/贴图窗是「置顶 + 不上任务栏 + 不可拉伸」，结果窗应该像普通面板
+  try {
+    win.setAlwaysOnTop?.(false);
+    win.setSkipTaskbar?.(false);
+    win.setResizable?.(true);
+  } catch { /* ignore */ }
+  syncBoard();
+  diag('结果窗原地接管当前窗口（省一个渲染进程）');
+  return true;
+}
 
 // 把更清晰的那张底图递给编辑器：窗口早就在屏幕上了，这里只换图，尺寸不动。
 // 子窗口可能还没报到，先存着，等它 ready 再补发。
@@ -1267,8 +1383,11 @@ function openPinWindow(dataUrl, bounds) {
   const area = display.workArea || display.bounds || { x: 0, y: 0, width: 1920, height: 1040 };
   const size = imageSizeOf(dataUrl);
 
-  let width = Math.max(40, Math.round(bounds?.width || size.width || 360));
-  let height = Math.max(40, Math.round(bounds?.height || size.height || 240));
+  // bounds（来自编辑器选区/贴图板）是逻辑像素；没有 bounds 时 size 是图像物理
+  // 像素，得先除以屏的缩放比再当窗口尺寸用，否则 125% 屏上贴图会比原图大 25%
+  const sf = scaleFactorOf(display) || 1;
+  let width = Math.max(40, Math.round(bounds?.width || (size.width ? size.width / sf : 360)));
+  let height = Math.max(40, Math.round(bounds?.height || (size.height ? size.height / sf : 240)));
   const maxW = area.width * 0.8;
   const maxH = area.height * 0.8;
   if (width > maxW) {
@@ -1317,11 +1436,16 @@ function openPinWindow(dataUrl, bounds) {
       try {
         if (typeof win.show === 'function') win.show();
         if (typeof win.setAlwaysOnTop === 'function') win.setAlwaysOnTop(true, 'floating');
-        if (typeof win.focus === 'function') win.focus();
-        if (typeof win.moveTop === 'function') win.moveTop();
+        win.focus?.();
+        win.moveTop?.();
       } catch {
         // 忽略
       }
+      freezeVisualZoom(win);
+      onWinClosed(win, () => {
+        const entry = Array.from(PINS.values()).find((it) => it.win === win);
+        if (entry) closePin(entry);
+      });
     });
   } catch (error) {
     console.warn('[snap] 创建悬浮窗失败', error);
@@ -1364,8 +1488,77 @@ const PARENT_CHANNEL = 'zsnap:parent';
 const board = { win: null, wc: 0 };
 let resultWindow = null;
 
+let restoringPins = false;
+
+function pinsSessionDir() {
+  return path.join(historyDir(), 'pins');
+}
+
+function pinsSessionPath() {
+  return path.join(historyDir(), 'pins-session.json');
+}
+
+// 贴图窗用的是 %TEMP% 里的临时底图，两小时后会被清理；要能「下次还回来」，
+// 得把图另存一份到历史目录。只记最后一批非空贴图，全部关掉也不清空记录。
+function savePinsSession() {
+  try {
+    if (restoringPins) return;
+    const list = Array.from(PINS.values());
+    if (!list.length) return;
+    const dir = pinsSessionDir();
+    ensureDir(dir);
+    const records = [];
+    for (const entry of list) {
+      const file = path.join(dir, `${String(entry.id).replace(/[^\w.-]/g, '_')}.png`);
+      try {
+        if (entry.path && fs.existsSync(entry.path)) fs.copyFileSync(entry.path, file);
+        else writeImageFile(file, entry.dataUrl);
+      } catch { continue; }
+      records.push({
+        id: entry.id,
+        file: path.basename(file),
+        bounds: entry.bounds,
+        base: entry.base,
+        opacity: entry.opacity,
+        cropped: entry.cropped
+      });
+    }
+    const keep = new Set(records.map((r) => r.file));
+    for (const name of fs.readdirSync(dir)) {
+      if (!keep.has(name)) {
+        try { fs.unlinkSync(path.join(dir, name)); } catch { /* 被占用就下次 */ }
+      }
+    }
+    fs.writeFileSync(pinsSessionPath(), JSON.stringify(records, null, 2));
+  } catch (error) {
+    diag(`保存贴图会话失败 ${(error && error.message) || error}`);
+  }
+}
+
+function restorePinsSession() {
+  let records = [];
+  try {
+    records = JSON.parse(fs.readFileSync(pinsSessionPath(), 'utf8'));
+  } catch { return 0; }
+  if (!Array.isArray(records)) return 0;
+  let opened = 0;
+  restoringPins = true;
+  for (const rec of records) {
+    const file = path.join(pinsSessionDir(), String(rec.file || ''));
+    if (!fs.existsSync(file)) continue;
+    try {
+      const win = openPinWindow(readImageAsDataUrl(file), rec.bounds || undefined);
+      if (win) opened += 1;
+    } catch { /* 单张失败不影响其余 */ }
+  }
+  restoringPins = false;
+  diag(`恢复上次贴图 ${opened}/${records.length}`);
+  return opened;
+}
+
 function registerPin(entry) {
   PINS.set(entry.id, entry);
+  savePinsSession();
   syncBoard();
 }
 
@@ -1406,6 +1599,9 @@ function applyPinBounds(entry, bounds) {
     width: Math.max(24, Math.round(bounds.width)),
     height: Math.max(24, Math.round(bounds.height))
   };
+  // NaN 一旦写进 entry.bounds，之后 zoom/replace 的中心计算全是 NaN，
+  // 贴图就永久没法缩放了；直接丢弃这次坏消息
+  if (![next.x, next.y, next.width, next.height].every(Number.isFinite)) return;
   entry.bounds = next;
   try {
     const win = entry.win;
@@ -1539,6 +1735,13 @@ function openBoard(tab) {
       } catch {
         // 忽略
       }
+      freezeVisualZoom(win);
+      onWinClosed(win, () => {
+        if (board.win === win) {
+          board.win = null;
+          board.wc = 0;
+        }
+      });
     });
   } catch (error) {
     console.warn('[snap] 创建贴图板失败', error);
@@ -1557,6 +1760,78 @@ function syncBoard() {
   }
 }
 
+// ── 单窗口调度（1.11.0）─────────────────────────────────────────────
+// 1.10.x 连着四版都在修「双窗口」，根因是每个分支各自决定要不要关旧窗。
+// 这里把规则收成一处：
+//   · 选区编辑器是一次性窗 → 允许原地变成结果窗（省一个渲染进程）
+//   · 贴图窗是置顶便签   → 任何开新窗的动作先 closePin 关掉它，再开目标窗
+//   · 贴图板是普通管理面板（有任务栏、不置顶）→ 保留，允许和新窗并存
+// 以后加新窗口类型，只要在这里补一个 role，不用再逐个分支排查。
+function roleOfWin(win) {
+  if (!win) return 'none';
+  if (win === editor.win) return 'editor';
+  if (win === resultWindow) return 'result';
+  if (win === board.win) return 'board';
+  for (const entry of PINS.values()) {
+    if (entry.win === win) return 'pin';
+  }
+  return 'unknown';
+}
+
+function closeTransient(win, role) {
+  if (!win) return;
+  try {
+    if (role === 'editor') {
+      editor.win = null;
+      editor.wc = 0;
+      win.close?.();
+    } else if (role === 'result') {
+      resultWindow = null;
+      win.close?.();
+    }
+  } catch { /* 窗口可能已经关了 */ }
+}
+
+function closePinWin(win) {
+  for (const entry of Array.from(PINS.values())) {
+    if (entry.win === win) closePin(entry);
+  }
+}
+
+function transition(target, wcId, payload) {
+  if (!payload || !payload.dataUrl) return;
+  const dataUrl = payload.dataUrl;
+  const win = windowOfWc(wcId);
+  const role = roleOfWin(win);
+
+  if (target === 'result') {
+    // 只有编辑器/结果窗能原地接管；贴图窗走这里也不会被「原地吃掉」了
+    if (role === 'editor' || role === 'result') {
+      if (!takeoverWindowAsResult(win, dataUrl, payload.mode)) {
+        openResultWindow(dataUrl, payload.mode);
+      }
+      return;
+    }
+    if (role === 'pin') closePinWin(win);
+    openResultWindow(dataUrl, payload.mode);
+    return;
+  }
+
+  if (target === 'pin') {
+    // 先关旧的一次性窗，再开贴图窗：编辑器「完成并悬浮」不再短暂两扇
+    if (role === 'editor' || role === 'result') closeTransient(win, role);
+    openPinWindow(dataUrl, payload.bounds);
+    return;
+  }
+
+  if (target === 'editor') {
+    if (role === 'pin') closePinWin(win);
+    else if (role === 'editor' || role === 'result') closeTransient(win, role);
+    openOverlay(writeTempShot(dataUrl), 'edit');
+    return;
+  }
+}
+
 // 宿主 forward 过来的子窗消息都从这里进
 function handleChildMessage(wcId, payload) {
   if (!payload || typeof payload !== 'object') return;
@@ -1570,44 +1845,11 @@ function handleChildMessage(wcId, payload) {
 
   // ── 子窗口代办的请求（子窗口自己没有插件身份）──
   if (kind === 'openPin') {
-    if (payload.dataUrl) openPinWindow(payload.dataUrl, payload.bounds);
+    transition('pin', wcId, payload);
     return;
   }
   if (kind === 'openResult') {
-    if (!payload.dataUrl) return;
-    // 原地接管：把这扇窗直接导航成结果窗，省掉一个渲染进程。
-    // Electron 每个插件窗口都是一个独立渲染进程（基线 130~200MB），
-    // 「开新窗 + 关旧窗」那一瞬间会同时占两个，峰值直接翻倍。
-    const win = windowOfWc(wcId);
-    const shotPath = writeTempShot(payload.dataUrl);
-    if (win && shotPath && typeof win.loadURL === 'function') {
-      if (resultWindow && resultWindow !== win) {
-        try { resultWindow.close?.(); } catch { /* ignore */ }
-      }
-      resultWindow = win;
-      const display = primaryDisplay();
-      const area = display.workArea || display.bounds || { x: 0, y: 0, width: 1920, height: 1040 };
-      const width = Math.min(1080, Math.round(area.width * 0.66));
-      const height = Math.min(800, Math.round(area.height * 0.8));
-      const rk = payload.mode === 'translate' ? 'translate' : 'ocr';
-      try {
-        win.setBounds({
-          x: Math.round(area.x + (area.width - width) / 2),
-          y: Math.round(area.y + (area.height - height) / 2),
-          width,
-          height
-        });
-      } catch { /* ignore */ }
-      // 编辑器窗口是「置顶 + 不上任务栏」，结果窗应该像普通面板那样能切到
-      try {
-        win.setAlwaysOnTop?.(false);
-        win.setSkipTaskbar?.(false);
-      } catch { /* ignore */ }
-      win.loadURL(`result.html?mode=${rk}&shot=${encodeURIComponent(shotPath)}`);
-      diag('结果窗原地接管当前窗口（省一个渲染进程）');
-      return;
-    }
-    openResultWindow(payload.dataUrl, payload.mode);
+    transition('result', wcId, payload);
     return;
   }
   if (kind === 'openBoard') {
@@ -1615,7 +1857,7 @@ function handleChildMessage(wcId, payload) {
     return;
   }
   if (kind === 'openEditor') {
-    if (payload.dataUrl) openOverlay(writeTempShot(payload.dataUrl), 'edit');
+    transition('editor', wcId, payload);
     return;
   }
   if (kind === 'moveWindow') {
@@ -1648,6 +1890,8 @@ function handleChildMessage(wcId, payload) {
   }
 
   if (kind === 'editorReady') {
+    // 只认现任编辑器窗：别的子窗冒充会把高清底图投递目标劫走
+    if (windowOfWc(wcId) !== editor.win) return;
     editor.wc = wcId;
     flushEditorShot();
     return;
@@ -1662,6 +1906,7 @@ function handleChildMessage(wcId, payload) {
   }
 
   if (kind === 'boardReady') {
+    if (windowOfWc(wcId) !== board.win) return;
     board.wc = wcId;
     syncBoard();
     return;
@@ -1756,30 +2001,27 @@ function handleChildMessage(wcId, payload) {
     return;
   }
 
-  // 贴图上接着做事：编辑标注 / 抠字 / 翻译。子窗口没有开窗权限，一律由父窗口代开。
+  // 贴图上接着做事：编辑标注 / 识别 / 翻译。子窗口没有开窗权限，一律由父窗口代开。
+  // 三条路统一「先关掉这扇置顶贴图窗，再打开目标窗」—— 屏幕上始终只有一扇窗。
+  // 1.10.2 让识别/翻译走「贴图原地不动 + 另开结果窗」，实测贴图窗与结果窗并存近 1 分钟，
+  // 就是用户说的双窗口；这里一并收回，编辑标注 / 识别 / 翻译行为保持一致。
   if (kind === 'pinEdit' || kind === 'pinOcr' || kind === 'pinTranslate') {
     const url = payload.dataUrl || entry.dataUrl || '';
     if (!url) return;
+    const b = entry.bounds || null;
+    const id = entry.id;
+    // 统一走 closePin：真正 close（不再先 hide，隐藏态的代理窗容易关不干净）、
+    // 归还被「摇一摇」藏起来的其他贴图、同步贴图板。
+    closePin(entry);
     if (kind === 'pinEdit') {
-      // 直接在原来的浮窗上编辑：原地把它导航成编辑器，全程只有一扇窗，绝不双开。
-      // 编辑完点「悬浮到屏幕」时，编辑器会开新浮窗并关掉自己 —— 依旧只有一个窗口。
+      // 按贴图的位置和尺寸开 1:1 编辑窗。不做原地变身 —— 贴图窗和编辑窗尺寸不一致，
+      // 硬导航只会得到一个挤在贴图尺寸里的编辑器。
       const path = writeTempShot(url);
-      if (path) {
-        const b = entry.bounds || null;
-        const win = entry.win;
-        PINS.delete(entry.id); // 先注销，不再被当成「浮窗」
-        if (win && typeof win.loadURL === 'function') {
-          openEditorWindow(path, b || undefined, 'edit', null, win);
-          diag(`pin ${entry.id} 原地进入编辑`);
-        } else {
-          // 兜底：关掉浮窗再开编辑器，保证不会出现两扇窗
-          try { win?.hide?.(); } catch { /* ignore */ }
-          try { win?.close?.(); } catch { /* ignore */ }
-          openEditorWindow(path, b || undefined, 'edit');
-        }
-      }
+      if (path) openEditorWindow(path, b || undefined, 'edit');
+      diag(`pin ${id} 转编辑（关贴图开编辑窗，单窗）`);
     } else {
       openResultWindow(url, kind === 'pinOcr' ? 'ocr' : 'translate');
+      diag(`pin ${id} 转结果（关贴图开结果窗，单窗）`);
     }
     return;
   }
@@ -2026,10 +2268,14 @@ function openResultWindow(dataUrl, mode) {
     }, () => {
       try {
         if (typeof win.show === 'function') win.show();
-        if (typeof win.focus === 'function') win.focus();
+        win.focus?.();
       } catch {
         // 忽略
       }
+      freezeVisualZoom(win);
+      onWinClosed(win, () => {
+        if (resultWindow === win) resultWindow = null;
+      });
     });
   } catch (error) {
     console.warn('[snap] 创建结果窗失败', error);
@@ -2088,8 +2334,15 @@ function firstImageFrom(action) {
 
 function diag(line) {
   try {
+    const file = path.join(SHOT_DIR, 'diag.log');
     fs.mkdirSync(SHOT_DIR, { recursive: true });
-    fs.appendFileSync(path.join(SHOT_DIR, 'diag.log'), `[${new Date().toISOString()}] ${line}\n`);
+    // 只追加不清理的话这个文件能无限膨胀；过 1MB 就重开
+    try {
+      if (fs.statSync(file).size > 1024 * 1024) fs.writeFileSync(file, `[${new Date().toISOString()}] diag.log 轮转\n`);
+    } catch {
+      // 还没有这个文件
+    }
+    fs.appendFileSync(file, `[${new Date().toISOString()}] ${line}\n`);
   } catch {
     // 忽略
   }
@@ -2360,7 +2613,7 @@ async function upgradeShotLater(area, baseShot, sf, action) {
   diag(`hi-res 投递=${sent ? '直发' : '暂存待发'} sf=${sf}`);
 }
 
-function startCapture(action) {
+function startCapture(action, delaySec = 0) {
   const ztools = ZT();
   const startedAt = Date.now();
 
@@ -2448,21 +2701,37 @@ function startCapture(action) {
     });
   };
 
-  try {
-    if (typeof ztools.screenCapture !== 'function') {
+  const begin = () => {
+    try {
+      if (typeof ztools.screenCapture !== 'function') {
+        capturing = false;
+        diag('screenCapture 不可用');
+        console.warn('[snap] 当前 ZTools 不支持 screenCapture');
+        endRun();
+        return;
+      }
+      // 回调签名是 (image, bounds)，bounds 是用户框出的屏幕逻辑区域
+      ztools.screenCapture(finish);
+    } catch (error) {
       capturing = false;
-      diag('screenCapture 不可用');
-      console.warn('[snap] 当前 ZTools 不支持 screenCapture');
+      diag(`screenCapture 异常: ${(error && error.message) || error}`);
+      console.warn('[snap] 截图失败', error);
       endRun();
-      return;
     }
-    // 回调签名是 (image, bounds)，bounds 是用户框出的屏幕逻辑区域
-    ztools.screenCapture(finish);
-  } catch (error) {
-    capturing = false;
-    diag(`screenCapture 异常: ${(error && error.message) || error}`);
-    console.warn('[snap] 截图失败', error);
-    endRun();
+  };
+
+  // 延时期间主窗口已经收起、桌面露出来了，正好用来切窗口 / 展开菜单。
+  const delay = Math.max(0, Math.min(30, Number(delaySec) || 0));
+  if (delay > 0) {
+    try {
+      if (typeof ztools.showNotification === 'function') {
+        ztools.showNotification(`${delay} 秒后开始框选…`);
+      }
+    } catch { /* 通知不可用不影响截图 */ }
+    diag(`延时截图 ${delay}s`);
+    setTimeout(begin, delay * 1000);
+  } else {
+    begin();
   }
 
   // 兜底：万一宿主没回调（会话被系统吃掉），别把后续触发永久锁死
@@ -2499,6 +2768,11 @@ bridge.openResult = (dataUrl, mode) => {
   if (!dataUrl) return { ok: false, error: '没有图片' };
   if (isChildWindow()) return { ok: askParent({ event: 'openResult', dataUrl, mode }), via: 'parent' };
   return { ok: Boolean(openResultWindow(dataUrl, mode)) };
+};
+bridge.restorePinsSession = () => {
+  try { return { ok: true, count: restorePinsSession() }; } catch (error) {
+    return { ok: false, error: error.message || String(error) };
+  }
 };
 bridge.openEditor = (dataUrl) => {
   if (!dataUrl) return { ok: false, error: '没有图片' };
@@ -2803,6 +3077,12 @@ window.exports = {
   'function.capture-pin': {
     mode: 'none',
     args: { enter: () => startCapture('pin') }
+  },
+  'function.capture-delay': {
+    mode: 'none',
+    args: {
+      enter: () => startCapture('edit', Math.max(1, Math.min(30, Number(readSettingsRaw().captureDelay) || 3)))
+    }
   },
   'function.pin-image': {
     mode: 'none',

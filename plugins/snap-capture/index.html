@@ -21,6 +21,16 @@
 
     <main class="body">
       <section class="group">
+        <div class="title">截图</div>
+        <div class="row">
+          <label>延时截图</label>
+          <input class="num" type="number" id="captureDelay" min="1" max="30" step="1" value="3" />
+          <span class="unit">秒</span>
+          <span class="grow" style="color: var(--faint); font-size: 12px;">用「延时截图」命令触发，留时间切换窗口 / 展开菜单</span>
+        </div>
+      </section>
+
+      <section class="group">
         <div class="title">保存</div>
         <div class="row">
           <label>保存目录</label>
@@ -35,6 +45,19 @@
         <div class="row">
           <label>文件名</label>
           <input class="grow" type="text" id="fileNamePattern" spellcheck="false" />
+        </div>
+        <div class="row">
+          <label>导出格式</label>
+          <select class="grow" id="exportFormat">
+            <option value="png">PNG（无损，体积大）</option>
+            <option value="jpeg">JPEG（体积小，白底）</option>
+            <option value="webp">WebP（体积小，支持透明）</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>存完自动复制</label>
+          <button class="switch" id="copyAfterSave" role="switch" aria-checked="false"></button>
+          <span class="grow" style="color: var(--faint); font-size: 12px;">保存成功后顺手放进剪贴板</span>
         </div>
         <div class="note">
           占位符：<code>{y}</code> 年 <code>{M}</code> 月 <code>{d}</code> 日 <code>{H}</code> 时 <code>{m}</code> 分 <code>{S}</code> 秒。同名文件会自动加序号。
@@ -73,6 +96,11 @@
           <label>百度密钥</label>
           <input class="grow" type="text" id="baiduAppId" placeholder="AppID" spellcheck="false" />
           <input class="grow" type="text" id="baiduKey" placeholder="密钥" spellcheck="false" />
+        </div>
+        <div class="row">
+          <label>原文语言</label>
+          <select class="grow" id="sourceLang"></select>
+          <span class="grow" style="color: var(--faint); font-size: 12px;">混排 / 短句判错时手动指定</span>
         </div>
         <div class="row">
           <label>默认译成</label>

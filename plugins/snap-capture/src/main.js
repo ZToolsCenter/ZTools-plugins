@@ -578,6 +578,14 @@
     const event = payload && payload.event;
     if (!event) return;
 
+    // 流程级事件（ready/closed/finish 类）只可能来自本页自己开出去的截图子窗。
+    // preload 会把所有子窗消息原样转发进来，贴图/贴图板那边的编辑器收尾也会发
+    // 'closed'——误响应会触发 maybeQuit→outPlugin，把设置页整个收起（闪退）。
+    if (['ready', 'captureFailed', 'pin', 'ocr', 'translate', 'closed'].includes(event)
+      && !captureFlow && !overlay.child) {
+      return;
+    }
+
     // ── 截图覆盖层 ──
     if (event === 'ready') {
       showOverlay();
@@ -749,17 +757,21 @@
     fields.baiduAppId = document.getElementById('baiduAppId');
     fields.baiduKey = document.getElementById('baiduKey');
     fields.targetLang = document.getElementById('targetLang');
+    fields.sourceLang = document.getElementById('sourceLang');
+    fields.exportFormat = document.getElementById('exportFormat');
+    fields.copyAfterSave = document.getElementById('copyAfterSave');
+    fields.captureDelay = document.getElementById('captureDelay');
     fields.baiduRow = document.getElementById('baidu-row');
     fields.ocrBadge = document.getElementById('ocr-badge');
     fields.ocrNote = document.getElementById('ocr-note');
     fields.transNote = document.getElementById('trans-note');
     fields.historyEnabled = document.getElementById('historyEnabled');
 
-    if (fields.targetLang) {
-      fields.targetLang.innerHTML = S.LANGUAGES.map((item) => (
-        `<option value="${item.code}">${item.label}</option>`
-      )).join('');
-    }
+    const langOptions = S.LANGUAGES.map((item) => (
+      `<option value="${item.code}">${item.label}</option>`
+    )).join('');
+    if (fields.targetLang) fields.targetLang.innerHTML = langOptions;
+    if (fields.sourceLang) fields.sourceLang.innerHTML = langOptions;
 
     const settings = S.getSettings();
     fields.saveDir.value = settings.saveDir || '';
@@ -769,6 +781,14 @@
     fields.baiduAppId.value = settings.baiduAppId || '';
     fields.baiduKey.value = settings.baiduKey || '';
     fields.targetLang.value = settings.targetLang;
+    if (fields.sourceLang) fields.sourceLang.value = settings.sourceLang || 'auto';
+    if (fields.exportFormat) fields.exportFormat.value = settings.exportFormat || 'png';
+    if (fields.captureDelay) fields.captureDelay.value = String(settings.captureDelay || 3);
+    if (fields.copyAfterSave) {
+      const on = Boolean(settings.copyAfterSave);
+      fields.copyAfterSave.classList.toggle('on', on);
+      fields.copyAfterSave.setAttribute('aria-checked', String(on));
+    }
     fields.askEveryTime.classList.toggle('on', Boolean(settings.askEveryTime));
     fields.askEveryTime.setAttribute('aria-checked', String(Boolean(settings.askEveryTime)));
 
@@ -824,6 +844,31 @@
     fields.targetLang.addEventListener('change', () => {
       S.saveSettings({ targetLang: fields.targetLang.value });
     });
+    if (fields.sourceLang) {
+      fields.sourceLang.addEventListener('change', () => {
+        S.saveSettings({ sourceLang: fields.sourceLang.value });
+      });
+    }
+    if (fields.exportFormat) {
+      fields.exportFormat.addEventListener('change', () => {
+        S.saveSettings({ exportFormat: fields.exportFormat.value });
+      });
+    }
+    if (fields.captureDelay) {
+      fields.captureDelay.addEventListener('change', () => {
+        const v = Math.max(1, Math.min(30, Number(fields.captureDelay.value) || 3));
+        fields.captureDelay.value = String(v);
+        S.saveSettings({ captureDelay: v });
+      });
+    }
+    if (fields.copyAfterSave) {
+      fields.copyAfterSave.addEventListener('click', () => {
+        const next = !fields.copyAfterSave.classList.contains('on');
+        fields.copyAfterSave.classList.toggle('on', next);
+        fields.copyAfterSave.setAttribute('aria-checked', String(next));
+        S.saveSettings({ copyAfterSave: next });
+      });
+    }
     fields.askEveryTime.addEventListener('click', () => {
       const next = !fields.askEveryTime.classList.contains('on');
       fields.askEveryTime.classList.toggle('on', next);

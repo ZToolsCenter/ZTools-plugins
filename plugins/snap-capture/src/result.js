@@ -15,6 +15,7 @@
     overlay: document.getElementById('overlay'),
     text: document.getElementById('text'),
     status: document.getElementById('status'),
+    srcLang: document.getElementById('srcLang'),
     dstLang: document.getElementById('dstLang'),
     btnCopy: document.getElementById('btn-copy'),
     btnTranslate: document.getElementById('btn-translate'),
@@ -55,10 +56,23 @@
 
   // ── 语言 ──
   function initLanguages() {
-    el.dstLang.innerHTML = S.LANGUAGES
+    const options = S.LANGUAGES
       .map((item) => `<option value="${item.code}">${item.label}</option>`)
       .join('');
+    el.dstLang.innerHTML = options;
     el.dstLang.value = settings.targetLang || 'auto';
+    if (el.srcLang) {
+      el.srcLang.innerHTML = options;
+      el.srcLang.value = settings.sourceLang || 'auto';
+      el.srcLang.addEventListener('change', () => {
+        S.saveSettings({ sourceLang: el.srcLang.value });
+        toast('原文语言已设为 ' + el.srcLang.selectedOptions[0].text);
+      });
+    }
+  }
+
+  function sourceLanguage() {
+    return (el.srcLang && el.srcLang.value) || S.getSettings().sourceLang || 'auto';
   }
 
   function targetLanguage() {
@@ -100,6 +114,11 @@
 
   function loadImage(dataUrl) {
     if (state.dataUrl === dataUrl) return;
+    // 上一张还在识别/翻译中就先排队：直接换图会变成新图叠旧图的文字层
+    if (state.busy) {
+      state.pendingImage = dataUrl;
+      return;
+    }
     state.dataUrl = dataUrl;
     el.shot.onload = () => {
       state.natural = {
@@ -153,6 +172,11 @@
     } finally {
       state.busy = false;
       syncCopyLabel();
+      if (state.pendingImage) {
+        const next = state.pendingImage;
+        state.pendingImage = '';
+        loadImage(next);
+      }
     }
 
     if (shouldTranslate) {
@@ -228,7 +252,7 @@
         try {
           const response = await window.zsnap.translate({
             text: group.text,
-            from: 'auto',
+            from: sourceLanguage(),
             to,
             translator,
             appId: baidu.appId,
@@ -264,6 +288,11 @@
     } finally {
       state.busy = false;
       syncCopyLabel();
+      if (state.pendingImage) {
+        const next = state.pendingImage;
+        state.pendingImage = '';
+        loadImage(next);
+      }
     }
   }
 

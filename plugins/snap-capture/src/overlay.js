@@ -700,6 +700,33 @@
     return p.x >= s.x && p.x <= s.x + s.w && p.y >= s.y && p.y <= s.y + s.h;
   }
 
+  // 按下即捕获指针：pointerup 落在窗外（贴边拖、跨屏）也能收到，
+  // 否则笔画/窗口拖动会残留，光标回来后跟着无按键的鼠标跑
+  function capturePointer(event) {
+    try {
+      document.body.setPointerCapture?.(event.pointerId);
+    } catch {
+      // 忽略
+    }
+  }
+
+  // 打断（Esc/右键/失焦/系统取消）时把拖动状态全部清掉，别让选区“复活”；
+  // 拖到一半的文字要放回 ops 原来的层叠位置，不然这一笔就凭空消失了
+  function abandonInteraction() {
+    if (state.interaction && state.interaction.kind === 'textmove' && state.draft) {
+      state.ops.splice(Math.min(state.interaction.index, state.ops.length), 0, state.draft);
+      state.draft = null;
+      rebuildInkBase();
+    }
+    winDrag = null;
+    state.interaction = null;
+    state.draft = null;
+    render();
+  }
+
+  window.addEventListener('pointercancel', abandonInteraction);
+  window.addEventListener('blur', abandonInteraction);
+
   function beginSelection(p) {
     state.interaction = { kind: 'select', origin: p };
     state.draft = null;
@@ -711,6 +738,12 @@
     if (!state.ready) return;
     hideHint();
     closePalette();
+
+    // 点在文字输入框上＝挪光标/选字，不是落新文字，也不是拖窗口
+    if (event.target.closest && event.target.closest('#editor')) {
+      event.preventDefault();
+      return;
+    }
 
     // 选区小窗（微信式）：没选工具、或者选了「移动」，按住图片直接搬窗口。
     // 工具条、按钮上的按下不参与拖动，否则点按钮会把窗口甩走。
@@ -724,6 +757,7 @@
         originY: window.screenY,
         moved: false
       };
+      capturePointer(event);
       event.preventDefault();
       return;
     }
@@ -738,6 +772,7 @@
         box: { ...state.selection },
         view: box
       };
+      capturePointer(event);
       event.preventDefault();
       return;
     }
@@ -752,6 +787,25 @@
     }
 
     if (state.tool === 'text' && state.selection && insideSelection(p)) {
+      // 点中已有文字＝拖着走（松手回原位＝什么都没发生）；点空白＝落新文字
+      const hit = textHitAt(p);
+      if (hit) {
+        state.ops.splice(hit.index, 1);
+        state.interaction = {
+          kind: 'textmove',
+          op: hit.op,
+          index: hit.index,
+          start: p,
+          dx: hit.op.x - p.x,
+          dy: hit.op.y - p.y,
+          moved: false
+        };
+        state.draft = hit.op;
+        capturePointer(event);
+        render();
+        event.preventDefault();
+        return;
+      }
       openEditor(event.clientX, event.clientY, p);
       event.preventDefault();
       return;
@@ -760,6 +814,7 @@
     if (drawingTool && state.selection && insideSelection(p)) {
       state.interaction = { kind: 'draw', start: p };
       state.draft = makeDraft(p);
+      capturePointer(event);
       render();
       event.preventDefault();
       return;
@@ -769,6 +824,7 @@
     // 选区编辑器窗口里本身就等于选区，移动/重框都没有意义
     if (!WINDOW_MODE && !drawingTool && state.selection && insideSelection(p)) {
       state.interaction = { kind: 'move', start: p, box: { ...state.selection } };
+      capturePointer(event);
       event.preventDefault();
       return;
     }
@@ -777,6 +833,7 @@
       event.preventDefault();
       return;
     }
+    capturePointer(event);
     beginSelection(p);
     event.preventDefault();
   }
@@ -888,6 +945,18 @@
       return;
     }
 
+    if (it.kind === 'textmove' && state.draft) {
+      const nx = Math.round(p.x + it.dx);
+      const ny = Math.round(p.y + it.dy);
+      if (nx !== state.draft.x || ny !== state.draft.y) {
+        state.draft.x = nx;
+        state.draft.y = ny;
+        it.moved = true;
+        render();
+      }
+      return;
+    }
+
     if (it.kind === 'select') {
       const rect = normalize(it.origin, p);
       if (rect.w < 1 || rect.h < 1) return;
@@ -957,6 +1026,19 @@
     state.interaction = null;
     if (!it) return;
 
+    if (it.kind === 'textmove') {
+      // 松手：拖动过才入撤销栈；原地点一下＝原样放回，不动撤销栈
+      if (state.draft) {
+        state.ops.splice(Math.min(it.index, state.ops.length), 0, state.draft);
+        if (it.moved) state.redo.length = 0;
+        rebuildInkBase();
+        state.draft = null;
+      }
+      render();
+      syncToolbar();
+      return;
+    }
+
     if (it.kind === 'select') {
       if (state.selection && (state.selection.w < 5 || state.selection.h < 5)) {
         state.selection = null;
@@ -1016,7 +1098,31 @@
 
   // ───────────────────────── 放大镜 ─────────────────────────
 
+  // 放大镜已经把光标下的像素算成 HEX 了，按 C 直接抄走（pointer-events:none 不能点）
+  function copyHoverHex() {
+    const hex = el.mag.dataset.hex || '';
+    if (!hex) return false;
+    let ok = false;
+    try {
+      if (window.zsnap && typeof window.zsnap.copyText === 'function') {
+        ok = Boolean(window.zsnap.copyText(hex)?.ok);
+      }
+    } catch { /* 继续试浏览器剪贴板 */ }
+    if (!ok) {
+      try {
+        navigator.clipboard.writeText(hex).catch(() => {});
+        ok = true;
+      } catch { /* 忽略 */ }
+    }
+    if (ok) showHint(`已复制色值 ${hex}`);
+    return ok;
+  }
+
   function updateMagnifier(clientX, clientY) {
+    if (!state.image) {
+      el.mag.hidden = true;
+      return;
+    }
     if (WINDOW_MODE) {
       el.mag.hidden = true;
       return;
@@ -1053,7 +1159,9 @@
     } catch {
       rgb = '';
     }
-    el.magText.textContent = rgb ? `${rgb}  ${Math.round(p.x)}, ${Math.round(p.y)}` : `${Math.round(p.x)}, ${Math.round(p.y)}`;
+    el.mag.dataset.hex = rgb || '';
+    const coords = `${Math.round(p.x)}, ${Math.round(p.y)}`;
+    el.magText.textContent = rgb ? `${rgb}  ${coords}  C 复制` : `${coords}`;
 
     let left = clientX + 26;
     let top = clientY + 26;
@@ -1066,16 +1174,40 @@
 
   // ───────────────────────── 文字 ─────────────────────────
 
-  function openEditor(clientX, clientY, imagePos) {
-    const size = 22;
+  // 命中判定：按绘制时的同款字体量宽（顶层优先），返回 op 及其在 ops 里的下标
+  function textHitAt(p) {
+    const probe = state.inkBase.getContext('2d');
+    for (let i = state.ops.length - 1; i >= 0; i -= 1) {
+      const op = state.ops[i];
+      if (!op || op.t !== 'text') continue;
+      const lines = String(op.text).split('\n');
+      probe.save();
+      probe.font = `600 ${op.size}px "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif`;
+      let width = 0;
+      for (const line of lines) width = Math.max(width, probe.measureText(line).width);
+      probe.restore();
+      const lineHeight = op.size * 1.32;
+      const box = { x: op.x - 4, y: op.y - 4, w: width + 8, h: lines.length * lineHeight + 8 };
+      if (p.x >= box.x && p.x <= box.x + box.w && p.y >= box.y && p.y <= box.y + box.h) {
+        return { op, index: i };
+      }
+    }
+    return null;
+  }
+
+  function openEditor(clientX, clientY, imagePos, initial) {
+    // 已经开着输入框就先把旧文字提交掉：直接清 value 的话，
+    // 随后的 blur→commitEditor 读到的是空串，旧文字就丢了
+    if (!el.editor.hidden) commitEditor();
+    const size = (initial && initial.size) || 22;
     el.editor.hidden = false;
     el.editor.style.left = `${clientX}px`;
     el.editor.style.top = `${clientY}px`;
-    el.editorInput.value = '';
-    el.editorInput.style.color = state.color;
+    el.editorInput.value = initial ? initial.text : '';
+    el.editorInput.style.color = (initial && initial.color) || state.color;
     el.editorInput.style.fontSize = `${size * state.scale}px`;
     el.editorInput.style.width = '120px';
-    state.editorPos = { ...imagePos, size };
+    state.editorPos = { ...imagePos, size, color: initial && initial.color };
     setTimeout(() => el.editorInput.focus(), 0);
     autoSizeEditor();
   }
@@ -1096,7 +1228,7 @@
       x: pos.x,
       y: pos.y,
       text,
-      color: state.color,
+      color: pos.color || state.color,
       size: pos.size
     });
     state.redo.length = 0;
@@ -1253,24 +1385,58 @@
     }
   }
 
-  function saveImage(dataUrl) {
+  // 合成层永远是 PNG（剪贴板 / 贴图 / OCR 都要无损），只有落盘这一步按设置转码。
+  // JPEG 没有 alpha，先铺白底，否则透明区域会变黑。
+  async function encodeForSave(dataUrl) {
+    const st = S.getSettings();
+    const format = st.exportFormat || 'png';
+    if (format === 'png') return { dataUrl, ext: 'png', label: 'PNG 图片' };
+    const mime = format === 'webp' ? 'image/webp' : 'image/jpeg';
+    const ext = format === 'webp' ? 'webp' : 'jpg';
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext('2d');
+    if (format === 'jpeg') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.drawImage(img, 0, 0);
+    const q = Math.max(0.5, Math.min(1, Number(st.jpegQuality || 92) / 100));
+    return { dataUrl: canvas.toDataURL(mime, q), ext, label: ext.toUpperCase() + ' 图片' };
+  }
+
+  async function saveImage(dataUrl) {
     const settings = S.getSettings();
     const baseName = S.fileName(settings);
     const paths = window.zsnap?.paths?.() || {};
     const dir = settings.saveDir || '';
+    let enc;
+    try {
+      enc = await encodeForSave(dataUrl);
+    } catch (error) {
+      console.warn('[snap] 转码失败，回退 PNG', error);
+      enc = { dataUrl, ext: 'png', label: 'PNG 图片' };
+    }
 
     const needDialog = !dir || settings.askEveryTime;
     if (needDialog) {
       if (!z || typeof z.showSaveDialog !== 'function') {
-        download(dataUrl, baseName);
+        download(enc.dataUrl, baseName, enc.ext);
         return;
       }
       let target = '';
       try {
         target = z.showSaveDialog({
           title: '保存截图',
-          defaultPath: `${dir || paths.pictures || ''}/${baseName}.png`.replace(/\\/g, '/'),
-          filters: [{ name: 'PNG 图片', extensions: ['png'] }]
+          defaultPath: `${dir || paths.pictures || ''}/${baseName}.${enc.ext}`.replace(/\\/g, '/'),
+          filters: [{ name: enc.label, extensions: [enc.ext] }]
         }) || '';
       } catch (error) {
         console.warn('[snap] 保存对话框失败', error);
@@ -1279,7 +1445,7 @@
         showHint('已取消保存');
         return;
       }
-      const result = window.zsnap.writeImage(target, dataUrl);
+      const result = window.zsnap.writeImage(target, enc.dataUrl);
       if (result && result.ok) {
         S.saveSettings({ saveDir: window.zsnap.dirname(target) });
         S.notify('已保存到 ' + result.path);
@@ -1290,7 +1456,7 @@
       return;
     }
 
-    const result = window.zsnap.saveImage(dir, baseName, dataUrl, 'png');
+    const result = window.zsnap.saveImage(dir, baseName, enc.dataUrl, enc.ext);
     if (result && result.ok) {
       S.notify('已保存到 ' + result.path);
       if (S.getSettings().copyAfterSave) copyImage(dataUrl);
@@ -1300,11 +1466,11 @@
     }
   }
 
-  function download(dataUrl, name) {
+  function download(dataUrl, name, ext = 'png') {
     try {
       const link = document.createElement('a');
       link.href = dataUrl;
-      link.download = `${name}.png`;
+      link.download = `${name}.${ext}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1514,6 +1680,8 @@
     } catch {
       return;
     }
+    // await 期间用户可能已经动笔：再换图会让已画的标注整体错位，放弃这次升级
+    if ((state.ops && state.ops.length) || state.interaction || state.draft) return;
     const oldW = state.image.naturalWidth || state.image.width;
     const oldH = state.image.naturalHeight || state.image.height;
     const newW = next.naturalWidth || next.width;
@@ -1692,11 +1860,17 @@
       return;
     }
     if (WINDOW_MODE) {
-      // 窗口就是选区，右键不该把选区清掉
-      cancel();
+      // 1.11.1：右键只放弃当前这一笔，绝不能关窗。
+      // 主视图在开窗那一刻已经 outPlugin 收起，这扇选区窗是插件唯一可见的东西；
+      // cancel() → window.close() 会让最后一扇窗静默消失，用户看到的就是「整个插件闪退」。
+      // 编辑器是单例（preload.js retireEditor 会在开新窗前关旧窗），留着不会攒出双窗口。
+      // 结束整次截图仍走 Esc 或工具条「取消 (Esc)」。
+      abandonInteraction();
+      closePalette();
       return;
     }
     if (state.selection) {
+      abandonInteraction();
       state.selection = null;
       syncOverlay();
       el.toolbar.hidden = true;
@@ -1731,6 +1905,7 @@
         return;
       }
       if (state.selection) {
+        abandonInteraction();
         state.selection = null;
         syncOverlay();
         el.toolbar.hidden = true;
@@ -1742,7 +1917,7 @@
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      doAction('copy');
+      doAction(QUICK_ACTION === 'save' ? 'save' : 'copy');
       return;
     }
     if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -1770,12 +1945,33 @@
       doRedo();
       return;
     }
+    if (!ctrl && key === 'c' && el.mag.dataset.hex) {
+      event.preventDefault();
+      copyHoverHex();
+      return;
+    }
     const map = { r: 'rect', e: 'ellipse', a: 'arrow', l: 'line', p: 'pen', h: 'marker', m: 'mosaic', n: 'serial', x: 'eraser', t: 'text' };
     if (!ctrl && map[key]) setTool(map[key], { toggle: true });
   });
 
-  window.addEventListener('resize', () => {
-    layout();
+  // 双击已有文字＝就地改字：从 ops 摘掉，原位置重开输入框回填原文
+  window.addEventListener('dblclick', (event) => {
+    if (!state.ready || state.tool !== 'text' || !state.selection) return;
+    const p = imagePoint(event.clientX, event.clientY);
+    if (!insideSelection(p)) return;
+    const hit = textHitAt(p);
+    if (!hit) return;
+    state.ops.splice(hit.index, 1);
+    state.redo.length = 0;
+    rebuildInkBase();
+    render();
+    syncToolbar();
+    const view = viewPoint({ x: hit.op.x, y: hit.op.y });
+    openEditor(view.x, view.y, { x: hit.op.x, y: hit.op.y }, {
+      text: hit.op.text,
+      color: hit.op.color,
+      size: hit.op.size
+    });
   });
 
   window.addEventListener('beforeunload', () => {
