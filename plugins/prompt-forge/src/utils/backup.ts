@@ -20,7 +20,7 @@ export const BACKUP_VERSION = 1
 const PROJECT_GROUPS = new Set(['开发', '学习', '写作', '研究', '其他'])
 
 /** 内置种子提示词 ID（非用户资产，备份时排除） */
-export const SEED_PROMPT_IDS = new Set(['welcome', 'tutorial-vars', 'frag-style', 'frag-markdown'])
+export const SEED_PROMPT_IDS = new Set(['welcome', 'tutorial-vars', 'template-review', 'frag-style', 'frag-markdown', 'frag-constraints'])
 
 export interface BackupPackage {
   format: string

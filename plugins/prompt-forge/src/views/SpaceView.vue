@@ -5,7 +5,7 @@ import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
 import { useAppSettings } from '../stores/app'
 import { copyText, showNotification, hideMainWindow } from '../utils/platform'
-import { renderVariables } from '../utils/index'
+import { getMissingRequiredVariables, renderVariables, resolveVariableValues } from '../utils/index'
 import { getSpaceShortcutAction } from '../utils/space-shortcuts'
 import PromptList from '../components/PromptList.vue'
 import FillPanel from '../components/FillPanel.vue'
@@ -72,22 +72,13 @@ async function handleCopy() {
   const unit = prompt.selectedPrompt.value
   if (!unit) return
   try {
-    let text: string
-    if (unit.variables && unit.variables.length > 0) {
-      const missing = unit.variables.filter(v => v.required).filter(v => !prompt.variableValues.value[v.name]?.trim())
-      if (missing.length > 0) { showNotification(`请填写: ${missing.map(v => v.name).join(', ')}`); return }
-      text = renderVariables(unit.content, prompt.variableValues.value)
-    } else {
-      text = unit.content
-    }
-    const values = unit.variables?.length
-      ? unit.variables.reduce((acc, v) => {
-          if (prompt.variableValues.value[v.name] !== undefined) {
-            acc[v.name] = prompt.variableValues.value[v.name]
-          }
-          return acc
-        }, {} as Record<string, string>)
+    const variables = unit.variables || []
+    const missing = getMissingRequiredVariables(variables, prompt.variableValues.value)
+    if (missing.length > 0) { showNotification(`请填写: ${missing.map(v => v.name).join(', ')}`); return }
+    const values = variables.length
+      ? resolveVariableValues(variables, prompt.variableValues.value)
       : undefined
+    const text = values ? renderVariables(unit.content, values) : unit.content
     if (await copyAndRecord(unit, text, values)) prompt.resetSelection()
   } catch (e: any) { showNotification(`复制失败: ${e.message}`) }
 }
@@ -262,7 +253,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.space-view { width: 100%; flex: 1; min-height: 0; display: flex; background: var(--pf-bg); user-select: none; overflow: hidden; }
+.space-view { width: 100%; flex: 1; min-height: 0; display: flex; background: var(--pf-bg); overflow: hidden; }
 
 /* 主区域 */
 .space-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }

@@ -11,6 +11,7 @@ interface ModalState {
   inputPlaceholder: string
   confirmText: string
   cancelText: string
+  danger: boolean
   _resolve: ((value: any) => void) | null
 }
 
@@ -23,6 +24,7 @@ const state = ref<ModalState>({
   inputPlaceholder: '',
   confirmText: '确定',
   cancelText: '取消',
+  danger: false,
   _resolve: null,
 })
 
@@ -32,7 +34,12 @@ function open(mode: ModalMode, message: string, opts?: {
   placeholder?: string
   confirmText?: string
   cancelText?: string
+  danger?: boolean
 }): Promise<any> {
+  // 若已有未关闭的弹窗，先 settle 旧 Promise，避免 await 永久挂起
+  if (state.value.visible && state.value._resolve) {
+    state.value._resolve(state.value.mode === 'prompt' ? null : false)
+  }
   return new Promise((resolve) => {
     state.value = {
       visible: true,
@@ -43,6 +50,7 @@ function open(mode: ModalMode, message: string, opts?: {
       inputPlaceholder: opts?.placeholder || '请输入…',
       confirmText: opts?.confirmText || '确定',
       cancelText: opts?.cancelText || '取消',
+      danger: opts?.danger || false,
       _resolve: resolve,
     }
   })
@@ -65,7 +73,7 @@ export function useModal() {
     alert(message: string, opts?: { title?: string; confirmText?: string }) {
       return open('alert', message, opts)
     },
-    confirm(message: string, opts?: { title?: string; confirmText?: string; cancelText?: string }) {
+    confirm(message: string, opts?: { title?: string; confirmText?: string; cancelText?: string; danger?: boolean }) {
       return open('confirm', message, opts) as Promise<boolean>
     },
     prompt(message: string, defaultValue?: string, opts?: {

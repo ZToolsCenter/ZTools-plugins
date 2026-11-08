@@ -15,7 +15,7 @@ const TYPE_COLORS: Record<string, string> = {
   prompt: '#6C5CE7',
   snippet: '#00B894',
   template: '#FDCB6E',
-  constraint: '#E17055',
+  constraint: '#DC2626',
 }
 const TYPE_ORDER: PromptType[] = ['prompt', 'snippet', 'template', 'constraint']
 

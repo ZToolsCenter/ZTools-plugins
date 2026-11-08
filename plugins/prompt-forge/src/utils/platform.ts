@@ -31,12 +31,36 @@ export async function readClipboardText(): Promise<string> {
   return ''
 }
 
+/** 浏览器降级：应用内 toast */
+function showToast(message: string) {
+  console.info('[PromptForge]', message)
+  if (typeof document === 'undefined') return
+  const el = document.createElement('div')
+  el.textContent = message
+  el.setAttribute('role', 'status')
+  el.style.cssText = [
+    'position:fixed', 'bottom:18px', 'right:18px', 'z-index:9999',
+    'max-width:320px', 'padding:10px 16px', 'border-radius:8px',
+    'background:rgba(30,30,46,0.92)', 'color:#fff', 'font-size:12.5px',
+    'line-height:1.5', 'pointer-events:none', 'opacity:0',
+    'transition:opacity 0.25s ease', 'box-shadow:0 4px 16px rgba(0,0,0,0.18)',
+  ].join(';')
+  document.body.appendChild(el)
+  requestAnimationFrame(() => { el.style.opacity = '1' })
+  setTimeout(() => {
+    el.style.opacity = '0'
+    setTimeout(() => el.remove(), 300)
+  }, 2400)
+}
+
 /** 显示通知 */
 export function showNotification(message: string) {
   const ztools = window.ztools
   if (ztools?.showNotification) {
     ztools.showNotification(message)
+    return
   }
+  showToast(message)
 }
 
 /** 延迟隐藏主窗口 */

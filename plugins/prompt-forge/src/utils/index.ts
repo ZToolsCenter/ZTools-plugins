@@ -37,6 +37,36 @@ export function extractVariables(text: string): Variable[] {
   return vars
 }
 
+/** 以正文变量为准同步配置，并保留同名变量的已有设置 */
+export function syncVariablesFromContent(text: string, existingVars: Variable[] = []): Variable[] {
+  return extractVariables(text).map(detected => {
+    const existing = existingVars.find(v => v.name === detected.name)
+    return {
+      name: detected.name,
+      required: existing?.required ?? detected.required,
+      defaultValue: existing?.defaultValue ?? detected.defaultValue,
+    }
+  })
+}
+
+/** 计算变量实际生效值：空白输入回退到默认值，无默认值则为空 */
+export function resolveVariableValues(variables: Variable[], values: Record<string, string>): Record<string, string> {
+  return variables.reduce((resolved, variable) => {
+    const input = values[variable.name]
+    const defaultValue = variable.defaultValue
+    resolved[variable.name] = input?.trim()
+      ? input
+      : defaultValue?.trim() ? defaultValue : ''
+    return resolved
+  }, {} as Record<string, string>)
+}
+
+/** 查找应用默认值后仍缺少内容的必填变量 */
+export function getMissingRequiredVariables(variables: Variable[], values: Record<string, string>): Variable[] {
+  const resolved = resolveVariableValues(variables, values)
+  return variables.filter(variable => variable.required && !resolved[variable.name].trim())
+}
+
 /** 替换文本中的变量为实际值 */
 export function renderVariables(text: string, values: Record<string, string>): string {
   if (!text) return ''

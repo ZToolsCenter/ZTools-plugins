@@ -103,7 +103,7 @@ function importJson(e: Event) {
   ;(e.target as HTMLInputElement).value = ''
 }
 async function clearAll() {
-  if (!await modal.confirm('⚠ 确定清空全部？此操作不可恢复。', { title: '清空数据' })) return
+  if (!await modal.confirm('⚠ 确定清空全部？此操作不可恢复。', { title: '清空数据', danger: true })) return
   try {
     await promptStore.ensureReady()
     await projectStore.ensureReady()
