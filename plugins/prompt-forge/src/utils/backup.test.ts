@@ -31,6 +31,30 @@ describe('备份导入校验', () => {
     })).toBeNull()
   })
 
+  it('兼容缺少默认字段的旧提示词和缺少变量快照的旧历史', () => {
+    const legacyPrompt = {
+      ...prompt('legacy'),
+      variables: [
+        { name: 'role', required: true },
+        { name: 'language', required: false, defaultValue: '中文' },
+      ],
+    }
+    const legacyHistory = history('legacy-history')
+    const variableHistory = { ...history('variable-history'), variableValues: { role: '架构师' } }
+    const parsed = parseBackup({
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      exportedAt: Date.now(),
+      prompts: [legacyPrompt],
+      projects: [],
+      settings: {},
+      history: [legacyHistory, variableHistory],
+    })
+
+    expect(parsed?.prompts[0].variables).toEqual(legacyPrompt.variables)
+    expect(parsed?.history).toEqual([legacyHistory, variableHistory])
+  })
+
   it('丢弃字段不完整的项目和历史记录', () => {
     const parsed = parseBackup({
       format: BACKUP_FORMAT,

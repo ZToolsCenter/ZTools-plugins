@@ -34,6 +34,11 @@ const selectedPrompt = ref<PromptItem | null>(null)
 const variableValues = ref<Record<string, string>>({})
 const keyboardIndex = ref(0)
 
+// 搜索词/筛选条件变化时重置键盘选中索引，避免高亮与 Enter 操作目标错位
+watch([query, filterTag, filterProjectId, spaceTab, sortBy, sortDir], () => {
+  keyboardIndex.value = 0
+})
+
 const persistence = createPromptPersistence({ rawItems, historyItems, isLoading, persistError })
 
 export function usePromptStore() {
@@ -83,13 +88,15 @@ export function usePromptStore() {
 
   const activeItem = computed(() => {
     if (!filteredCallItems.value.length) return null
-    return filteredCallItems.value[keyboardIndex.value] || filteredCallItems.value[0]
+    const index = Math.min(keyboardIndex.value, filteredCallItems.value.length - 1)
+    return filteredCallItems.value[index]
   })
 
   function moveSelection(direction: 'up' | 'down') {
-    if (!filteredCallItems.value.length) return
-    if (direction === 'down' && keyboardIndex.value < filteredCallItems.value.length - 1) keyboardIndex.value++
-    if (direction === 'up' && keyboardIndex.value > 0) keyboardIndex.value--
+    const length = filteredCallItems.value.length
+    if (!length) return
+    if (direction === 'down') keyboardIndex.value = Math.min(keyboardIndex.value + 1, length - 1)
+    if (direction === 'up') keyboardIndex.value = Math.max(keyboardIndex.value - 1, 0)
   }
 
   function selectActive() {
@@ -99,7 +106,7 @@ export function usePromptStore() {
     phase.value = 'fill'
     variableValues.value = {}
     for (const variable of item.variables || []) {
-      variableValues.value[variable.name] = variable.defaultValue || ''
+      variableValues.value[variable.name] = variable.defaultValue ?? ''
     }
   }
 
@@ -139,11 +146,11 @@ export function usePromptStore() {
     })
   }
 
-  function toggleFavorite(id: string) {
-    const item = rawItems.value.find(candidate => candidate.id === id)
-    if (!item) return
-    item.favorite = !item.favorite
-    persistence.schedulePromptPersist()
+  async function toggleFavorite(id: string) {
+    await persistence.commitPromptMutation(() => {
+      const item = rawItems.value.find(candidate => candidate.id === id)
+      if (item) item.favorite = !item.favorite
+    })
   }
 
   async function softDelete(id: string) {

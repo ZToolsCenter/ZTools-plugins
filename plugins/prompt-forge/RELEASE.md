@@ -1,6 +1,21 @@
 # 发布流程（Release Checklist）
 
 > 每次发布新版本时，按以下步骤执行。本清单可复用，务必逐项确认。
+>
+> **推荐：使用一键发布脚本**
+>
+> ```powershell
+> # 完整发布（自动检查 + 打包 + 提交 + 发布）
+> .\scripts\release.ps1 -Version "1.6.0"
+>
+> # 跳过质量检查（代码未改动时）
+> .\scripts\release.ps1 -Version "1.6.0" -SkipCheck
+>
+> # ztools publish 首次失败（上游冲突）后，一键解决并继续
+> .\scripts\release.ps1 -ResolveConflict
+> ```
+>
+> 以下为手动步骤，供需要精细控制时参考。
 
 ---
 
@@ -17,7 +32,7 @@ git status
 
 - 若分支已分叉（diverged），先 rebase：
   ```powershell
-  git pull --rebase origin prompt-forge
+  git pull --rebase origin main
   ```
 - 注意检查与远程提交是否有重叠改动，有冲突需手动解决。
 
@@ -44,7 +59,7 @@ git status
 | ------------------------- | --------------------------------- | ------------------------------------------------------------------- |
 | `package.json`          | 项目版本                          | `"version": "x.y.z"`                                              |
 | `plugin.json`（根目录） | 开发模式 manifest                 | `"version": "x.y.z"`                                              |
-|  `public/plugin.json`   | **打包进 .zpx 的 manifest** | vite 会把`public/` 原样复制到 `dist/`，这是真正随包发布的版本号 |
+| `public/plugin.json`    | **打包进 .zpx 的 manifest** | vite 会把`public/` 原样复制到 `dist/`，这是真正随包发布的版本号 |
 
 > ⚠️ 三处版本号必须一致，遗漏会导致发布包与实际版本不符。
 
@@ -119,7 +134,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 git add -A
 git commit -m "release: vX.Y.Z"
 git tag vX.Y.Z
-git push origin prompt-forge --tags
+git push origin main --tags
 ```
 
 > 若使用 `git commit -m` 含中文，PowerShell 可能乱码，改用 `git commit -F` 从 UTF-8 文件读取消息。
@@ -146,6 +161,21 @@ git push origin prompt-forge --tags
 
 - 远端分支保留旧 commit，只 fast-forward 追加一个新 commit
 - 同一个 PR 自动复用，链接不变
+
+#### 上游冲突处理
+
+每次发布新版本时，`ztools publish` 会先同步上游仓库。由于上游存着上次发布的旧版本，与本地新改动会产生冲突，**这是正常现象**。解决方法：
+
+```powershell
+# 一键解决（推荐）
+.\scripts\release.ps1 -ResolveConflict
+
+# 或手动执行
+git add CHANGELOG.md RELEASE.md ROADMAP.md package-lock.json package.json plugin.json public/plugin.json src/
+ztools sync-upstream --continue
+git commit -m "chore: merge upstream changes"
+ztools publish
+```
 - 不会 force-push，旧的 review 评论上下文不会丢失
 
 > 例：你本地累计 5 个 commit 发布出去后，远端 PR 上是 1 个 "Add plugin Foo v0.1.0" commit；又改了 3 个 commit 再发布，远端就 fast-forward 多 1 个 "Update plugin Foo v0.1.1" commit，旧的不动。
@@ -158,7 +188,7 @@ git push origin prompt-forge --tags
 
 | 步骤     | 命令 / 文件                                                 |
 | -------- | ----------------------------------------------------------- |
-| 同步分支 | `git pull --rebase origin prompt-forge`                   |
+| 同步分支 | `git pull --rebase origin main`                   |
 | 版本号   | `package.json` + `plugin.json` + `public/plugin.json` |
 | 变更记录 | `CHANGELOG.md`                                            |
 | 质量检查 | `npm run check`                                           |

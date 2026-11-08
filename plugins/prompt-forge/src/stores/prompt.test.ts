@@ -92,6 +92,26 @@ describe('提示词 Store 持久化', () => {
     expect(store.spaceItems.value.map(item => item.id)).toEqual(['alpha', 'beta'])
   })
 
+  it('历史记录持久化完整正文和本次变量内容', async () => {
+    const { usePromptStore } = await import('./prompt')
+    const store = usePromptStore()
+    await store.ensureReady()
+
+    await store.addHistory({
+      promptId: 'prompt-1',
+      promptTitle: '角色提示词',
+      copiedContent: '请以架构师的身份评审登录需求。',
+      variableValues: { role: '架构师', requirement: '登录需求' },
+    })
+
+    expect(storage.get('history')).toEqual([
+      expect.objectContaining({
+        copiedContent: '请以架构师的身份评审登录需求。',
+        variableValues: { role: '架构师', requirement: '登录需求' },
+      }),
+    ])
+  })
+
   it('历史写入失败时回滚内存状态', async () => {
     const { usePromptStore } = await import('./prompt')
     const store = usePromptStore()

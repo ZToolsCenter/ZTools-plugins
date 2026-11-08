@@ -75,9 +75,9 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
         <h2>编写正文</h2>
         <p class="hint">用 <code v-text="`{{name}}`"></code> 标记变量</p>
         <div class="field"><label>正文 *</label><textarea v-model="content" class="ta" placeholder="你是一位 {{role}} 专家…" /></div>
-        <div v-if="error" class="err">{{ error }}</div>
         <div v-if="detectedVars.length" class="detected"><span class="dl">识别到 {{ detectedVars.length }} 个变量</span><span v-for="v in detectedVars" :key="v.name" class="vb">{{ v.name }}</span></div>
       </div>
+      <div v-if="error" class="err">{{ error }}</div>
       <div v-if="step === 2" class="pane">
         <h2>基本信息</h2>
         <div class="field"><label>标题 <span class="hi">默认：{{ autoTitle }}</span></label><input v-model="title" placeholder="如：PRD 评审建议" /></div>
@@ -118,7 +118,7 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
       <button v-if="step === 1" class="btn" @click="save()" :disabled="saving || !content.trim()"><Zap :size="14" />快速保存</button>
       <template v-if="step < 3"><button class="btn primary" @click="next">下一步<ArrowRight :size="14" /></button></template>
       <template v-else>
-        <button class="btn" @click="save('snippet')">片段</button>
+        <button class="btn" @click="save('snippet')">存为片段</button>
         <button class="btn primary" @click="save()">发布</button>
       </template>
     </div>

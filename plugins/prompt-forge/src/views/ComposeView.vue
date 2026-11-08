@@ -4,7 +4,7 @@ import { Pin, Shield, Paperclip, ChevronUp, ChevronDown, X } from 'lucide-vue-ne
 import { useRouter } from '../stores/router'
 import { usePromptStore } from '../stores/prompt'
 import { useAppSettings } from '../stores/app'
-import { extractVariables, renderVariables, generateId } from '../utils/index'
+import { extractVariables, getMissingRequiredVariables, renderVariables, resolveVariableValues, generateId } from '../utils/index'
 import { copyText, showNotification, hideMainWindow } from '../utils/platform'
 import { useModal } from '../composables/useModal'
 import type { PromptItem } from '../types'
@@ -57,10 +57,7 @@ const composedText = computed(() => {
 })
 const composedVars = computed(() => extractVariables(composedText.value))
 const renderedText = computed(() => {
-  const values = Object.fromEntries(composedVars.value.map(variable => [
-    variable.name,
-    varOverrides.value[variable.name] || variable.defaultValue || `{{${variable.name}}}`,
-  ]))
+  const values = resolveVariableValues(composedVars.value, varOverrides.value)
   return renderVariables(composedText.value, values)
 })
 
@@ -71,12 +68,21 @@ function addFrag(f: PromptItem, position: 'front' | 'back' = 'back') {
 function removeFrag(i: number) { canvasFrags.value.splice(i, 1) }
 function moveFrag(i: number, dir: 'up' | 'down') {
   const arr = canvasFrags.value
-  const t = dir === 'up' ? i - 1 : i + 1
-  if (t < 0 || t >= arr.length) return
-  ;[arr[i], arr[t]] = [arr[t], arr[i]]
+  const item = arr[i]
+  if (!item) return
+  // 只在同一前置/后置分组内交换，避免混排时跨组无效移动
+  const groupIndices: number[] = []
+  arr.forEach((cur, idx) => { if (cur.position === item.position) groupIndices.push(idx) })
+  const posInGroup = groupIndices.indexOf(i)
+  const targetPos = dir === 'up' ? posInGroup - 1 : posInGroup + 1
+  if (targetPos < 0 || targetPos >= groupIndices.length) return
+  const targetIdx = groupIndices[targetPos]
+  ;[arr[i], arr[targetIdx]] = [arr[targetIdx], arr[i]]
 }
 
 async function copyComposite() {
+  const missing = getMissingRequiredVariables(composedVars.value, varOverrides.value)
+  if (missing.length > 0) { showNotification(`请填写: ${missing.map(v => v.name).join(', ')}`); return }
   try {
     await copyText(renderedText.value)
     showNotification('✓ 已复制')
@@ -165,12 +171,12 @@ async function saveAsNew() {
 .col:last-child { border-right: 0; border-left: 1px solid var(--pf-border); }
 .ch { padding: 10px 12px 6px; font-size: 11px; font-weight: 600; color: var(--pf-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .cl { flex: 1; overflow-y: auto; padding: 0 8px 10px; }
-.mini-card, .cl > div { padding: 8px 10px; border-radius: var(--pf-radius-sm); background: var(--pf-surface); border: 1px solid var(--pf-border); cursor: pointer; margin-bottom: 4px; transition: all 0.12s; }
-.cl > div:hover, .cl > div.active { border-color: var(--pf-accent); background: var(--pf-accent-soft); }
+.mini-card { padding: 8px 10px; border-radius: var(--pf-radius-sm); background: var(--pf-surface); border: 1px solid var(--pf-border); cursor: pointer; margin-bottom: 4px; transition: all 0.12s; }
+.mini-card:hover, .mini-card.active { border-color: var(--pf-accent); background: var(--pf-accent-soft); }
 .ct { font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
 .cd { font-size: 11px; color: var(--pf-text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
 .add { color: var(--pf-text-faint); }
-.cl > div:hover .add { color: var(--pf-accent); }
+.mini-card:hover .add { color: var(--pf-accent); }
 .canvas { background: var(--pf-bg); overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .cc { background: var(--pf-surface); border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); padding: 10px; }
 .cc.muted { background: var(--pf-surface-raised); border-style: dashed; }
@@ -180,9 +186,11 @@ async function saveAsNew() {
 .cc-b { font-size: 11.5px; color: var(--pf-text-muted); line-height: 1.5; }
 .cc-b.mono { font-family: var(--pf-font-mono); white-space: pre-wrap; color: var(--pf-text); }
 .moves { display: flex; gap: 2px; margin-left: 4px; }
-.moves button { border: 0; background: none; font-size: 10px; color: var(--pf-text-muted); }
+.moves button { border: 0; background: none; font-size: 10px; color: var(--pf-text-muted); width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--pf-radius-xs); }
+.moves button:hover { background: var(--pf-surface-hover); }
 .moves button:disabled { opacity: 0.3; }
-.x { margin-left: auto; color: var(--pf-text-faint); cursor: pointer; }
+.x { margin-left: auto; color: var(--pf-text-faint); cursor: pointer; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--pf-radius-xs); }
+.x:hover { background: var(--pf-danger-soft); }
 .x:hover { color: var(--pf-danger); }
 .empty-c { border: 1px dashed var(--pf-border); border-radius: var(--pf-radius-sm); padding: 20px; text-align: center; color: var(--pf-text-faint); font-size: 12px; }
 .cc.front { border-left: 3px solid var(--pf-success); }
@@ -196,7 +204,7 @@ async function saveAsNew() {
 .abtn:hover { border-color: var(--pf-accent); color: var(--pf-accent); background: var(--pf-accent-soft); }
 .vars { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--pf-border); }
 .vt { display: inline-flex; align-items: center; gap: 4px; background: var(--pf-accent-soft); color: var(--pf-accent); padding: 2px 6px; border-radius: var(--pf-radius-xs); font-size: 11px; font-weight: 500; }
-.vt input { width: 70px; border: 0; border-bottom: 1px solid var(--pf-border); background: transparent; font-size: 11px; }
+.vt input { width: 120px; border: 0; border-bottom: 1px solid var(--pf-border); background: transparent; font-size: 11px; }
 .vt input:focus { border-bottom-color: var(--pf-accent); outline: none; }
 .compose-foot { height: 48px; flex-shrink: 0; border-top: 1px solid var(--pf-border); background: var(--pf-bg-elevated); display: flex; align-items: center; gap: 8px; padding: 0 14px; }
 .ok { font-size: 12px; color: var(--pf-success); font-weight: 600; }
