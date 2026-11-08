@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.11.2 - 2026-11-09
+
+- **修复 macOS 上选区编辑器窗口的「灰白双层边框」**（官方仓库 PR #720 的审校反馈）：截图里窗口四周会出现一圈约 3px 的深灰描边，浅色壁纸上尤其突兀。原因是三层边框叠加 —— 系统给 frameless 透明窗画的圆角/阴影，加上页面 `#edge` 那条「黑 1px + 白 1px」内描边在 Retina 下被放大到 3~4 物理像素。
+- 窗口层：darwin 下给 `createBrowserWindow` 传 `roundedCorners: false`，并为透明的选区编辑器窗关闭 `hasShadow`；编辑器 URL 新增 `mac=1` 参数，由父窗口的 `process.platform` 判定，不靠 UA 猜测。
+- 页面层：`html.win-mode.mac-mode #edge` 收敛成单条 1px `rgba(0,0,0,0.18)` 极淡描边，去掉白色第二层，保留「浅色截图贴在浅色壁纸上能看出边界」的作用。
+- **Windows / Linux 行为完全不变**：所有新增选项与样式都只在 `IS_MAC` / `.mac-mode` 分支生效。
+- ⚠️ 本机无 Mac 设备，此修复依据官方反馈截图与窗口/样式代码定位，未在 macOS 真机验证，请审校者在 Mac 上复核。
+
 ## 1.11.1 - 2026-11-04
 
 - **修复「截完图一按右键整个插件就没了」**：选区编辑器（`overlay.html?mode=window`）的右键原本直接 `cancel()` → `window.close()`。主视图在开窗时已 `outPlugin` 收起，这扇窗是插件唯一可见的窗口，关掉它屏幕上什么都不剩，看起来就是闪退；`cancel()` 先置 `state.finished=true` 还会让 `beforeunload` 提前返回、不发 `closed`，父窗口全程不知情。

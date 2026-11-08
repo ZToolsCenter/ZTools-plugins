@@ -16,6 +16,8 @@
   // 窗口为了放下工具条被撑宽时，左侧多出来的透明宽度
   const PAD_LEFT = Math.max(0, Number(params.get('padLeft')) || 0);
   if (WINDOW_MODE) document.documentElement.classList.add('win-mode');
+  // 由父窗口的 process.platform 传入，比 UA 猜测可靠
+  if (params.get('mac') === '1') document.documentElement.classList.add('mac-mode');
   const PRIME_KEY = params.get('primeKey') || '';
   const IMAGE_KEY = params.get('imageKey') || '';
   const INLINE_IMAGE = params.get('image') || '';

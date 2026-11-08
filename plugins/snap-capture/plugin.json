@@ -1,7 +1,7 @@
 {
   "name": "snap-capture",
   "title": "轻影截图",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "description": "框一次就够：矩形/椭圆/箭头/画笔/荧光笔/马赛克/序号/橡皮擦/文字标注、复制、另存（PNG/JPEG/WebP）、悬浮置顶、微信 OCR 抠字、图片翻译。支持延时截图、放大镜复制色值、原文语言指定。悬浮图可拖动、裁剪、摇一摇藏起其他贴图；贴图板统一收放、可恢复上次贴图；每次截图自动留历史，历史图可二次编辑或识别。",
   "author": "一个成熟的剪辑猿",
   "homepage": "https://github.com/akahoz94/snap-capture",

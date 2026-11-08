@@ -59,6 +59,14 @@ html.win-mode #edge {
     inset 0 0 0 2px rgba(255, 255, 255, 0.55);
 }
 
+/* macOS：Retina 下上面那组「黑 1px + 白 1px」会被放大成一圈 3~4 物理像素的
+   灰白双层框，浅色壁纸上尤其像窗口自带脏边框；系统还会再叠一层透明窗阴影。
+   这里只留一条极淡的深色线确认边界，去掉白线，窗口层同时关掉系统圆角/阴影。 */
+html.win-mode.mac-mode #edge {
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
 /* 窄选区：动作按钮只留图标，工具条才不会撑破窗口 */
 html.win-mode.compact #toolbar .chip span {
   display: none;

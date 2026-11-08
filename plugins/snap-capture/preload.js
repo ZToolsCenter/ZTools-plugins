@@ -16,6 +16,12 @@ const crypto = require('crypto');
 
 const CHILD_CHANNEL = 'zsnap:child';
 
+// macOS 的 frameless 窗口会由系统另画一层圆角与阴影，叠在页面内描边上就是
+// 一圈灰白「双层框」（Retina 下被放大到 3~4 物理像素，尤其明显）。
+// 窗口层的收敛只在 darwin 生效，Windows / Linux 保持原样，不动已验证的行为。
+const IS_MAC = typeof process !== 'undefined' && process.platform === 'darwin';
+const MAC_WINDOW_OPTS = IS_MAC ? { roundedCorners: false } : {};
+
 // ───────────────────────────── 基础工具 ─────────────────────────────
 
 function safeRequire(name) {
@@ -1031,6 +1037,7 @@ function openOverlay(shotPath, action) {
       height: b.height,
       useContentSize: true,
       frame: false,
+      ...MAC_WINDOW_OPTS,
       transparent: false,
       backgroundColor: '#0b0d11',
       resizable: false,
@@ -1178,7 +1185,8 @@ function openEditorWindow(shotPath, bounds, action, expectPx) {
     `padLeft=${Math.round(padLeft)}`,
     `areaWidth=${baseW}`,
     `areaHeight=${baseH}`,
-    `scaleFactor=${sf}`
+    `scaleFactor=${sf}`,
+    `mac=${IS_MAC ? 1 : 0}`
   ].join('&');
 
   const editorUrl = `overlay.html?${query}`;
@@ -1192,6 +1200,7 @@ function openEditorWindow(shotPath, bounds, action, expectPx) {
       height: winH,
       useContentSize: true,
       frame: false,
+      ...MAC_WINDOW_OPTS,
       transparent: true,
       backgroundColor: '#00000000',
       resizable: false,
@@ -1200,7 +1209,8 @@ function openEditorWindow(shotPath, bounds, action, expectPx) {
       maximizable: false,
       fullscreenable: false,
       skipTaskbar: true,
-      hasShadow: true,
+      // 透明窗在 macOS 上仍会吃到一层系统阴影边，与页面内描边叠加成灰框
+      hasShadow: !IS_MAC,
       alwaysOnTop: true,
       title: '轻影截图',
       webPreferences: CHILD_WEB_PREFERENCES
@@ -1421,6 +1431,7 @@ function openPinWindow(dataUrl, bounds) {
       height,
       useContentSize: true,
       frame: false,
+      ...MAC_WINDOW_OPTS,
       transparent: false,
       backgroundColor: '#0b0d11',
       resizable: false,
@@ -1718,6 +1729,7 @@ function openBoard(tab) {
       width,
       height,
       frame: false,
+      ...MAC_WINDOW_OPTS,
       transparent: false,
       backgroundColor: '#14161a',
       resizable: true,
@@ -2255,6 +2267,7 @@ function openResultWindow(dataUrl, mode) {
       width,
       height,
       frame: false,
+      ...MAC_WINDOW_OPTS,
       transparent: false,
       backgroundColor: '#14161a',
       resizable: true,
