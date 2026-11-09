@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>截图</title>
+  <link rel="stylesheet" href="src/overlay.css" />
+</head>
+<body>
+  <div id="stage">
+    <canvas id="shot"></canvas>
+    <canvas id="ink"></canvas>
+  </div>
+
+  <div id="edge"></div>
+
+  <div id="dim"></div>
+
+  <div id="frame" hidden>
+    <i class="handle" data-h="nw"></i>
+    <i class="handle" data-h="n"></i>
+    <i class="handle" data-h="ne"></i>
+    <i class="handle" data-h="e"></i>
+    <i class="handle" data-h="se"></i>
+    <i class="handle" data-h="s"></i>
+    <i class="handle" data-h="sw"></i>
+    <i class="handle" data-h="w"></i>
+  </div>
+
+  <div id="hud" hidden></div>
+  <div id="magnifier" hidden>
+    <canvas id="magnifier-canvas" width="132" height="132"></canvas>
+    <span id="magnifier-text">RGB</span>
+  </div>
+
+  <div id="hint">拖动鼠标框选区域</div>
+  <div id="toolbar" hidden></div>
+  <div id="palette" hidden></div>
+
+  <div id="editor" hidden>
+    <textarea id="editor-input" rows="1" spellcheck="false"></textarea>
+  </div>
+
+  <div id="loading">正在准备截图…</div>
+
+  <script src="src/shared.js"></script>
+  <script src="src/overlay.js"></script>
+</body>
+</html>
