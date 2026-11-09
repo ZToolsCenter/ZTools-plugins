@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "import": "./dist/runtime/index.mjs"
+    },
+    "./g3-verification-budget": {
+      "types": "./dist/src/g3-verification-budget/index.d.ts",
+      "import": "./dist/runtime/g3-verification-budget.mjs"
     }
   },
   "scripts": {
@@ -19,6 +23,7 @@
   "dependencies": {
     "@pasteboard-pro/core": "workspace:*",
     "lmdb": "3.4.4",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "@pasteboard-pro/sync-protocol": "workspace:*"
   }
 }

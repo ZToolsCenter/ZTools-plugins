@@ -3,16 +3,21 @@ import { computed, ref, watch } from "vue";
 
 import type { ThemeImageLayout } from "../../preload/window-theme-preferences";
 
-const props = defineProps<{
-  layout: ThemeImageLayout;
-  tilesPerRow: number;
-  frosted: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    layout: ThemeImageLayout;
+    tilesPerRow: number;
+    frosted: boolean;
+    frostedIntensity?: number | undefined;
+  }>(),
+  { frostedIntensity: 50 },
+);
 
 const emit = defineEmits<{
   "update:layout": [value: ThemeImageLayout];
   "update:tilesPerRow": [value: number];
   "update:frosted": [value: boolean];
+  "update:frostedIntensity": [value: number];
 }>();
 
 const layoutOptions: ReadonlyArray<{
@@ -89,6 +94,13 @@ function updateFrosted(event: Event): void {
   const target = event.target;
   if (target instanceof HTMLInputElement) emit("update:frosted", target.checked);
 }
+
+function updateIntensity(event: Event): void {
+  const target = event.target;
+  if (target instanceof HTMLInputElement) {
+    emit("update:frostedIntensity", Number(target.value));
+  }
+}
 </script>
 
 <template>
@@ -130,6 +142,23 @@ function updateFrosted(event: Event): void {
         @change="updateFrosted"
       />
     </label>
+
+    <div v-if="props.frosted" class="image-background-options__intensity">
+      <div class="image-background-options__intensity-header">
+        <span>磨砂强度</span>
+        <span class="image-background-options__intensity-value">{{ props.frostedIntensity ?? 50 }}%</span>
+      </div>
+      <input
+        type="range"
+        min="1"
+        max="100"
+        step="1"
+        :value="props.frostedIntensity ?? 50"
+        aria-label="磨砂强度"
+        class="image-background-options__slider"
+        @input="updateIntensity"
+      />
+    </div>
   </div>
 </template>
 

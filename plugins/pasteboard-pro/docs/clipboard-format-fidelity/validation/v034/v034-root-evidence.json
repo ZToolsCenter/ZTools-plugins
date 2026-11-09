@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "implementationVersion": "v0.34",
+  "dateAsiaShanghai": "2026-11-02",
+  "observedAtUtc": "2026-11-02T04:39:47.242978+00:00",
+  "objective": "推进 docs/clipboard-format-fidelity/TECHNICAL_PLAN.md 的完整 G0–G4 目标",
+  "goalStatus": "active",
+  "goalComplete": false,
+  "gateComplete": false,
+  "scope": "Documentation-only required implementation ADR/design gate, pinned ten-file host source audit, and separately pending A/B scope approvals. No product implementation changes.",
+  "canonical": {
+    "repository": "/Users/harris/Desktop/ZTools-plugins",
+    "branch": "plugin/pasteboard-pro",
+    "head": "db6fb73c32dbf4a977d658f8454051386c0dea52",
+    "existingV033ImplementationAndTestsPreserved": true
+  },
+  "design": {
+    "adr": {
+      "path": "docs/clipboard-format-fidelity/IMPLEMENTATION_ADR.md",
+      "sha256": "aa6d486e5ec2617e5b4fd18798c31a3a5573375197a6935449bfff193c8f053c"
+    },
+    "scopeApprovalPlan": {
+      "path": "docs/clipboard-format-fidelity/MAINLINE_SCOPE_APPROVAL.md",
+      "sha256": "3e08b43d2f873edaa63e180761da2a3e8b6e6cfd1d39cb31b6c89bb62e744c0b"
+    },
+    "status": "ACCEPTED DESIGN / NOT IMPLEMENTED",
+    "astraConclusion": "APPROVE DESIGN ONLY",
+    "lastBoundedDesignReviewTextSha256": "ef0dc96a7244d3aaa7fa85789fad79c5605b198c2b14939ff4bbf51bfdbd1351",
+    "closedDesignFindings": [
+      "bootstrap baseline/tail handoff",
+      "cross-record queue session and result/idempotency boundary",
+      "first queue item expected OS revision remains frozen across prefetch"
+    ],
+    "laterDiff": "Status/audit provenance and explicit Promise-entry subject only; ordinary independent ADR/scope review, not runtime protocol verification",
+    "notImplementedThisADR": [
+      "host service/wire",
+      "scope bootstrap/view",
+      "cross-record queue"
+    ],
+    "existingCoreV2Components": "Preserved; not claimed nonexistent or newly runtime-verified",
+    "g3Crypto": "OPEN: separate crypto wire/key recovery ADR, independent review and known vectors before sync"
+  },
+  "hostSourceAudit": {
+    "public": {
+      "path": "docs/clipboard-format-fidelity/validation/v034/host-source-audit.json",
+      "sha256": "0443db469b5af5de984eaec78ab7f536b848ac66866346c859482000c7aa47cd"
+    },
+    "local": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/source-audit.json",
+      "sha256": "0443db469b5af5de984eaec78ab7f536b848ac66866346c859482000c7aa47cd"
+    },
+    "evidenceLevel": "source-only",
+    "pin": "76addc6a03940006b5c208e125737d7d4ce953e9",
+    "entries": 10,
+    "archivedRawSourcesAndGitBlobs": "10/10 independently verified by audit author and non-implementing reviewer; excerpts bound in audit JSON",
+    "publicReadConclusion": "Inspected public router delegates to SyncApi: get catch -> null, allDocs catch -> []. Escaping exceptions outside those catch paths are not all folded; Promise wrappers reject escaping exceptions; synchronous IPC and installed runtime were not executed.",
+    "limitations": [
+      "No installed app/runtime verification; installed ZTools 3.2.0 remains unknown.",
+      "No native binary loading or capability inference from façade/binary update.",
+      "No production policy/service ownership or settings UI/asset provenance established outside the ten inspected files.",
+      "No host modifications, dependency installation, test execution, checkout, fetch, stage, commit or push.",
+      "Ten original per-file structuredContent results are archived; original comparison response and exact comparison timestamp are not retained.",
+      "StorageManager factory implementation was not fetched in this pinned file set; lmdbInstance documentation/getRouter export and StorageRouter LmdbDatabase type/delegations support the traced route."
+    ],
+    "comparisonMetadata": {
+      "upstreamAheadObserved": 140,
+      "comparisonRawPreserved": false,
+      "exactObservationUtc": null,
+      "scope": "Prior audit-agent observation; not a fresh retained comparison response"
+    },
+    "storageManagerFactoryFetchedAtPin": false,
+    "localHostBranch": "fix/security-protocol-validation",
+    "localHostHead": "9b15fb1a2a9f3ec886016632761c7bb21e39557a",
+    "localMain": "b185b5ad6056ea8fd6e7215dd909e641c55d5ed6",
+    "implementationBaseline": "After scope A authorization, safe fetch/pin verification and independent development worktree; historical main/security are not implementation branches"
+  },
+  "codeUnchangedVerification": {
+    "path": "artifacts/pasteboardpro/clipboard-format-g0/v034-validation/code-unchanged.json",
+    "sha256": "e294558ac2875fc9285df70d103e09b38a0d8adec1cab88564e542551364763e",
+    "verifier": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v034-validation/verify-code-unchanged.py",
+      "sha256": "1c1aa53dd1db60930d74f1374b4dd5ce3110f08d31ff1e2bd8ec5a22ea7df4ee"
+    },
+    "entryCount": 797,
+    "entriesSha256": "60eda5be280b94accb62279ee3f9b22b753443a92226b69b4c2f7730e74a7b16",
+    "manifestPath": "artifacts/pasteboardpro/clipboard-format-g0/v033-validation-final/source-manifest.json",
+    "manifestFileSha256": "ddea96679214cb895d53082f28685feb643c3d9a9c3c285054974c5a0f07889e",
+    "selectionMatchesOriginalV033": true,
+    "canonicalBytesAndExecutableBitsMatch": true,
+    "isolatedCopyBytesAndExecutableBitsMatch": true,
+    "originalSections1To11UnchangedFromHead": true,
+    "originalSections1To11Sha256": "32eead80c17fdf531a2d8ce09ac75d7b233f9cd851003b7f54dd4cdb1421a883"
+  },
+  "previousImplementationEvidence": {
+    "version": "v0.33",
+    "root": {
+      "path": "docs/clipboard-format-fidelity/validation/v033/v033-root-evidence.json",
+      "sha256": "7d4edc02a4c6c9aa4f76ea79a46b5a63fffc1d0778d6e6611df52d7dd929469a"
+    },
+    "localRootUnchanged": true,
+    "resultsInheritedNotRerun": {
+      "node24AndElectronEach": "1439 PASS / 6 skips",
+      "node20Focused": "113 PASS",
+      "assembledAndCanonicalCjsEachRuntime": "27/27 PASS",
+      "browserModernAndClassic": "2/2 PASS"
+    },
+    "boundary": "Historical v033 receipts only, not new v034 runtime or native execution"
+  },
+  "executionThisIncrement": {
+    "productCodeChanged": false,
+    "implementationTestsRun": false,
+    "nativeProbesRun": false,
+    "buildRun": false,
+    "hostWritten": false,
+    "rootWorkflowWritten": false,
+    "dependencyOrSystemConfigWritten": false,
+    "hostFetchCheckoutOrWorktreeCreated": false,
+    "gitAddCommitPush": false,
+    "publishedOrMerged": false
+  },
+  "authorization": {
+    "requestedByRoot": true,
+    "status": "PENDING",
+    "hostScopeA": "PENDING user authorization",
+    "rootWorkflowScopeB": "PENDING user authorization",
+    "separateApprovals": true,
+    "commitPushMergePublishNotAuthorizedByScopeApproval": true
+  },
+  "noProgressAudit": {
+    "previousTurn": "progress",
+    "basis": "Previous goal turn implemented v033 real plugin/preload and preserved verified canonical outputs; later PR717 read-only check confirmed it already merged, requiring no duplicate publication",
+    "thisTurn": "progress",
+    "thisTurnBasis": "Required implementation ADR accepted in bounded design review; ten pinned source originals/excerpts and documentation/source-identity evidence added",
+    "notRuntimeCompletion": true,
+    "blockedThresholdReached": false
+  },
+  "wholePlanOpen": {
+    "G0": "Production trusted owner/current-policy/general monitoring and platform/application matrix; Windows105 native cases NOT-RUN",
+    "G1": "Host lease/transport/target CAS/full retention-GC; Windows15 storage probes and namespace durability open",
+    "G2": "Unified V2 planner/publisher, mandatory Win10/11 P1 and real target applications not accepted",
+    "G3": "Independent crypto wire/key recovery, portable/staged activation and six directions incomplete",
+    "G4": "Future official Windows systems, Linux and private codecs retain independent gates"
+  },
+  "scopePreservation": "Only assigned plugin documentation and plugin-owned audit receipts written; original sections1–11 and full G0–G4 unchanged; no host/CI implementation authorization inferred"
+}

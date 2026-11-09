@@ -2,14 +2,25 @@
 import { computed } from "vue";
 import type { PasteItem } from "@pasteboard-pro/core";
 import { fileNames, itemLink } from "../card-presentation";
+
 const props = defineProps<{ item: PasteItem; fallbackText: string; dragTitle?: string | undefined }>();
 const link = computed(() => itemLink(props.item));
 const files = computed(() => fileNames(props.item));
 const isFile = computed(() => props.item.kind === "files" || props.item.kind === "pdf");
+
 const title = computed(() => {
   const value = props.item.title?.trim();
   return value && value !== props.fallbackText.trim() ? value : undefined;
 });
+
+const urlText = computed(() => {
+  return props.item.payload.text?.trim() || props.fallbackText.trim();
+});
+
+const displayUrlDomain = computed(() => {
+  return props.item.payload.urlMeta?.hostname ?? link.value?.hostname ?? "链接";
+});
+
 const color = computed(() => {
   const value = props.item.payload.text ?? "";
   return CSS.supports("color", value) ? value : "transparent";
@@ -21,10 +32,8 @@ const color = computed(() => {
     <code>{{ item.payload.text }}</code>
   </div>
   <div v-else-if="item.kind === 'url'" class="modern-preview modern-preview--link">
-    <div class="modern-preview__site" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m10 13 4-4m-7 7-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m2 2 1-1a4 4 0 1 1 6 6l-5 5a4 4 0 0 1-6 0" transform="translate(2 1) scale(.85)" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg><span>{{ link?.hostname ?? "网页链接" }}</span></div>
-    <strong>{{ title ?? link?.hostname ?? '链接' }}</strong>
-    <p>{{ item.payload.text }}</p>
-    <span class="modern-preview__link-hint">{{ link?.pathname !== '/' ? link?.pathname : "网页链接" }}</span>
+    <p class="modern-preview__url-text" :title="urlText">{{ urlText }}</p>
+    <span class="modern-preview__domain" :title="displayUrlDomain">{{ displayUrlDomain }}</span>
   </div>
   <div
     v-else-if="isFile"
@@ -48,12 +57,9 @@ const color = computed(() => {
 .modern-preview p{margin:0;font-size:13px;line-height:1.65;overflow-wrap:anywhere;white-space:pre-wrap}
 .modern-preview--text{display:flex;flex-direction:column;gap:10px}
 .modern-preview--text>p{overflow:hidden;display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical}
-.modern-preview--link{display:flex;flex-direction:column;gap:10px}
-.modern-preview--link p{font-size:12px;color:var(--pb-muted);word-break:break-all}
-.modern-preview__site{display:flex;gap:6px;align-items:center;color:var(--pb-muted);font-size:11px}
-.modern-preview__site svg{width:17px;height:17px;flex:none}
-.modern-preview__site span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.modern-preview__link-hint{margin-top:auto;padding:12px;border:1px solid var(--pb-line);border-radius:10px;background:color-mix(in srgb,var(--pb-ink) 3%,transparent);color:var(--pb-muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modern-preview--link{display:flex;flex-direction:column;justify-content:space-between;height:100%;min-height:92px;gap:8px}
+.modern-preview__url-text{margin:0;font-size:13px;line-height:1.6;color:var(--pb-ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow-wrap:anywhere;word-break:break-all}
+.modern-preview__domain{margin-top:auto;font-size:11px;color:var(--pb-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .modern-preview--file{display:flex;flex-direction:column;gap:9px;align-items:center;justify-content:center;text-align:center}
 .modern-preview__document{width:65px;height:79px;color:var(--pb-ink);margin-bottom:3px}
 .modern-preview--file strong{font-size:13px}

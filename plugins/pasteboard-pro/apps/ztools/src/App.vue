@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, watch } from "vue";
+import type { ShelfUiVersion } from "../preload/window-preferences";
 import Shelf from "./components/Shelf.vue";
 import ThemeImageBackdrop from "./components/ThemeImageBackdrop.vue";
 import Preview from "./components/Preview.vue";
@@ -27,6 +29,20 @@ const {
   status, paused, startupError, shelfView, canCaptureScreen, togglePause,
   openWhatsNew, closeWhatsNew, closeWindow, onHistoryCleared, pointerReorderActive,
 } = usePasteboardApplication();
+
+const previewUiVersion = ref<ShelfUiVersion>();
+function onPreviewUiVersion(v: ShelfUiVersion) {
+  previewUiVersion.value = v;
+}
+function handleCloseSettings() {
+  previewUiVersion.value = undefined;
+  closeSettings();
+}
+watch(previewUiVersion, (v) => {
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.pbUiVersion = v ?? windowPreferences.value.uiVersion;
+  }
+});
 </script>
 
 <template>
@@ -35,6 +51,7 @@ const {
     :aria-busy="queryPending"
     :style="themeStyle"
     :class="{
+      'stage--shelf': isShelfMode,
       'stage--panel': panelMode !== undefined,
       'stage--primary': !requiresHostUpgrade && !isShelfMode && panelMode === undefined,
       'stage--image-background': hasImageBackground,
@@ -72,7 +89,7 @@ const {
       :paused="paused"
       :edge="state.dockEdge"
       :density="state.density"
-      :ui-version="windowPreferences.uiVersion"
+      :ui-version="previewUiVersion ?? windowPreferences.uiVersion"
       :accent-color="windowPreferences.theme.accentColor"
       :theme-background="windowPreferences.theme.background"
       :card-background="windowPreferences.theme.cardBackground"
@@ -127,11 +144,12 @@ const {
       :window-preferences="windowPreferences"
       :saving="settingsSaving"
       :save-error="settingsSaveError"
-      @close="closeSettings"
+      @close="handleCloseSettings"
       @save="saveSettings"
       @retry="retrySync"
       @history-cleared="onHistoryCleared"
       @show-whats-new="openWhatsNew"
+      @preview-ui-version="onPreviewUiVersion"
     />
     <WhatsNewModal
       v-if="panelMode === 'whatsnew'"
@@ -184,6 +202,12 @@ const {
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
+}
+
+.stage--shelf {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 .stage.stage--image-background {

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmod,
   lstat,
+  mkdir,
   mkdtemp,
   readFile,
   readdir,
@@ -12,6 +14,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { inflateRawSync } from "node:zlib";
 
 import { verifyAssembledPackage } from "../apps/ztools/scripts/assemble-dist.mjs";
 
@@ -30,28 +33,122 @@ const forbiddenArchiveFile = (relative) =>
   ) ||
   /(?:credentials?|secrets?)(?:\.[^/]*)?$/iu.test(relative);
 
-function listArchiveEntries(archivePath) {
-  const output = execFileSync("unzip", ["-Z1", archivePath], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  const entries = output
-    .split(/\r?\n/u)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  assert.ok(entries.length > 0, "PasteboardPro release archive must not be empty");
-  assert.equal(new Set(entries).size, entries.length, "Archive entries must be unique");
-
-  for (const entry of entries) {
-    assert.equal(entry.includes("\\"), false, `Archive entry uses a backslash: ${entry}`);
-    assert.equal(path.posix.isAbsolute(entry), false, `Archive entry is absolute: ${entry}`);
-    assert.equal(
-      entry.split("/").some((segment) => segment === ".."),
-      false,
-      `Archive entry escapes the package root: ${entry}`,
-    );
+function findEndOfCentralDirectory(buffer) {
+  const minEocdSize = 22;
+  const maxCommentLength = 0xffff;
+  const start = Math.max(0, buffer.length - minEocdSize - maxCommentLength);
+  for (let offset = buffer.length - minEocdSize; offset >= start; offset -= 1) {
+    if (buffer.readUInt32LE(offset) === 0x06054b50) {
+      const commentLength = buffer.readUInt16LE(offset + 20);
+      if (offset + minEocdSize + commentLength === buffer.length) {
+        return offset;
+      }
+    }
   }
-  return entries;
+  throw new Error("Invalid ZIP archive: End of Central Directory not found");
+}
+
+function parseZipArchive(archiveBytes) {
+  const eocdOffset = findEndOfCentralDirectory(archiveBytes);
+  const totalEntries = archiveBytes.readUInt16LE(eocdOffset + 10);
+  const centralDirSize = archiveBytes.readUInt32LE(eocdOffset + 12);
+  const centralDirOffset = archiveBytes.readUInt32LE(eocdOffset + 16);
+  assert.ok(totalEntries > 0, "PasteboardPro release archive must not be empty");
+  assert.ok(
+    centralDirOffset + centralDirSize <= eocdOffset,
+    "Invalid ZIP archive: central directory bounds",
+  );
+
+  const parsedEntries = [];
+  let cursor = centralDirOffset;
+  for (let index = 0; index < totalEntries; index += 1) {
+    assert.equal(
+      archiveBytes.readUInt32LE(cursor),
+      0x02014b50,
+      "Invalid ZIP central directory signature",
+    );
+    const compressionMethod = archiveBytes.readUInt16LE(cursor + 10);
+    const compressedSize = archiveBytes.readUInt32LE(cursor + 20);
+    const uncompressedSize = archiveBytes.readUInt32LE(cursor + 24);
+    const fileNameLength = archiveBytes.readUInt16LE(cursor + 28);
+    const extraFieldLength = archiveBytes.readUInt16LE(cursor + 30);
+    const fileCommentLength = archiveBytes.readUInt16LE(cursor + 32);
+    const externalAttributes = archiveBytes.readUInt32LE(cursor + 38);
+    const localHeaderOffset = archiveBytes.readUInt32LE(cursor + 42);
+    const nameStart = cursor + 46;
+    const nameEnd = nameStart + fileNameLength;
+    const rawName = archiveBytes.subarray(nameStart, nameEnd).toString("utf8");
+    cursor = nameEnd + extraFieldLength + fileCommentLength;
+
+    assert.equal(rawName.includes("\\"), false, `Archive entry uses a backslash: ${rawName}`);
+    assert.equal(path.posix.isAbsolute(rawName), false, `Archive entry is absolute: ${rawName}`);
+    assert.equal(
+      rawName.split("/").some((segment) => segment === ".."),
+      false,
+      `Archive entry escapes the package root: ${rawName}`,
+    );
+
+    const unixMode = (externalAttributes >>> 16) & 0xffff;
+    const unixFileType = unixMode & 0o170000;
+    assert.notEqual(unixFileType, 0o120000, `Symlink is forbidden: ${rawName}`);
+
+    assert.equal(
+      archiveBytes.readUInt32LE(localHeaderOffset),
+      0x04034b50,
+      `Invalid ZIP local header signature for ${rawName}`,
+    );
+    const localNameLength = archiveBytes.readUInt16LE(localHeaderOffset + 26);
+    const localExtraLength = archiveBytes.readUInt16LE(localHeaderOffset + 28);
+    const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength;
+    const dataEnd = dataStart + compressedSize;
+    assert.ok(dataEnd <= archiveBytes.length, `Truncated ZIP entry data for ${rawName}`);
+    const compressedData = archiveBytes.subarray(dataStart, dataEnd);
+
+    let data = Buffer.alloc(0);
+    const isDirectory = rawName.endsWith("/") || unixFileType === 0o040000;
+    if (!isDirectory) {
+      if (compressionMethod === 0) {
+        data = Buffer.from(compressedData);
+      } else if (compressionMethod === 8) {
+        data = inflateRawSync(compressedData);
+      } else {
+        throw new Error(`Unsupported ZIP compression method ${compressionMethod} for ${rawName}`);
+      }
+      assert.equal(
+        data.length,
+        uncompressedSize,
+        `Uncompressed size mismatch for ${rawName}`,
+      );
+    }
+
+    parsedEntries.push({
+      name: rawName,
+      isDirectory,
+      mode: unixMode & 0o777,
+      data,
+    });
+  }
+
+  const names = parsedEntries.map((entry) => entry.name);
+  assert.equal(new Set(names).size, names.length, "Archive entries must be unique");
+  return parsedEntries;
+}
+
+async function extractZipArchive(parsedEntries, destinationRoot) {
+  for (const entry of parsedEntries) {
+    const normalized = entry.name.replace(/\/+$/u, "");
+    if (normalized.length === 0) continue;
+    const targetPath = path.join(destinationRoot, ...normalized.split("/"));
+    if (entry.isDirectory) {
+      await mkdir(targetPath, { recursive: true });
+      continue;
+    }
+    await mkdir(path.dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, entry.data);
+    if (entry.mode !== 0) {
+      await chmod(targetPath, entry.mode);
+    }
+  }
 }
 
 async function inspectExtractedTree(root, prefix = "") {
@@ -76,13 +173,12 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 export async function verifyReleaseArchive(archivePath, options = {}) {
   const absoluteArchive = path.resolve(archivePath);
-  const archiveEntries = listArchiveEntries(absoluteArchive);
+  const archiveBytes = await readFile(absoluteArchive);
+  const parsedEntries = parseZipArchive(archiveBytes);
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "pasteboardpro-release-"));
 
   try {
-    execFileSync("unzip", ["-q", absoluteArchive, "-d", temporaryRoot], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    await extractZipArchive(parsedEntries, temporaryRoot);
 
     const extractedFiles = (await inspectExtractedTree(temporaryRoot)).sort();
     assert.deepEqual(
@@ -112,6 +208,11 @@ export async function verifyReleaseArchive(archivePath, options = {}) {
     assert.deepEqual(markerHits, [], "Release archive leaks an absolute development path");
 
     const helperPath = path.join(temporaryRoot, "pasteboard-vision");
+    const hasHelper = extractedFiles.includes("pasteboard-vision");
+    if (process.platform === "darwin" || options.verifyCodesign || options.helperAttestationPath) {
+      assert.equal(hasHelper, true, "Release archive is missing pasteboard-vision helper");
+    }
+
     let codesign = { checked: false, identity: null };
     if (options.verifyCodesign) {
       assert.equal(process.platform, "darwin", "codesign verification requires macOS");
@@ -126,8 +227,7 @@ export async function verifyReleaseArchive(archivePath, options = {}) {
       codesign = { checked: true, identity: detail.match(/^Authority=(.+)$/mu)?.[1] ?? null };
     }
 
-    const archiveBytes = await readFile(absoluteArchive);
-    const helperBytes = await readFile(helperPath);
+    const helperBytes = hasHelper ? await readFile(helperPath) : null;
     let helperAttestation = { checked: false };
     if (options.helperAttestationPath) {
       const attestation = JSON.parse(
@@ -176,7 +276,7 @@ export async function verifyReleaseArchive(archivePath, options = {}) {
       schemaVersion: 1,
       archive: path.basename(absoluteArchive),
       archiveSha256: sha256(archiveBytes),
-      helperSha256: sha256(helperBytes),
+      helperSha256: helperBytes ? sha256(helperBytes) : null,
       fileCount: extractedFiles.length,
       files: extractedFiles,
       manifest: {
@@ -187,8 +287,8 @@ export async function verifyReleaseArchive(archivePath, options = {}) {
       },
       checks: {
         rootLayout: true,
-        safeEntries: archiveEntries.length > 0,
-        executableHelper: true,
+        safeEntries: parsedEntries.length > 0,
+        executableHelper: hasHelper,
         noForbiddenFiles: true,
         noDevelopmentPaths: true,
         codesign,

@@ -17,12 +17,19 @@ import {
 import { readModernPalette } from "./modern-palette";
 import { placePopover, type PopupPlacement } from "./popup-position";
 
-const props = defineProps<{
-  query: string;
-  items: readonly PasteItem[];
-  edge: DockEdge;
+const props = withDefaults(
+  defineProps<{
+    query: string;
+    items: readonly PasteItem[];
+    edge: DockEdge;
+    iconOnly?: boolean;
+  }>(),
+  { iconOnly: false },
+);
+const emit = defineEmits<{
+  "update:query": [value: string];
+  "openChange": [open: boolean];
 }>();
-const emit = defineEmits<{ "update:query": [value: string] }>();
 
 const open = ref(false);
 const trigger = ref<HTMLButtonElement>();
@@ -98,30 +105,71 @@ const typeOptions = computed<ShelfFilterOption[]>(() => {
   return options;
 });
 
-function togglePopover(): void {
-  if (open.value) {
-    closePopover();
-    return;
+let animationFrameId: number | undefined;
+
+function startTrackingPlacement(): void {
+  const startTime = performance.now();
+  const duration = 380;
+  function track(now: number): void {
+    if (!open.value) return;
+    updatePlacement();
+    if (now - startTime < duration) {
+      animationFrameId = requestAnimationFrame(track);
+    }
   }
+  cancelTrackingPlacement();
+  animationFrameId = requestAnimationFrame(track);
+}
+
+function cancelTrackingPlacement(): void {
+  if (animationFrameId !== undefined) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = undefined;
+  }
+}
+
+let openTimestamp = 0;
+
+function onTriggerMouseEnter(): void {
+  if (!open.value) openPopover();
+}
+
+function openPopover(): void {
+  if (open.value) return;
   open.value = true;
+  openTimestamp = performance.now();
+  emit("openChange", true);
+  window.pasteboardPro?.setShelfExpanded?.(true, 420);
+  document.body.classList.add("shelf-window--expanded-" + props.edge);
   if (trigger.value !== undefined) popoverPalette.value = readModernPalette(trigger.value);
   document.addEventListener("pointerdown", onDocumentPointerDown, true);
   window.addEventListener("keydown", onWindowKeydown, true);
   window.addEventListener("resize", updatePlacement);
   window.addEventListener("scroll", updatePlacement, true);
   void nextTick(updatePlacement);
+  startTrackingPlacement();
 }
 
 function closePopover(): void {
   if (!open.value) return;
   open.value = false;
+  emit("openChange", false);
+  cancelTrackingPlacement();
+  window.pasteboardPro?.setShelfExpanded?.(false);
+  document.body.classList.remove("shelf-window--expanded-" + props.edge);
   document.removeEventListener("pointerdown", onDocumentPointerDown, true);
   window.removeEventListener("keydown", onWindowKeydown, true);
   window.removeEventListener("resize", updatePlacement);
   window.removeEventListener("scroll", updatePlacement, true);
 }
 
+function togglePopover(): void {
+  if (open.value) closePopover();
+  else openPopover();
+}
+
 function onDocumentPointerDown(event: PointerEvent): void {
+  if (performance.now() - openTimestamp < 350) return;
   const target = event.target;
   if (
     target instanceof Node &&
@@ -145,10 +193,16 @@ function updatePlacement(): void {
   const anchor = trigger.value.getBoundingClientRect();
   const bounds = panel.value.getBoundingClientRect();
   popoverPalette.value = readModernPalette(trigger.value);
+  const isExpandedUpwards = document.body.classList.contains("shelf-window--expanded-bottom");
   placement.value = placePopover(anchor, bounds, {
     width: window.innerWidth,
     height: window.innerHeight,
-  }, { align: props.edge === "left" ? "start" : "end", preferAbove: props.edge !== "top", gap: 10, margin: 10 });
+  }, {
+    align: props.edge === "left" ? "start" : "end",
+    preferAbove: isExpandedUpwards || props.edge === "bottom",
+    gap: 8,
+    margin: 8,
+  });
 }
 
 function update(kind: "types" | "apps" | "dates", option: ShelfFilterOption): void {
@@ -173,25 +227,35 @@ function queryMatchesApp(queryValue: string, candidate: string): boolean {
   return value.includes(query) || query.includes(value);
 }
 
-onBeforeUnmount(closePopover);
+onBeforeUnmount(() => {
+  cancelTrackingPlacement();
+  window.pasteboardPro?.setShelfExpanded?.(false);
+  document.body.classList.remove("shelf-window--expanded-" + props.edge);
+  closePopover();
+});
 </script>
 
 <template>
-  <div class="shelf-filter-trigger">
+  <div class="shelf-filter-trigger" :class="{ 'shelf-filter-trigger--icon-only': iconOnly }">
     <button
       ref="trigger"
       type="button"
       class="modern-control modern-filter-button"
-      :class="{ 'modern-control--active': activeGroups > 0 }"
+      :class="{
+        'modern-control--active': activeGroups > 0,
+        'modern-filter-button--icon-only': iconOnly,
+      }"
       aria-haspopup="dialog"
       :aria-expanded="open"
+      :title="activeGroups > 0 ? '筛选（已启用 ' + activeGroups + ' 组条件）' : '筛选'"
       :aria-label="activeGroups > 0 ? '筛选，已启用 ' + activeGroups + ' 组条件' : '筛选'"
-      @click="togglePopover"
+      @click.stop="togglePopover"
+      @mouseenter="onTriggerMouseEnter"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24">
         <path d="M4 6h16M7 12h10m-7 6h4"></path>
       </svg>
-      <span>筛选</span>
+      <span v-if="!iconOnly">筛选</span>
       <span v-if="activeGroups > 0" class="modern-filter-count">{{ activeGroups }}</span>
     </button>
 
@@ -239,7 +303,11 @@ onBeforeUnmount(closePopover);
               :class="{ 'shelf-filter-chip--selected': selected('types', option) }"
               :aria-pressed="selected('types', option)"
               @click="update('types', option)"
-            >{{ option.label }}</button>
+            >
+              <span v-if="option.label === '文本'" class="shelf-filter-chip__icon" style="color: #6F61EA;" aria-hidden="true">T</span>
+              <span v-else-if="option.label === '图像' || option.label === '图片'" class="shelf-filter-chip__icon" style="color: #E06D9A;" aria-hidden="true">▧</span>
+              <span>{{ option.label }}</span>
+            </button>
           </div>
         </section>
 

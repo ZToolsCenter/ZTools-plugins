@@ -20,7 +20,10 @@ export function copiedTimeLabel(copiedAt: string, now = Date.now()): string {
 
 export function itemLink(item: PasteItem): URL | undefined {
   try {
-    const url = new URL(item.payload.text?.trim() ?? "");
+    const raw = item.payload.text?.trim() ?? "";
+    if (raw.length === 0) return undefined;
+    const resolved = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw) ? raw : "https://" + raw;
+    const url = new URL(resolved);
     return ["http:", "https:"].includes(url.protocol) ? url : undefined;
   } catch { return undefined; }
 }

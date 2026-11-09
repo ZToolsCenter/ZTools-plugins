@@ -17,6 +17,7 @@ import {
 } from "./mirrored-image";
 
 import { hasHistoryClearIdentity } from "./history-clear-identity";
+import { MirrorImageRetryCapacityError } from "./mirror-image-retry-journal";
 
 export const MAX_MIRROR_IMAGE_FAILURES_PER_RUN = 16;
 
@@ -75,6 +76,18 @@ export async function mirrorHostHistory(
   let firstImageFailure: MirroredImagePersistenceError | undefined;
   let oldestAttemptedImage: HostCursor | undefined;
   let deferredImages = 0;
+  let refusedImages = 0;
+
+  // A confirmed canonical put may outlive an unconfirmed journal completion,
+  // including when the corresponding host row disappeared before restart.
+  if (store.imageRetries && options.reconcilePersistedImage) {
+    for (const candidate of await store.imageRetries.listReconciliationCandidates()) {
+      const owned = { ...candidate };
+      const verified = await options.reconcilePersistedImage(Object.freeze({ ...owned }));
+      if (verified === true) await store.imageRetries.complete(owned);
+      else if (verified !== false) throw new TypeError("Image retry reconciliation returned an invalid result");
+    }
+  }
 
   for (let page = 1; page <= maxPages; page += 1) {
     const result = await host.getHistory(page, pageSize);
@@ -103,6 +116,7 @@ export async function mirrorHostHistory(
       // Only an exact source identity observed by a confirmed clear is excluded.
       // Excluded rows cannot advance the main cursor and hide a later new copy.
       if (hasHistoryClearIdentity(clearedIdentities, cursor)) {
+        await store.imageRetries?.complete(cursor);
         skipped += 1;
         continue;
       }
@@ -120,6 +134,7 @@ export async function mirrorHostHistory(
         options.shouldPersist !== undefined &&
         !(await options.shouldPersist(rawItem, record))
       ) {
+        await store.imageRetries?.complete(cursor);
         skipped += 1;
         continue;
       }
@@ -127,6 +142,7 @@ export async function mirrorHostHistory(
       if (record !== null) {
         const existing = await store.findByFingerprint(record.item.contentFingerprint);
         if (existing !== undefined) {
+          if (record.item.kind === "image") await store.imageRetries?.complete(cursor);
           skipped += 1;
           continue;
         }
@@ -137,6 +153,13 @@ export async function mirrorHostHistory(
         !Array.isArray(rawItem) && (rawItem as Record<string, unknown>).type === "image"
       );
       if (isImage) {
+        try {
+          await store.imageRetries?.observe(cursor);
+        } catch (error) {
+          if (!(error instanceof MirrorImageRetryCapacityError)) throw error;
+          refusedImages += 1;
+          continue;
+        }
         if (
           (savedImageBoundary !== undefined && compareCursor(cursor, savedImageBoundary) >= 0) ||
           imageFailureCount >= MAX_MIRROR_IMAGE_FAILURES_PER_RUN
@@ -144,6 +167,7 @@ export async function mirrorHostHistory(
           deferredImages += 1;
           continue;
         }
+        await store.imageRetries?.begin(cursor);
         if (oldestAttemptedImage === undefined || compareCursor(cursor, oldestAttemptedImage) < 0) {
           oldestAttemptedImage = cursor;
         }
@@ -151,6 +175,7 @@ export async function mirrorHostHistory(
 
       if (record === null) {
         if (isImage) {
+          await store.imageRetries?.fail(cursor, "image-path-unavailable");
           firstImageFailure ??= new MirroredImagePersistenceError("image-path-unavailable");
           imageFailureCount += 1;
         } else skipped += 1;
@@ -165,6 +190,7 @@ export async function mirrorHostHistory(
       } catch (error) {
         const imageFailure = record.item.kind === "image" ? safeImageFailure(error) : undefined;
         if (imageFailure === undefined) throw error;
+        await store.imageRetries?.fail(cursor, imageFailure.code);
         firstImageFailure ??= imageFailure;
         imageFailureCount = Math.min(
           MAX_MIRROR_IMAGE_FAILURES_PER_RUN,
@@ -173,6 +199,7 @@ export async function mirrorHostHistory(
         continue;
       }
       await store.put(preparedRecord);
+      if (isImage) await store.imageRetries?.complete(cursor);
       imported += 1;
     }
 
@@ -202,8 +229,11 @@ export async function mirrorHostHistory(
     await store.setImageRetryBoundary(nextImageBoundary);
   }
 
+  if (refusedImages > 0) throw new MirrorImageRetryCapacityError();
   if (firstImageFailure !== undefined) throw firstImageFailure;
-  if (deferredImages > 0) throw new MirrorImageRetryPendingError();
+  if (deferredImages > 0 || (await store.imageRetries?.readSummary())?.total) {
+    throw new MirrorImageRetryPendingError();
+  }
 
   if (
     newestCursor !== undefined &&

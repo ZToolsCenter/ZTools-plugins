@@ -4,12 +4,16 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { primaryModifierLabel, resolveShortcutPlatform } from "../platform-shortcuts";
 
 const props = withDefaults(
-  defineProps<{ modelValue: string; collapsible?: boolean }>(),
-  { collapsible: false },
+  defineProps<{
+    modelValue: string;
+    collapsible?: boolean;
+    keepExpanded?: boolean;
+  }>(),
+  { collapsible: false, keepExpanded: false },
 );
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 
-const expanded = ref(!props.collapsible || props.modelValue.length > 0);
+const expanded = ref(!props.collapsible || props.modelValue.length > 0 || props.keepExpanded);
 const draft = ref(props.modelValue);
 const input = ref<HTMLInputElement>();
 const root = ref<HTMLElement>();
@@ -34,13 +38,29 @@ watch(
   },
 );
 
+watch(
+  () => props.keepExpanded,
+  (keep) => {
+    if (keep) {
+      expanded.value = true;
+    } else if (props.collapsible && props.modelValue.length === 0 && document.activeElement !== input.value) {
+      expanded.value = false;
+    }
+  },
+);
+
 function activateSearch(): void {
   if (props.collapsible) expanded.value = true;
   void nextTick(() => input.value?.focus());
 }
 
 function collapseEmptySearch(): void {
-  if (props.collapsible && props.modelValue.length === 0 && document.activeElement !== input.value) {
+  if (
+    props.collapsible &&
+    !props.keepExpanded &&
+    props.modelValue.length === 0 &&
+    document.activeElement !== input.value
+  ) {
     expanded.value = false;
   }
 }
@@ -143,6 +163,9 @@ function handleKeydown(event: KeyboardEvent): void {
       @keydown="handleKeydown"
     />
     <kbd>{{ searchShortcutLabel }}</kbd>
+    <div v-if="$slots.trailing" class="search-bar__trailing" @click.stop>
+      <slot name="trailing" />
+    </div>
   </div>
 </template>
 
@@ -151,8 +174,8 @@ function handleKeydown(event: KeyboardEvent): void {
   position: relative;
   display: grid;
   flex: 0 1 420px;
-  grid-template-columns: 17px minmax(0, 1fr) auto;
-  gap: 9px;
+  grid-template-columns: 17px minmax(0, 1fr) auto auto;
+  gap: 7px;
   align-items: center;
   min-width: 150px;
   min-height: 38px;
@@ -169,6 +192,13 @@ function handleKeydown(event: KeyboardEvent): void {
   stroke: var(--pb-muted);
   stroke-linecap: round;
   stroke-width: 1.8;
+}
+
+
+.search-bar__trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-bar input {
@@ -209,12 +239,12 @@ function handleKeydown(event: KeyboardEvent): void {
     gap 300ms cubic-bezier(0.22, 1, 0.36, 1),
     background 160ms ease,
     border-color 160ms ease;
-  flex: 0 1 80px;
-  width: 80px;
-  min-width: 80px;
-  grid-template-columns: 17px minmax(0, 0fr) auto;
-  gap: 7px;
-  padding: 0 9px;
+  flex: 0 1 106px;
+  width: 106px;
+  min-width: 106px;
+  grid-template-columns: 17px minmax(0, 0fr) auto auto;
+  gap: 5px;
+  padding: 0 6px 0 9px;
   cursor: text;
 }
 
@@ -233,10 +263,10 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 .search-bar--collapsible.search-bar--expanded {
-  flex: 0 1 340px;
-  width: min(340px, 40vw);
-  min-width: min(210px, 44vw);
-  grid-template-columns: 17px minmax(0, 1fr) auto;
+  flex: 0 1 360px;
+  width: min(360px, 42vw);
+  min-width: min(220px, 45vw);
+  grid-template-columns: 17px minmax(0, 1fr) auto auto;
   cursor: text;
 }
 

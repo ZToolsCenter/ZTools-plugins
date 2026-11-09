@@ -31,6 +31,23 @@ const repeatCells = computed(() =>
     : [],
 );
 const isFrosted = computed(() => imageBackground.value?.frosted === true);
+const frostedIntensity = computed(() => {
+  const value = imageBackground.value?.frostedIntensity;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(1, Math.min(100, Math.round(value)));
+  }
+  return 50;
+});
+const frostedStyles = computed(() => {
+  if (!isFrosted.value) return undefined;
+  const ratio = frostedIntensity.value / 100;
+  const blurPx = Math.round(4 + ratio * 36);
+  const overlayPercent = Math.round((0.20 + ratio * 0.65) * 100);
+  return {
+    "--pb-backdrop-blur": `${blurPx}px`,
+    "--pb-backdrop-overlay-opacity": `${overlayPercent}%`,
+  };
+});
 const backdropClass = computed(() => ({
   "shelf__image-backdrop--frosted": isFrosted.value,
 }));
@@ -66,6 +83,7 @@ const repeatContainerStyle = computed(() => ({
     v-if="imageBackground !== undefined"
     class="shelf__image-backdrop"
     :class="backdropClass"
+    :style="frostedStyles"
     aria-hidden="true"
     role="presentation"
   >
@@ -136,10 +154,10 @@ const repeatContainerStyle = computed(() => ({
 }
 
 .shelf__image-backdrop-photo--frosted {
-  filter: blur(22px) saturate(0.82);
+  filter: blur(var(--pb-backdrop-blur, 22px)) saturate(0.82);
 }
 
 .shelf__image-backdrop--frosted::after {
-  background: color-mix(in srgb, var(--pb-theme-background-color, #24212d) 64%, transparent);
+  background: color-mix(in srgb, var(--pb-theme-background-color, #24212d) var(--pb-backdrop-overlay-opacity, 64%), transparent);
 }
 </style>

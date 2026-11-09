@@ -39,11 +39,12 @@ function preferredBounds(
   display: ShelfDisplay,
   edge: DockEdge,
   uiVersion: ShelfUiVersion,
+  extraHeight = 0,
 ): Rect {
   const workArea = display.workArea;
 
   if (edge === "left" || edge === "right") {
-    const width = Math.min(SIDE_SHELF_WIDTH, workArea.width);
+    const width = Math.min(SIDE_SHELF_WIDTH + extraHeight, workArea.width);
     return {
       x: edge === "left" ? workArea.x : workArea.x + workArea.width - width,
       y: workArea.y,
@@ -55,9 +56,9 @@ function preferredBounds(
   if (edge === "top" || edge === "bottom") {
     const area = shelfAnchorArea(display, edge, uiVersion);
     const requestedHeight =
-      uiVersion === "modern"
+      (uiVersion === "modern"
         ? MODERN_HORIZONTAL_SHELF_HEIGHT
-        : CLASSIC_SHELF_HEIGHT;
+        : CLASSIC_SHELF_HEIGHT) + extraHeight;
     const height = Math.min(requestedHeight, area.height);
     return {
       x: area.x,
@@ -82,9 +83,10 @@ export function buildShelfWindowOptions(
   edge: DockEdge,
   preloadPath = "preload.js",
   uiVersion: ShelfUiVersion = "classic",
+  extraHeight = 0,
 ): BrowserWindowOptions {
   const bounds = clampShelfBounds(
-    preferredBounds(display, edge, uiVersion),
+    preferredBounds(display, edge, uiVersion, extraHeight),
     { workArea: shelfAnchorArea(display, edge, uiVersion) },
   );
 

@@ -1,0 +1,2507 @@
+{
+  "schemaVersion": 1,
+  "increment": "v0.37",
+  "observedAtUtc": "2026-11-02T09:22:59.692906+00:00",
+  "dateAsiaShanghai": "2026-11-02",
+  "repository": {
+    "branch": "plugin/pasteboard-pro",
+    "head": "db6fb73c32dbf4a977d658f8454051386c0dea52",
+    "indexEmpty": true,
+    "statusLineCount": 131,
+    "statusSha256": "12be0718fe5b4e6ea43feef71e67474759caeffc3917acc866becd5e42580c19",
+    "top": "/Users/harris/Desktop/ZTools-plugins",
+    "worktreeDirty": true
+  },
+  "goalStatus": "active",
+  "goalComplete": false,
+  "gateComplete": false,
+  "G3Complete": false,
+  "libraryOnly": true,
+  "implementationDoc": {
+    "path": "docs/clipboard-format-fidelity/G3_VERIFICATION_BUDGET.md",
+    "sha256": "2bb47d6ed9ac1aceff887285b0b21183c92804ae05413c05edb3835f9c32bce8",
+    "bytes": 3827,
+    "availability": "public-with-plugin-docs"
+  },
+  "designSnapshot": {
+    "adr": {
+      "path": "docs/clipboard-format-fidelity/G3_DURABLE_BUDGET_ADR.md",
+      "sha256": "d06ba2b4eecd3a8abae2d13fe8ded2fbeac3a158cf80108c1ac661218a514aa1",
+      "bytes": 34218,
+      "availability": "public-with-plugin-docs"
+    },
+    "timing": "NOTIMPLEMENTED/NOTRUN is preimplementation snapshot, preserved; current finite component status in implementationDoc",
+    "designOnlyAccepted": true,
+    "archivedReviewedText": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-budget-design/adr-final-reviewed.md",
+      "sha256": "86b43847d3eb4a0e9b2bf853af9caf66f3f437ec139ee0f880628c531af38e5b",
+      "bytes": 33312,
+      "availability": "local-only"
+    }
+  },
+  "finalValidation": {
+    "status": "BOUNDED_VALIDATION_COMPLETE",
+    "summary": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/summary.json",
+      "sha256": "a85753c4eeac6c0ff64540bf656ac9808fa4d60dc6ecd82c2ac761c98e9da3fa",
+      "bytes": 1106122,
+      "availability": "local-only"
+    },
+    "sourceManifestFile": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/source-manifest.json",
+      "sha256": "38c07b96dc8641f2f96af053cb8b1fa405eff42461656c9408d6d932b8781157",
+      "bytes": 322522,
+      "availability": "local-only"
+    },
+    "sourceAggregate": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+    "sourceEntryCount": 845,
+    "manifestMetadataDigest": "7abffc6e9aa585095f65c630c1a672de8ac70aa66b23fcc906e06ccd0c0cc8fb",
+    "metadataDigestAlgorithm": "SHA256(compact sorted JSON([{metadata: manifest excluding manifestSha256}])) NOT manifest file bytes hash",
+    "baselineDeltaFrom823": {
+      "addedCount": 22,
+      "addedPaths": [
+        "packages/snapshot-store/src/g3-verification-budget/audit.ts",
+        "packages/snapshot-store/src/g3-verification-budget/budget.ts",
+        "packages/snapshot-store/src/g3-verification-budget/claim-schema.ts",
+        "packages/snapshot-store/src/g3-verification-budget/guard.ts",
+        "packages/snapshot-store/src/g3-verification-budget/index.ts",
+        "packages/snapshot-store/src/g3-verification-budget/ledger-schema.ts",
+        "packages/snapshot-store/src/g3-verification-budget/records.ts",
+        "packages/snapshot-store/src/g3-verification-budget/store.ts",
+        "packages/snapshot-store/src/g3-verification-budget/types.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/astra-async-guards.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/astra-native-commit-unknown.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/astra-promotion-failure.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/child-crash-fixture.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/codec.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/fixture.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/integrity.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/ledger.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/process.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/queued-owner-failure.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/residual-boundaries.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/review-boundaries.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/unsupported-wrappers.test.ts"
+      ],
+      "baselineAggregateSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+      "baselineEntryCount": 823,
+      "changedCount": 22,
+      "changedPaths": [
+        "packages/core/src/index.ts",
+        "packages/core/src/query.ts",
+        "packages/snapshot-store/package.json",
+        "packages/snapshot-store/scripts/build-runtime.mjs",
+        "packages/snapshot-store/tsconfig.json",
+        "packages/sync-protocol/src/v2-node.ts",
+        "packages/sync-protocol/src/v2-node/body.ts",
+        "packages/sync-protocol/src/v2-node/codec.ts",
+        "packages/sync-protocol/src/v2-node/encryption.ts",
+        "packages/sync-protocol/src/v2-node/gate.ts",
+        "packages/sync-protocol/src/v2-node/primitives.ts",
+        "packages/sync-protocol/src/v2-node/records.ts",
+        "packages/sync-protocol/src/v2-node/recovery.ts",
+        "packages/sync-protocol/src/v2-node/root-ledger.ts",
+        "packages/sync-protocol/src/v2-node/types.ts",
+        "packages/sync-protocol/src/v2-node/verification.ts",
+        "packages/sync-protocol/src/v2.ts",
+        "packages/sync-protocol/src/v2/bodies.ts",
+        "packages/sync-protocol/src/v2/envelope.ts",
+        "packages/sync-protocol/src/v2/primitives.ts",
+        "packages/sync-protocol/src/v2/records.ts",
+        "pnpm-lock.yaml"
+      ],
+      "currentEntryCount": 845,
+      "removedCount": 0,
+      "removedPaths": []
+    },
+    "all11ProcessChecksExitZero": true,
+    "processReceipts": [
+      {
+        "argv": [
+          "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+          "node_modules/vitest/vitest.mjs",
+          "run",
+          "--cache",
+          "false",
+          "--reporter=json",
+          "--outputFile=/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/electron-bounded-regression-vitest.report.json",
+          "packages/core/tests",
+          "packages/snapshot-store/tests",
+          "packages/sync-protocol/tests",
+          "apps/ztools/tests/sync-controller.test.ts",
+          "apps/ztools/tests/sync-blob-files.test.ts",
+          "apps/ztools/tests/sync-blob-read.test.ts",
+          "apps/ztools/tests/sync-repository.test.ts",
+          "apps/ztools/tests/sync-view.test.ts",
+          "apps/ztools/tests/sync-runtime.test.ts",
+          "apps/ztools/tests/sync-config.test.ts",
+          "apps/ztools/tests/sync.test.ts"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 31.387,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "1",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": {
+          "bytes": 213637,
+          "exists": true,
+          "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/electron-bounded-regression-vitest.report.json",
+          "sha256": "072eade48972077a26568286ad70c96a3320e2122247e70814c775d785680cb5"
+        },
+        "name": "electron-bounded-regression-vitest",
+        "processGroupTerminated": true,
+        "runtime": "electron",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/electron-bounded-regression-vitest.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 219,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/electron-bounded-regression-vitest.stdout.log",
+        "stdoutSha256": "2f2efc7efb6d8eda3573c0adcc733ce31880d922ec7733112c997d73a5979623",
+        "timedOut": false,
+        "timeoutSeconds": 60
+      },
+      {
+        "argv": [
+          "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+          "-p",
+          "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.727,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "1",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "electron-version",
+        "processGroupTerminated": true,
+        "runtime": "electron",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/electron-version.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 93,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/electron-version.stdout.log",
+        "stdoutSha256": "97b277d8f864631d8ed710fc6f061e4160d506f489cbfee451e6cccf7dd5abe6",
+        "timedOut": false,
+        "timeoutSeconds": 15
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+          "node_modules/vitest/vitest.mjs",
+          "run",
+          "--cache",
+          "false",
+          "--reporter=json",
+          "--outputFile=/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node20-bounded-regression-vitest.report.json",
+          "packages/core/tests",
+          "packages/snapshot-store/tests",
+          "packages/sync-protocol/tests",
+          "apps/ztools/tests/sync-controller.test.ts",
+          "apps/ztools/tests/sync-blob-files.test.ts",
+          "apps/ztools/tests/sync-blob-read.test.ts",
+          "apps/ztools/tests/sync-repository.test.ts",
+          "apps/ztools/tests/sync-view.test.ts",
+          "apps/ztools/tests/sync-runtime.test.ts",
+          "apps/ztools/tests/sync-config.test.ts",
+          "apps/ztools/tests/sync.test.ts"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 25.965,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": {
+          "bytes": 213554,
+          "exists": true,
+          "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node20-bounded-regression-vitest.report.json",
+          "sha256": "95f3f5a70ddabe1b028ec62c54f8fba69990e6759919002bf2c5969f012bcca3"
+        },
+        "name": "node20-bounded-regression-vitest",
+        "processGroupTerminated": true,
+        "runtime": "node20",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node20-bounded-regression-vitest.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 217,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node20-bounded-regression-vitest.stdout.log",
+        "stdoutSha256": "faac2756a3a4e6666141712e72b639b02047351de8bc8a87a09627d8f33f8a56",
+        "timedOut": false,
+        "timeoutSeconds": 60
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+          "-p",
+          "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.529,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node20-version",
+        "processGroupTerminated": true,
+        "runtime": "node20",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node20-version.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 95,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node20-version.stdout.log",
+        "stdoutSha256": "2a5be913104504065af0e0a6e32ae4dc4f32602ccf239027f3b7154ecfd8fa0a",
+        "timedOut": false,
+        "timeoutSeconds": 15
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "node_modules/vitest/vitest.mjs",
+          "run",
+          "--cache",
+          "false",
+          "--reporter=json",
+          "--outputFile=/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node24-bounded-regression-vitest.report.json",
+          "packages/core/tests",
+          "packages/snapshot-store/tests",
+          "packages/sync-protocol/tests",
+          "apps/ztools/tests/sync-controller.test.ts",
+          "apps/ztools/tests/sync-blob-files.test.ts",
+          "apps/ztools/tests/sync-blob-read.test.ts",
+          "apps/ztools/tests/sync-repository.test.ts",
+          "apps/ztools/tests/sync-view.test.ts",
+          "apps/ztools/tests/sync-runtime.test.ts",
+          "apps/ztools/tests/sync-config.test.ts",
+          "apps/ztools/tests/sync.test.ts"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 25.734,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": {
+          "bytes": 213509,
+          "exists": true,
+          "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node24-bounded-regression-vitest.report.json",
+          "sha256": "89ae1f20e3c4ab12a364aec044fd067544fc77861358484251bf6241dfdb8f4e"
+        },
+        "name": "node24-bounded-regression-vitest",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-bounded-regression-vitest.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 217,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-bounded-regression-vitest.stdout.log",
+        "stdoutSha256": "12a87054d5719820322bfe171c44c82f8b75881644f47f78573c6a42fe158473",
+        "timedOut": false,
+        "timeoutSeconds": 60
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          ".v037-package-import-smoke.mjs"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.556,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node24-public-package-imports",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-public-package-imports.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 772,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-public-package-imports.stdout.log",
+        "stdoutSha256": "154725e523cb7bbd89c3fcbafbd0535e108b500b0acfc6d695d6f6d39283ad9b",
+        "timedOut": false,
+        "timeoutSeconds": 30
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "--strict",
+          "--target",
+          "ES2022",
+          "--module",
+          "NodeNext",
+          "--moduleResolution",
+          "NodeNext",
+          "--types",
+          "node",
+          "packages/snapshot-store/.v037-package-import-assignability.mts"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 1.414,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node24-public-type-assignability",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-public-type-assignability.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-public-type-assignability.stdout.log",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "timedOut": false,
+        "timeoutSeconds": 30
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "node_modules/typescript/bin/tsc",
+          "-b",
+          "--pretty",
+          "false",
+          "--force"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 4.151,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node24-root-tsc",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-root-tsc.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-root-tsc.stdout.log",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "timedOut": false,
+        "timeoutSeconds": 60
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "packages/snapshot-store/scripts/build-runtime.mjs"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.912,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node24-snapshot-store-build",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-snapshot-store-build.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-snapshot-store-build.stdout.log",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "timedOut": false,
+        "timeoutSeconds": 60
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "-p",
+          "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.492,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node24-version",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-version.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 89,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-version.stdout.log",
+        "stdoutSha256": "b76a1cf4793d139b8527c500bffcaec13bc85b7ddfa826a6c617e98a5080a685",
+        "timedOut": false,
+        "timeoutSeconds": 15
+      },
+      {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "scripts/test-workspace-contract.mjs"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.509,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node24-workspace-contract",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-workspace-contract.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-workspace-contract.stdout.log",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "timedOut": false,
+        "timeoutSeconds": 60
+      }
+    ],
+    "checks": {
+      "publicImports": {
+        "check": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            ".v037-package-import-smoke.mjs"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 0.556,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": null,
+          "name": "node24-public-package-imports",
+          "processGroupTerminated": true,
+          "runtime": "node24",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-public-package-imports.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 772,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-public-package-imports.stdout.log",
+          "stdoutSha256": "154725e523cb7bbd89c3fcbafbd0535e108b500b0acfc6d695d6f6d39283ad9b",
+          "timedOut": false,
+          "timeoutSeconds": 30
+        },
+        "imports": {
+          "budget": {
+            "exports": [
+              "BudgetError",
+              "openVerificationBudget"
+            ],
+            "resolved": "file:///Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro/packages/snapshot-store/dist/runtime/g3-verification-budget.mjs",
+            "specifier": "@pasteboard-pro/snapshot-store/g3-verification-budget"
+          },
+          "legacy": {
+            "exports": [
+              "PolicyCommitAuthorityV2",
+              "SnapshotStoreErrorV2",
+              "openSnapshotStoreV2"
+            ],
+            "resolved": "file:///Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro/packages/snapshot-store/dist/runtime/index.mjs",
+            "specifier": "@pasteboard-pro/snapshot-store"
+          }
+        }
+      },
+      "publicTypeAssignability": {
+        "check": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            "node_modules/typescript/bin/tsc",
+            "--noEmit",
+            "--strict",
+            "--target",
+            "ES2022",
+            "--module",
+            "NodeNext",
+            "--moduleResolution",
+            "NodeNext",
+            "--types",
+            "node",
+            "packages/snapshot-store/.v037-package-import-assignability.mts"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 1.414,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": null,
+          "name": "node24-public-type-assignability",
+          "processGroupTerminated": true,
+          "runtime": "node24",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-public-type-assignability.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 0,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-public-type-assignability.stdout.log",
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "timedOut": false,
+          "timeoutSeconds": 30
+        },
+        "publicExportAssignability": true
+      },
+      "rootTypes": {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "node_modules/typescript/bin/tsc",
+          "-b",
+          "--pretty",
+          "false",
+          "--force"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 4.151,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node24-root-tsc",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-root-tsc.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-root-tsc.stdout.log",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "timedOut": false,
+        "timeoutSeconds": 60
+      },
+      "snapshotStoreBuild": {
+        "check": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            "packages/snapshot-store/scripts/build-runtime.mjs"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 0.912,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": null,
+          "name": "node24-snapshot-store-build",
+          "processGroupTerminated": true,
+          "runtime": "node24",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-snapshot-store-build.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 0,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-snapshot-store-build.stdout.log",
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "timedOut": false,
+          "timeoutSeconds": 60
+        },
+        "generatedOutputs": {
+          "copiedSourceUnchanged": true,
+          "outputs": [
+            {
+              "bytes": 242114,
+              "mode": "0o644",
+              "path": "packages/snapshot-store/dist/runtime/index.mjs",
+              "sha256": "edb392f61d5b30f7b558c47509f63bbd0624c527deb6394176a1fb55cd3a4a4b"
+            },
+            {
+              "bytes": 45938,
+              "mode": "0o644",
+              "path": "packages/snapshot-store/dist/runtime/g3-verification-budget.mjs",
+              "sha256": "85e1bd91da0be7a5468553e6624714f332fdfa1f992afb1e2447062d23f0cf49"
+            },
+            {
+              "bytes": 565,
+              "mode": "0o644",
+              "path": "packages/snapshot-store/dist/src/index.d.ts",
+              "sha256": "400d09d7ee7a4bc0018e650e85094578b23aaba921f804f35033f19d67d2f780"
+            },
+            {
+              "bytes": 312,
+              "mode": "0o644",
+              "path": "packages/snapshot-store/dist/src/g3-verification-budget/index.d.ts",
+              "sha256": "e45f9284873ccab34eaff9e193da71e92a7195619b991c813add1dbf86480f4d"
+            }
+          ]
+        }
+      },
+      "workspaceContract": {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "scripts/test-workspace-contract.mjs"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.509,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "clearedFixtureVariableNames": [
+            "V037_BUDGET_CHILD_MARKER",
+            "V037_BUDGET_CHILD_PARENT"
+          ],
+          "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+          "ownedCaches": {
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+          }
+        },
+        "exitCode": 0,
+        "jsonReport": null,
+        "name": "node24-workspace-contract",
+        "processGroupTerminated": true,
+        "runtime": "node24",
+        "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-workspace-contract.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-workspace-contract.stdout.log",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "timedOut": false,
+        "timeoutSeconds": 60
+      }
+    },
+    "runtimeVersions": {
+      "electron": {
+        "check": {
+          "argv": [
+            "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+            "-p",
+            "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 0.727,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "1",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": null,
+          "name": "electron-version",
+          "processGroupTerminated": true,
+          "runtime": "electron",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/electron-version.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 93,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/electron-version.stdout.log",
+          "stdoutSha256": "97b277d8f864631d8ed710fc6f061e4160d506f489cbfee451e6cccf7dd5abe6",
+          "timedOut": false,
+          "timeoutSeconds": 15
+        },
+        "process": {
+          "arch": "arm64",
+          "electron": "41.4.0",
+          "node": "v24.15.0",
+          "openssl": "0.0.0",
+          "platform": "darwin"
+        }
+      },
+      "node20": {
+        "check": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+            "-p",
+            "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 0.529,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": null,
+          "name": "node20-version",
+          "processGroupTerminated": true,
+          "runtime": "node20",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node20-version.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 95,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node20-version.stdout.log",
+          "stdoutSha256": "2a5be913104504065af0e0a6e32ae4dc4f32602ccf239027f3b7154ecfd8fa0a",
+          "timedOut": false,
+          "timeoutSeconds": 15
+        },
+        "process": {
+          "arch": "arm64",
+          "electron": null,
+          "node": "v20.19.3",
+          "openssl": "3.0.15+quic",
+          "platform": "darwin"
+        }
+      },
+      "node24": {
+        "check": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            "-p",
+            "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 0.492,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": null,
+          "name": "node24-version",
+          "processGroupTerminated": true,
+          "runtime": "node24",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-version.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 89,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-version.stdout.log",
+          "stdoutSha256": "b76a1cf4793d139b8527c500bffcaec13bc85b7ddfa826a6c617e98a5080a685",
+          "timedOut": false,
+          "timeoutSeconds": 15
+        },
+        "process": {
+          "arch": "arm64",
+          "electron": null,
+          "node": "v24.15.0",
+          "openssl": "3.5.5",
+          "platform": "darwin"
+        }
+      }
+    },
+    "runtimeResults": {
+      "electron": {
+        "process": {
+          "argv": [
+            "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--cache",
+            "false",
+            "--reporter=json",
+            "--outputFile=/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/electron-bounded-regression-vitest.report.json",
+            "packages/core/tests",
+            "packages/snapshot-store/tests",
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync-controller.test.ts",
+            "apps/ztools/tests/sync-blob-files.test.ts",
+            "apps/ztools/tests/sync-blob-read.test.ts",
+            "apps/ztools/tests/sync-repository.test.ts",
+            "apps/ztools/tests/sync-view.test.ts",
+            "apps/ztools/tests/sync-runtime.test.ts",
+            "apps/ztools/tests/sync-config.test.ts",
+            "apps/ztools/tests/sync.test.ts"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 31.387,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "1",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/electron/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": {
+            "bytes": 213637,
+            "exists": true,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/electron-bounded-regression-vitest.report.json",
+            "sha256": "072eade48972077a26568286ad70c96a3320e2122247e70814c775d785680cb5"
+          },
+          "name": "electron-bounded-regression-vitest",
+          "processGroupTerminated": true,
+          "runtime": "electron",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/electron-bounded-regression-vitest.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 219,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/electron-bounded-regression-vitest.stdout.log",
+          "stdoutSha256": "2f2efc7efb6d8eda3573c0adcc733ce31880d922ec7733112c997d73a5979623",
+          "timedOut": false,
+          "timeoutSeconds": 60
+        },
+        "report": {
+          "caseCount": 568,
+          "fileCount": 73,
+          "reportPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/electron-bounded-regression-vitest.report.json",
+          "reportSha256": "072eade48972077a26568286ad70c96a3320e2122247e70814c775d785680cb5",
+          "vitestTotals": {
+            "numFailedTestSuites": 0,
+            "numFailedTests": 0,
+            "numPassedTestSuites": 153,
+            "numPassedTests": 562,
+            "numPendingTestSuites": 0,
+            "numPendingTests": 6,
+            "numTodoTests": 0,
+            "numTotalTestSuites": 153,
+            "numTotalTests": 568,
+            "success": true
+          }
+        },
+        "fixtureContract": {
+          "actualFixtureSkips": [
+            {
+              "ancestorTitles": [
+                "deletion process crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "deletion process crash fixture commits one synthetic capture and pauses at the selected deletion boundary",
+              "path": "packages/snapshot-store/tests/deletion-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "commits one synthetic capture and pauses at the selected deletion boundary"
+            },
+            {
+              "ancestorTitles": [],
+              "failureMessages": [],
+              "fullName": "pause after a real completed reserve for parent SIGKILL",
+              "path": "packages/snapshot-store/tests/g3-verification-budget/child-crash-fixture.test.ts",
+              "status": "skipped",
+              "title": "pause after a real completed reserve for parent SIGKILL"
+            },
+            {
+              "ancestorTitles": [
+                "inbox process crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "inbox process crash fixture commits a source event, then pauses inside the requested inbox boundary",
+              "path": "packages/snapshot-store/tests/inbox-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "commits a source event, then pauses inside the requested inbox boundary"
+            },
+            {
+              "ancestorTitles": [
+                "journal cross-process fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "journal cross-process fixture opens only after GO, then enters the real LMDB writer transaction",
+              "path": "packages/snapshot-store/tests/journal-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "opens only after GO, then enters the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload reclamation real-process fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "payload reclamation real-process fixture runs one bounded synthetic store operation at its requested process boundary",
+              "path": "packages/snapshot-store/tests/payload-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "runs one bounded synthetic store operation at its requested process boundary"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store process-crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "snapshot store process-crash fixture pauses at the requested durable boundary until the parent kills this process",
+              "path": "packages/snapshot-store/tests/process-recovery-fixture.test.ts",
+              "status": "skipped",
+              "title": "pauses at the requested durable boundary until the parent kills this process"
+            }
+          ],
+          "allParentCasesPassed": true,
+          "expectedFixtureSkipCount": 6,
+          "fixtureSkipAllowlist": [
+            {
+              "ancestorTitles": [
+                "inbox process crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "consumer inbox recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+                "titles": [
+                  "recovers scenario stage-uncommitted at boundary stage-row-written-before-cursor",
+                  "recovers scenario ack-uncommitted at boundary ack-written-before-cursor",
+                  "recovers scenario ack-committed at boundary ack-transaction-returned"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/inbox-process-fixture.test.ts",
+              "title": "commits a source event, then pauses inside the requested inbox boundary"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store process-crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "snapshot store recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+                "titles": [
+                  "recovers scenario blob-published at boundary after-directory-sync",
+                  "recovers scenario journal-uncommitted at boundary after-event",
+                  "recovers scenario committed-control at boundary commit-returned"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/process-recovery-fixture.test.ts",
+              "title": "pauses at the requested durable boundary until the parent kills this process"
+            },
+            {
+              "ancestorTitles": [
+                "deletion process crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "deletion transaction recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+                "titles": [
+                  "recovers after-tombstone at tombstone-written-before-event",
+                  "recovers after-delete-head at delete-head-written-before-commit",
+                  "recovers committed-delete at delete-transaction-committed"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/deletion-process-fixture.test.ts",
+              "title": "commits one synthetic capture and pauses at the selected deletion boundary"
+            },
+            {
+              "ancestorTitles": [
+                "journal cross-process fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "openJournalBackendV2 real LMDB journal"
+                ],
+                "path": "packages/snapshot-store/tests/journal.test.ts",
+                "titles": [
+                  "serializes two processes behind the real LMDB writer transaction"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/journal-process-fixture.test.ts",
+              "title": "opens only after GO, then enters the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload reclamation real-process fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "payload expiry and physical reclamation across real processes"
+                ],
+                "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+                "titles": [
+                  "recovers an expiry commit after SIGKILL without reviving or corrupting the payload",
+                  "keeps a new live same-hash root when an expired snapshot sweeps after its marker commit",
+                  "holds physical reclamation until an in-flight read owns and hashes the payload"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/payload-process-fixture.test.ts",
+              "title": "runs one bounded synthetic store operation at its requested process boundary"
+            },
+            {
+              "ancestorTitles": [],
+              "parent": {
+                "ancestorTitles": [],
+                "path": "packages/snapshot-store/tests/g3-verification-budget/process.test.ts",
+                "titles": [
+                  "SIGKILL AFTER reserve resolves retains charge and recovers unknown+lock; not an OS-owner/txn-window proof"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/g3-verification-budget/child-crash-fixture.test.ts",
+              "title": "pause after a real completed reserve for parent SIGKILL"
+            }
+          ],
+          "requiredParentCaseCount": 14,
+          "requiredParentCases": [
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario stage-uncommitted at boundary stage-row-written-before-cursor"
+            },
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario ack-uncommitted at boundary ack-written-before-cursor"
+            },
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario ack-committed at boundary ack-transaction-returned"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario blob-published at boundary after-directory-sync"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario journal-uncommitted at boundary after-event"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario committed-control at boundary commit-returned"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers after-tombstone at tombstone-written-before-event"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers after-delete-head at delete-head-written-before-commit"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers committed-delete at delete-transaction-committed"
+            },
+            {
+              "ancestorTitles": [
+                "openJournalBackendV2 real LMDB journal"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/journal.test.ts",
+              "title": "serializes two processes behind the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "recovers an expiry commit after SIGKILL without reviving or corrupting the payload"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "keeps a new live same-hash root when an expired snapshot sweeps after its marker commit"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "holds physical reclamation until an in-flight read owns and hashes the payload"
+            },
+            {
+              "ancestorTitles": [],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/g3-verification-budget/process.test.ts",
+              "title": "SIGKILL AFTER reserve resolves retains charge and recovers unknown+lock; not an OS-owner/txn-window proof"
+            }
+          ],
+          "unexpectedCaseStates": []
+        }
+      },
+      "node20": {
+        "process": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--cache",
+            "false",
+            "--reporter=json",
+            "--outputFile=/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node20-bounded-regression-vitest.report.json",
+            "packages/core/tests",
+            "packages/snapshot-store/tests",
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync-controller.test.ts",
+            "apps/ztools/tests/sync-blob-files.test.ts",
+            "apps/ztools/tests/sync-blob-read.test.ts",
+            "apps/ztools/tests/sync-repository.test.ts",
+            "apps/ztools/tests/sync-view.test.ts",
+            "apps/ztools/tests/sync-runtime.test.ts",
+            "apps/ztools/tests/sync-config.test.ts",
+            "apps/ztools/tests/sync.test.ts"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 25.965,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node20/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": {
+            "bytes": 213554,
+            "exists": true,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node20-bounded-regression-vitest.report.json",
+            "sha256": "95f3f5a70ddabe1b028ec62c54f8fba69990e6759919002bf2c5969f012bcca3"
+          },
+          "name": "node20-bounded-regression-vitest",
+          "processGroupTerminated": true,
+          "runtime": "node20",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node20-bounded-regression-vitest.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 217,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node20-bounded-regression-vitest.stdout.log",
+          "stdoutSha256": "faac2756a3a4e6666141712e72b639b02047351de8bc8a87a09627d8f33f8a56",
+          "timedOut": false,
+          "timeoutSeconds": 60
+        },
+        "report": {
+          "caseCount": 568,
+          "fileCount": 73,
+          "reportPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node20-bounded-regression-vitest.report.json",
+          "reportSha256": "95f3f5a70ddabe1b028ec62c54f8fba69990e6759919002bf2c5969f012bcca3",
+          "vitestTotals": {
+            "numFailedTestSuites": 0,
+            "numFailedTests": 0,
+            "numPassedTestSuites": 153,
+            "numPassedTests": 562,
+            "numPendingTestSuites": 0,
+            "numPendingTests": 6,
+            "numTodoTests": 0,
+            "numTotalTestSuites": 153,
+            "numTotalTests": 568,
+            "success": true
+          }
+        },
+        "fixtureContract": {
+          "actualFixtureSkips": [
+            {
+              "ancestorTitles": [
+                "deletion process crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "deletion process crash fixture commits one synthetic capture and pauses at the selected deletion boundary",
+              "path": "packages/snapshot-store/tests/deletion-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "commits one synthetic capture and pauses at the selected deletion boundary"
+            },
+            {
+              "ancestorTitles": [],
+              "failureMessages": [],
+              "fullName": "pause after a real completed reserve for parent SIGKILL",
+              "path": "packages/snapshot-store/tests/g3-verification-budget/child-crash-fixture.test.ts",
+              "status": "skipped",
+              "title": "pause after a real completed reserve for parent SIGKILL"
+            },
+            {
+              "ancestorTitles": [
+                "inbox process crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "inbox process crash fixture commits a source event, then pauses inside the requested inbox boundary",
+              "path": "packages/snapshot-store/tests/inbox-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "commits a source event, then pauses inside the requested inbox boundary"
+            },
+            {
+              "ancestorTitles": [
+                "journal cross-process fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "journal cross-process fixture opens only after GO, then enters the real LMDB writer transaction",
+              "path": "packages/snapshot-store/tests/journal-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "opens only after GO, then enters the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload reclamation real-process fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "payload reclamation real-process fixture runs one bounded synthetic store operation at its requested process boundary",
+              "path": "packages/snapshot-store/tests/payload-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "runs one bounded synthetic store operation at its requested process boundary"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store process-crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "snapshot store process-crash fixture pauses at the requested durable boundary until the parent kills this process",
+              "path": "packages/snapshot-store/tests/process-recovery-fixture.test.ts",
+              "status": "skipped",
+              "title": "pauses at the requested durable boundary until the parent kills this process"
+            }
+          ],
+          "allParentCasesPassed": true,
+          "expectedFixtureSkipCount": 6,
+          "fixtureSkipAllowlist": [
+            {
+              "ancestorTitles": [
+                "inbox process crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "consumer inbox recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+                "titles": [
+                  "recovers scenario stage-uncommitted at boundary stage-row-written-before-cursor",
+                  "recovers scenario ack-uncommitted at boundary ack-written-before-cursor",
+                  "recovers scenario ack-committed at boundary ack-transaction-returned"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/inbox-process-fixture.test.ts",
+              "title": "commits a source event, then pauses inside the requested inbox boundary"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store process-crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "snapshot store recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+                "titles": [
+                  "recovers scenario blob-published at boundary after-directory-sync",
+                  "recovers scenario journal-uncommitted at boundary after-event",
+                  "recovers scenario committed-control at boundary commit-returned"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/process-recovery-fixture.test.ts",
+              "title": "pauses at the requested durable boundary until the parent kills this process"
+            },
+            {
+              "ancestorTitles": [
+                "deletion process crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "deletion transaction recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+                "titles": [
+                  "recovers after-tombstone at tombstone-written-before-event",
+                  "recovers after-delete-head at delete-head-written-before-commit",
+                  "recovers committed-delete at delete-transaction-committed"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/deletion-process-fixture.test.ts",
+              "title": "commits one synthetic capture and pauses at the selected deletion boundary"
+            },
+            {
+              "ancestorTitles": [
+                "journal cross-process fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "openJournalBackendV2 real LMDB journal"
+                ],
+                "path": "packages/snapshot-store/tests/journal.test.ts",
+                "titles": [
+                  "serializes two processes behind the real LMDB writer transaction"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/journal-process-fixture.test.ts",
+              "title": "opens only after GO, then enters the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload reclamation real-process fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "payload expiry and physical reclamation across real processes"
+                ],
+                "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+                "titles": [
+                  "recovers an expiry commit after SIGKILL without reviving or corrupting the payload",
+                  "keeps a new live same-hash root when an expired snapshot sweeps after its marker commit",
+                  "holds physical reclamation until an in-flight read owns and hashes the payload"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/payload-process-fixture.test.ts",
+              "title": "runs one bounded synthetic store operation at its requested process boundary"
+            },
+            {
+              "ancestorTitles": [],
+              "parent": {
+                "ancestorTitles": [],
+                "path": "packages/snapshot-store/tests/g3-verification-budget/process.test.ts",
+                "titles": [
+                  "SIGKILL AFTER reserve resolves retains charge and recovers unknown+lock; not an OS-owner/txn-window proof"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/g3-verification-budget/child-crash-fixture.test.ts",
+              "title": "pause after a real completed reserve for parent SIGKILL"
+            }
+          ],
+          "requiredParentCaseCount": 14,
+          "requiredParentCases": [
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario stage-uncommitted at boundary stage-row-written-before-cursor"
+            },
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario ack-uncommitted at boundary ack-written-before-cursor"
+            },
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario ack-committed at boundary ack-transaction-returned"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario blob-published at boundary after-directory-sync"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario journal-uncommitted at boundary after-event"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario committed-control at boundary commit-returned"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers after-tombstone at tombstone-written-before-event"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers after-delete-head at delete-head-written-before-commit"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers committed-delete at delete-transaction-committed"
+            },
+            {
+              "ancestorTitles": [
+                "openJournalBackendV2 real LMDB journal"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/journal.test.ts",
+              "title": "serializes two processes behind the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "recovers an expiry commit after SIGKILL without reviving or corrupting the payload"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "keeps a new live same-hash root when an expired snapshot sweeps after its marker commit"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "holds physical reclamation until an in-flight read owns and hashes the payload"
+            },
+            {
+              "ancestorTitles": [],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/g3-verification-budget/process.test.ts",
+              "title": "SIGKILL AFTER reserve resolves retains charge and recovers unknown+lock; not an OS-owner/txn-window proof"
+            }
+          ],
+          "unexpectedCaseStates": []
+        }
+      },
+      "node24": {
+        "process": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--cache",
+            "false",
+            "--reporter=json",
+            "--outputFile=/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node24-bounded-regression-vitest.report.json",
+            "packages/core/tests",
+            "packages/snapshot-store/tests",
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync-controller.test.ts",
+            "apps/ztools/tests/sync-blob-files.test.ts",
+            "apps/ztools/tests/sync-blob-read.test.ts",
+            "apps/ztools/tests/sync-repository.test.ts",
+            "apps/ztools/tests/sync-view.test.ts",
+            "apps/ztools/tests/sync-runtime.test.ts",
+            "apps/ztools/tests/sync-config.test.ts",
+            "apps/ztools/tests/sync.test.ts"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 25.734,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "clearedFixtureVariableNames": [
+              "V037_BUDGET_CHILD_MARKER",
+              "V037_BUDGET_CHILD_PARENT"
+            ],
+            "fixtureEnvironment": "fixture variables unset in parent; parent tests provide child-only variables",
+            "ownedCaches": {
+              "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/node-compile",
+              "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/python",
+              "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/tmp",
+              "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/xdg",
+              "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/cache/node24/npm"
+            }
+          },
+          "exitCode": 0,
+          "jsonReport": {
+            "bytes": 213509,
+            "exists": true,
+            "path": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node24-bounded-regression-vitest.report.json",
+            "sha256": "89ae1f20e3c4ab12a364aec044fd067544fc77861358484251bf6241dfdb8f4e"
+          },
+          "name": "node24-bounded-regression-vitest",
+          "processGroupTerminated": true,
+          "runtime": "node24",
+          "sourceAggregateSha256": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-bounded-regression-vitest.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 217,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/logs/node24-bounded-regression-vitest.stdout.log",
+          "stdoutSha256": "12a87054d5719820322bfe171c44c82f8b75881644f47f78573c6a42fe158473",
+          "timedOut": false,
+          "timeoutSeconds": 60
+        },
+        "report": {
+          "caseCount": 568,
+          "fileCount": 73,
+          "reportPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-validation-plan-003/candidate003/checks/node24-bounded-regression-vitest.report.json",
+          "reportSha256": "89ae1f20e3c4ab12a364aec044fd067544fc77861358484251bf6241dfdb8f4e",
+          "vitestTotals": {
+            "numFailedTestSuites": 0,
+            "numFailedTests": 0,
+            "numPassedTestSuites": 153,
+            "numPassedTests": 562,
+            "numPendingTestSuites": 0,
+            "numPendingTests": 6,
+            "numTodoTests": 0,
+            "numTotalTestSuites": 153,
+            "numTotalTests": 568,
+            "success": true
+          }
+        },
+        "fixtureContract": {
+          "actualFixtureSkips": [
+            {
+              "ancestorTitles": [
+                "deletion process crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "deletion process crash fixture commits one synthetic capture and pauses at the selected deletion boundary",
+              "path": "packages/snapshot-store/tests/deletion-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "commits one synthetic capture and pauses at the selected deletion boundary"
+            },
+            {
+              "ancestorTitles": [],
+              "failureMessages": [],
+              "fullName": "pause after a real completed reserve for parent SIGKILL",
+              "path": "packages/snapshot-store/tests/g3-verification-budget/child-crash-fixture.test.ts",
+              "status": "skipped",
+              "title": "pause after a real completed reserve for parent SIGKILL"
+            },
+            {
+              "ancestorTitles": [
+                "inbox process crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "inbox process crash fixture commits a source event, then pauses inside the requested inbox boundary",
+              "path": "packages/snapshot-store/tests/inbox-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "commits a source event, then pauses inside the requested inbox boundary"
+            },
+            {
+              "ancestorTitles": [
+                "journal cross-process fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "journal cross-process fixture opens only after GO, then enters the real LMDB writer transaction",
+              "path": "packages/snapshot-store/tests/journal-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "opens only after GO, then enters the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload reclamation real-process fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "payload reclamation real-process fixture runs one bounded synthetic store operation at its requested process boundary",
+              "path": "packages/snapshot-store/tests/payload-process-fixture.test.ts",
+              "status": "skipped",
+              "title": "runs one bounded synthetic store operation at its requested process boundary"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store process-crash fixture"
+              ],
+              "failureMessages": [],
+              "fullName": "snapshot store process-crash fixture pauses at the requested durable boundary until the parent kills this process",
+              "path": "packages/snapshot-store/tests/process-recovery-fixture.test.ts",
+              "status": "skipped",
+              "title": "pauses at the requested durable boundary until the parent kills this process"
+            }
+          ],
+          "allParentCasesPassed": true,
+          "expectedFixtureSkipCount": 6,
+          "fixtureSkipAllowlist": [
+            {
+              "ancestorTitles": [
+                "inbox process crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "consumer inbox recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+                "titles": [
+                  "recovers scenario stage-uncommitted at boundary stage-row-written-before-cursor",
+                  "recovers scenario ack-uncommitted at boundary ack-written-before-cursor",
+                  "recovers scenario ack-committed at boundary ack-transaction-returned"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/inbox-process-fixture.test.ts",
+              "title": "commits a source event, then pauses inside the requested inbox boundary"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store process-crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "snapshot store recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+                "titles": [
+                  "recovers scenario blob-published at boundary after-directory-sync",
+                  "recovers scenario journal-uncommitted at boundary after-event",
+                  "recovers scenario committed-control at boundary commit-returned"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/process-recovery-fixture.test.ts",
+              "title": "pauses at the requested durable boundary until the parent kills this process"
+            },
+            {
+              "ancestorTitles": [
+                "deletion process crash fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "deletion transaction recovery after real process termination"
+                ],
+                "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+                "titles": [
+                  "recovers after-tombstone at tombstone-written-before-event",
+                  "recovers after-delete-head at delete-head-written-before-commit",
+                  "recovers committed-delete at delete-transaction-committed"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/deletion-process-fixture.test.ts",
+              "title": "commits one synthetic capture and pauses at the selected deletion boundary"
+            },
+            {
+              "ancestorTitles": [
+                "journal cross-process fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "openJournalBackendV2 real LMDB journal"
+                ],
+                "path": "packages/snapshot-store/tests/journal.test.ts",
+                "titles": [
+                  "serializes two processes behind the real LMDB writer transaction"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/journal-process-fixture.test.ts",
+              "title": "opens only after GO, then enters the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload reclamation real-process fixture"
+              ],
+              "parent": {
+                "ancestorTitles": [
+                  "payload expiry and physical reclamation across real processes"
+                ],
+                "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+                "titles": [
+                  "recovers an expiry commit after SIGKILL without reviving or corrupting the payload",
+                  "keeps a new live same-hash root when an expired snapshot sweeps after its marker commit",
+                  "holds physical reclamation until an in-flight read owns and hashes the payload"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/payload-process-fixture.test.ts",
+              "title": "runs one bounded synthetic store operation at its requested process boundary"
+            },
+            {
+              "ancestorTitles": [],
+              "parent": {
+                "ancestorTitles": [],
+                "path": "packages/snapshot-store/tests/g3-verification-budget/process.test.ts",
+                "titles": [
+                  "SIGKILL AFTER reserve resolves retains charge and recovers unknown+lock; not an OS-owner/txn-window proof"
+                ]
+              },
+              "path": "packages/snapshot-store/tests/g3-verification-budget/child-crash-fixture.test.ts",
+              "title": "pause after a real completed reserve for parent SIGKILL"
+            }
+          ],
+          "requiredParentCaseCount": 14,
+          "requiredParentCases": [
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario stage-uncommitted at boundary stage-row-written-before-cursor"
+            },
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario ack-uncommitted at boundary ack-written-before-cursor"
+            },
+            {
+              "ancestorTitles": [
+                "consumer inbox recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+              "title": "recovers scenario ack-committed at boundary ack-transaction-returned"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario blob-published at boundary after-directory-sync"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario journal-uncommitted at boundary after-event"
+            },
+            {
+              "ancestorTitles": [
+                "snapshot store recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/process-recovery.test.ts",
+              "title": "recovers scenario committed-control at boundary commit-returned"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers after-tombstone at tombstone-written-before-event"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers after-delete-head at delete-head-written-before-commit"
+            },
+            {
+              "ancestorTitles": [
+                "deletion transaction recovery after real process termination"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+              "title": "recovers committed-delete at delete-transaction-committed"
+            },
+            {
+              "ancestorTitles": [
+                "openJournalBackendV2 real LMDB journal"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/journal.test.ts",
+              "title": "serializes two processes behind the real LMDB writer transaction"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "recovers an expiry commit after SIGKILL without reviving or corrupting the payload"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "keeps a new live same-hash root when an expired snapshot sweeps after its marker commit"
+            },
+            {
+              "ancestorTitles": [
+                "payload expiry and physical reclamation across real processes"
+              ],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+              "title": "holds physical reclamation until an in-flight read owns and hashes the payload"
+            },
+            {
+              "ancestorTitles": [],
+              "expectedStatus": "passed",
+              "path": "packages/snapshot-store/tests/g3-verification-budget/process.test.ts",
+              "title": "SIGKILL AFTER reserve resolves retains charge and recovers unknown+lock; not an OS-owner/txn-window proof"
+            }
+          ],
+          "unexpectedCaseStates": []
+        }
+      }
+    },
+    "sameFilesCasesStatuses": {
+      "caseSetDigests": {
+        "electron": "f9e4f8d40612383b9f6c3079fda8b7a432b5bdc5aae05a94c2403f3300e6dd4a",
+        "node20": "f9e4f8d40612383b9f6c3079fda8b7a432b5bdc5aae05a94c2403f3300e6dd4a",
+        "node24": "f9e4f8d40612383b9f6c3079fda8b7a432b5bdc5aae05a94c2403f3300e6dd4a"
+      },
+      "fileSetDigests": {
+        "electron": "89530fa561db07bb57c9b3e44abd371bdd712613b6f409dacd6c7cbd3410b7f1",
+        "node20": "89530fa561db07bb57c9b3e44abd371bdd712613b6f409dacd6c7cbd3410b7f1",
+        "node24": "89530fa561db07bb57c9b3e44abd371bdd712613b6f409dacd6c7cbd3410b7f1"
+      },
+      "labels": [
+        "electron",
+        "node20",
+        "node24"
+      ],
+      "sameCasesAndStatuses": true,
+      "sameFilesAndCounts": true
+    },
+    "sixPreciseFixtureSkipsAnd14ActualParentPass": true,
+    "selection": {
+      "directoryFilters": [
+        "packages/core/tests",
+        "packages/snapshot-store/tests",
+        "packages/sync-protocol/tests"
+      ],
+      "expectedFiles": [
+        "apps/ztools/tests/sync-blob-files.test.ts",
+        "apps/ztools/tests/sync-blob-read.test.ts",
+        "apps/ztools/tests/sync-config.test.ts",
+        "apps/ztools/tests/sync-controller.test.ts",
+        "apps/ztools/tests/sync-repository.test.ts",
+        "apps/ztools/tests/sync-runtime.test.ts",
+        "apps/ztools/tests/sync-view.test.ts",
+        "apps/ztools/tests/sync.test.ts",
+        "packages/core/tests/clipboard-content-policy-v2-boundaries.test.ts",
+        "packages/core/tests/clipboard-content-policy-v2.test.ts",
+        "packages/core/tests/clipboard-publish-v2.test.ts",
+        "packages/core/tests/clipboard-snapshot-v2.test.ts",
+        "packages/core/tests/paste-stack.test.ts",
+        "packages/core/tests/pinboards.test.ts",
+        "packages/core/tests/query.test.ts",
+        "packages/core/tests/selection.test.ts",
+        "packages/core/tests/types.test.ts",
+        "packages/snapshot-store/tests/blob-store.test.ts",
+        "packages/snapshot-store/tests/consumer-drain-benchmark.test.ts",
+        "packages/snapshot-store/tests/consumer-inbox.test.ts",
+        "packages/snapshot-store/tests/consumer-prefix-integrity.test.ts",
+        "packages/snapshot-store/tests/consumer-recovery.test.ts",
+        "packages/snapshot-store/tests/consumer-sequence-boundaries.test.ts",
+        "packages/snapshot-store/tests/deletion-integrity.test.ts",
+        "packages/snapshot-store/tests/deletion-process-fixture.test.ts",
+        "packages/snapshot-store/tests/deletion-process-recovery.test.ts",
+        "packages/snapshot-store/tests/deletion.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/astra-async-guards.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/astra-native-commit-unknown.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/astra-promotion-failure.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/child-crash-fixture.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/codec.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/integrity.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/ledger.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/process.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/queued-owner-failure.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/residual-boundaries.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/review-boundaries.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/unsupported-wrappers.test.ts",
+        "packages/snapshot-store/tests/inbox-process-fixture.test.ts",
+        "packages/snapshot-store/tests/inbox-process-recovery.test.ts",
+        "packages/snapshot-store/tests/journal-bootstrap.test.ts",
+        "packages/snapshot-store/tests/journal-check-capture.test.ts",
+        "packages/snapshot-store/tests/journal-delete-boundary.test.ts",
+        "packages/snapshot-store/tests/journal-outcome-replay.test.ts",
+        "packages/snapshot-store/tests/journal-process-fixture.test.ts",
+        "packages/snapshot-store/tests/journal-process-polling.test.ts",
+        "packages/snapshot-store/tests/journal-replay-integrity.test.ts",
+        "packages/snapshot-store/tests/journal-roots.test.ts",
+        "packages/snapshot-store/tests/journal.test.ts",
+        "packages/snapshot-store/tests/outbox-acknowledgements.test.ts",
+        "packages/snapshot-store/tests/payload-leases.test.ts",
+        "packages/snapshot-store/tests/payload-process-fixture.test.ts",
+        "packages/snapshot-store/tests/payload-process-recovery.test.ts",
+        "packages/snapshot-store/tests/payload-reclamation.test.ts",
+        "packages/snapshot-store/tests/policy-authority.test.ts",
+        "packages/snapshot-store/tests/process-recovery-fixture.test.ts",
+        "packages/snapshot-store/tests/process-recovery.test.ts",
+        "packages/snapshot-store/tests/store-gc-integrity.test.ts",
+        "packages/snapshot-store/tests/store-recovery.test.ts",
+        "packages/snapshot-store/tests/store-replay-integrity.test.ts",
+        "packages/snapshot-store/tests/store.test.ts",
+        "packages/sync-protocol/tests/clock.test.ts",
+        "packages/sync-protocol/tests/crypto-fixture.test.ts",
+        "packages/sync-protocol/tests/merge.test.ts",
+        "packages/sync-protocol/tests/v2-crypto-boundaries.test.ts",
+        "packages/sync-protocol/tests/v2-crypto-records.test.ts",
+        "packages/sync-protocol/tests/v2-crypto-recovery-security.test.ts",
+        "packages/sync-protocol/tests/v2-crypto.test.ts",
+        "packages/sync-protocol/tests/v2-interop.test.ts",
+        "packages/sync-protocol/tests/v2-wire.test.ts",
+        "packages/sync-protocol/tests/vault.test.ts",
+        "packages/sync-protocol/tests/wire.test.ts"
+      ],
+      "explicitAppFiles": [
+        "apps/ztools/tests/sync-controller.test.ts",
+        "apps/ztools/tests/sync-blob-files.test.ts",
+        "apps/ztools/tests/sync-blob-read.test.ts",
+        "apps/ztools/tests/sync-repository.test.ts",
+        "apps/ztools/tests/sync-view.test.ts",
+        "apps/ztools/tests/sync-runtime.test.ts",
+        "apps/ztools/tests/sync-config.test.ts",
+        "apps/ztools/tests/sync.test.ts"
+      ]
+    },
+    "rawAvailability": "Raw runs/receipts local-only; public capsule is bounded hash-bound summary"
+  },
+  "preservation": {
+    "receipt": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-doccheck/preservation.json",
+      "sha256": "361c526469afe72cccdbd9731b5652aaedd74740c822ef745b04cf84d859d0c2",
+      "bytes": 1273,
+      "availability": "local-only"
+    },
+    "result": {
+      "observedAtUtc": "2026-11-02T09:22:59.688949+00:00",
+      "sourceEntryCount": 845,
+      "sourceAggregate": "cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329",
+      "sourceSelectionMatchesFinalManifest": true,
+      "canonicalAndCopyBytesAndExecutableBitsMatch": true,
+      "manifestFileBytesSha256": "38c07b96dc8641f2f96af053cb8b1fa405eff42461656c9408d6d932b8781157",
+      "manifestMetadataDigest": "7abffc6e9aa585095f65c630c1a672de8ac70aa66b23fcc906e06ccd0c0cc8fb",
+      "protectedReceiptCount": 80,
+      "protectedReceiptsAllMatch": true,
+      "priorRootLocalPublicMatch": {
+        "v033": "7d4edc02a4c6c9aa4f76ea79a46b5a63fffc1d0778d6e6611df52d7dd929469a",
+        "v034": "37494a37bc48e5035d9a1b0e2a9e123a117d97211319a10f8c87af37c9f60bae",
+        "v035": "d6492065f1ad357bdd490bb6eeafd0459fc49cd1193d4447bfdec3b2ecdef203",
+        "v036": "e0d656ddf15dcf6fd9824565c5f72a84b26cc76c37b80db388306e067579c850"
+      },
+      "originalSections1To11Sha256": "32eead80c17fdf531a2d8ce09ac75d7b233f9cd851003b7f54dd4cdb1421a883",
+      "acceptedCryptoADRUnchanged": true,
+      "budgetDesignSnapshotUnchanged": true,
+      "indexEmpty": true,
+      "limit": "Protected evidence only; four other log paths have UNKNOWN original state and possible loss. Not all artifacts unchanged.",
+      "runtimeTestsRerunByDocAuthor": false
+    }
+  },
+  "actualSecurityReview": {
+    "status": "Astra and Sol LIMITED APPROVE maintained on canonical import-only current source",
+    "scope": "Previously found actual module issues closed, no remaining same-scope P1/P2; not production/fullG3 acceptance",
+    "current9BudgetSourceAggregate": "3d27f2c98de5e864da3398a203993fa0e2235d7938c236eff4d48242add6dd6b",
+    "packet004": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-budget-design/actual-source-review-packet-004.json",
+      "sha256": "583b57ac021cbe95ea79e39c1805f05201ef58b9eeaa818547915b5f0e09bbd7",
+      "bytes": 21049,
+      "availability": "local-only"
+    },
+    "packetChain": [
+      {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-budget-design/actual-source-review-packet.json",
+        "sha256": "ae5e331b66d183b08a56897feba56f97d5504ea778709f4079c27357d109d24d",
+        "bytes": 8703,
+        "availability": "local-only"
+      },
+      {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-budget-design/actual-source-review-packet-002.json",
+        "sha256": "23d7f2dac0264de619a89bcb04092a56cbb37d24b8ea60140e574b71bb2e4829",
+        "bytes": 10337,
+        "availability": "local-only"
+      },
+      {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-budget-design/actual-source-review-packet-003.json",
+        "sha256": "f770c5925d88ba3491f1db3c26bc41357a84dea1efc163a86d7e57ec63e21dd1",
+        "bytes": 12793,
+        "availability": "local-only"
+      }
+    ],
+    "importOnlyApplyReceipt": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/canonical-apply-receipt.json",
+      "sha256": "9dfb81c802b1344226b46aee5cc5fc6abda3e27514b20bd8e7773b5d86e8c1a1",
+      "bytes": 7950,
+      "availability": "local-only"
+    },
+    "importOnly": "20 files79 literals; body bytes otherwise unchanged; old/new targets same in3 resolver modes; original nine-file authorization bytes are historical, not current identical bytes"
+  },
+  "diagnostics": {
+    "earlierDesignMutablePacket": "Unmatched historical mutable packet versions are hash-only, not claimed available original bytes; exact archived reviewed ADR texts bound separately",
+    "oldFocused": "Pre-import56=55PASS1child-onlyskip historical, not current broad result",
+    "candidate001": "Runner stopped pre-product empty selection timing error, checks empty; not product failure",
+    "candidate002": "Historical only; final is candidate003",
+    "logPathIncident": {
+      "receipt": {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/log-path-incident.json",
+        "sha256": "256fbc46a4f9ff889f9ed878709ec574cab4e6f46bd9d8dc4381e53565d647e0",
+        "bytes": 3893,
+        "availability": "local-only"
+      },
+      "detail": {
+        "incident": "Relative log redirection escaped diagnostic directory by two levels; four resulting files subsequently moved into diagnostic directory. Existing content, if any, may have been truncated; no prewrite listing or manifest is claimed.",
+        "cwdAtRedirection": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/workspace/plugins/pasteboard-pro",
+        "commands": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node packages/snapshot-store/scripts/build-runtime.mjs > ../../../../../build.stdout.txt 2> ../../../../../build.stderr.txt",
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node node_modules/typescript/bin/tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext --types node packages/snapshot-store/.v037-package-import-assignability.mts > ../../../../../nodenext.stdout.txt 2> ../../../../../nodenext.stderr.txt",
+          "mv plugins/pasteboard-pro/artifacts/pasteboardpro/{build.stdout.txt,build.stderr.txt,nodenext.stdout.txt,nodenext.stderr.txt} plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/"
+        ],
+        "files": [
+          {
+            "originalAbsolutePath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/build.stdout.txt",
+            "movedToAbsolutePath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/build.stdout.txt",
+            "observedBytes": 0,
+            "observedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "observedMtimeUtc": "2026-11-02T08:56:46.838166+00:00",
+            "existenceBeforeRedirection": "UNKNOWN",
+            "previousContents": "UNKNOWN"
+          },
+          {
+            "originalAbsolutePath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/build.stderr.txt",
+            "movedToAbsolutePath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/build.stderr.txt",
+            "observedBytes": 0,
+            "observedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "observedMtimeUtc": "2026-11-02T08:56:46.838217+00:00",
+            "existenceBeforeRedirection": "UNKNOWN",
+            "previousContents": "UNKNOWN"
+          },
+          {
+            "originalAbsolutePath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/nodenext.stdout.txt",
+            "movedToAbsolutePath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/nodenext.stdout.txt",
+            "observedBytes": 0,
+            "observedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "observedMtimeUtc": "2026-11-02T08:56:49.321445+00:00",
+            "existenceBeforeRedirection": "UNKNOWN",
+            "previousContents": "UNKNOWN"
+          },
+          {
+            "originalAbsolutePath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/nodenext.stderr.txt",
+            "movedToAbsolutePath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/nodenext.stderr.txt",
+            "observedBytes": 0,
+            "observedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "observedMtimeUtc": "2026-11-02T08:56:49.321516+00:00",
+            "existenceBeforeRedirection": "UNKNOWN",
+            "previousContents": "UNKNOWN"
+          }
+        ],
+        "limits": "No claim about prewrite existence, prior bytes, recovery, or effect on other evidence. Source and candidate validation artifacts were not intentionally targeted.",
+        "subsequentProcedure": "Use absolute paths within a new owned directory, verify owner marker, and exclusive-create all logs."
+      },
+      "explicitLimit": "Four build/nodenext stdout/stderr paths had UNKNOWN original state, were mistakenly truncate-redirected then moved away. Cannot exclude old log loss. No restore/cleanup. Empty diagnostic logs not proof; final candidate003 receipts are proof. Protected80 unchanged does NOT mean all artifacts unchanged."
+    }
+  },
+  "authorization": {
+    "hostA": "PENDING",
+    "rootCIB": "PENDING",
+    "priorNineFileFix": "Authorized and completed, not pending",
+    "gitPublish": "Not authorized; no stage/commit/push/publish"
+  },
+  "productionFlagsOff": true,
+  "remaining": [
+    "Trusted host owner/OS lock/resolver/key isolation/lease/current-policy",
+    "Production transport/activation/seal/checkpoint/registry",
+    "Windows105native+15storage, real target apps, G3six directions, G4",
+    "4096/100k/512MiB/4KiB/30s stress, txn-internal kill/powerloss, rollback protection; after-reserveSIGKILL not substitutes"
+  ],
+  "sourceScope": "845 items;22new/22changed(4configs+18core/syncimports)/0removed vs823",
+  "noProgressAudit": {
+    "previousTurn": "progress",
+    "thisTurn": "progress",
+    "basis": "Real durable verification component, actual review fixes and final bounded multi-runtime validation",
+    "blockedThresholdReached": false
+  },
+  "noHostCIOrGitWrite": true,
+  "docAuthorTestsRerun": false
+}

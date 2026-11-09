@@ -60,11 +60,55 @@
   position: fixed;
   z-index: 2147483647;
   display: grid;
-  width: min(420px, calc(100vw - 20px));
-  max-height: calc(100vh - 20px);
-  overflow: auto;
-  gap: 17px;
-  padding: 18px;
+  width: min(440px, calc(100vw - 24px));
+  max-height: none !important;
+  overflow: visible !important;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--pb-line, rgba(255, 255, 255, 0.12)) !important;
+  outline: none !important;
+  box-shadow: 0 20px 48px rgb(0 0 0 / 46%), 0 2px 8px rgb(0 0 0 / 22%) !important;
+}
+
+.shelf-filter-popover:focus,
+.shelf-filter-popover:focus-visible,
+.shelf-filter-popover *:focus {
+  outline: none !important;
+}
+
+/* Invisible hover bridge to prevent mouseleave between trigger and popover */
+.shelf-filter-popover::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -18px;
+  height: 20px;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.shelf-filter-popover::-webkit-scrollbar,
+.shelf-filter-options--apps::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.shelf-filter-popover::-webkit-scrollbar-track,
+.shelf-filter-options--apps::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.shelf-filter-popover::-webkit-scrollbar-thumb,
+.shelf-filter-options--apps::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--popover-muted, #a4acb8) 32%, transparent);
+  border-radius: 4px;
+}
+
+.shelf-filter-popover::-webkit-scrollbar-thumb:hover,
+.shelf-filter-options--apps::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--popover-muted, #a4acb8) 55%, transparent);
 }
 
 .shelf-filter-popover__header,
@@ -113,7 +157,7 @@
 
 .shelf-filter-group {
   display: grid;
-  gap: 9px;
+  gap: 6px;
 }
 
 .shelf-filter-group__title {
@@ -135,18 +179,21 @@
 }
 
 .shelf-filter-options--apps {
-  max-height: 94px;
-  overflow: auto;
-  scrollbar-width: thin;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-right: 0 !important;
 }
 
 .shelf-filter-chip {
   display: inline-flex;
-  min-height: 30px;
+  min-height: 26px;
   align-items: center;
-  padding: 0 11px;
+  padding: 0 9px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--popover-muted) 10%, var(--popover-surface));
   color: var(--popover-ink);
   cursor: pointer;
@@ -174,7 +221,7 @@
 .shelf-filter-popover__footer {
   justify-content: space-between;
   gap: 12px;
-  padding-top: 10px;
+  padding-top: 7px;
   border-top: 1px solid var(--popover-line);
 }
 
@@ -190,4 +237,66 @@
   .shelf-filter-chip {
     transition: none;
   }
+}
+
+.shelf-filter-trigger--icon-only {
+  display: inline-flex;
+}
+
+.modern-filter-button--icon-only {
+  position: relative;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--pb-muted);
+}
+
+.modern-filter-button--icon-only:hover,
+.modern-filter-button--icon-only:focus-visible {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--pb-muted) 16%, transparent);
+  color: var(--pb-ink);
+}
+
+.modern-filter-button--icon-only.modern-control--active {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--pb-violet) 22%, transparent);
+  color: var(--pb-violet);
+}
+
+.modern-filter-button--icon-only svg {
+  width: 14px;
+  height: 14px;
+}
+
+.modern-filter-button--icon-only .modern-filter-count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--pb-violet);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.shelf-filter-chip__icon {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  margin-right: 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  place-items: center;
 }

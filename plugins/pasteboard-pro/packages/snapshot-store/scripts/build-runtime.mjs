@@ -5,7 +5,10 @@ import { build } from "vite";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const root = path.resolve(packageRoot, "../..");
-const entry = path.join(packageRoot, "src/index.ts");
+const entry = {
+  index: path.join(packageRoot, "src/index.ts"),
+  "g3-verification-budget": path.join(packageRoot, "src/g3-verification-budget/index.ts"),
+};
 const coreEntry = path.resolve(root, "packages/core/src/index.ts");
 
 await build({
@@ -14,7 +17,7 @@ await build({
   logLevel: "warn",
   resolve: { alias: [{ find: "@pasteboard-pro/core", replacement: coreEntry }] },
   build: {
-    lib: { entry, formats: ["es"], fileName: () => "index.mjs" },
+    lib: { entry, formats: ["es"], fileName: (_format, name) => `${name}.mjs` },
     outDir: path.join(packageRoot, "dist/runtime"),
     emptyOutDir: true,
     minify: false,

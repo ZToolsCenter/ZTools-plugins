@@ -101,6 +101,7 @@ describe("persistent history-image retry rotation", () => {
     expect(await store.findRecordByItemId("ztools:healthy")).toBeDefined();
     expect(await store.getCursor()).toEqual(initialCursor);
     expect(await store.getImageRetryBoundary()).toEqual({ id: "image-15", timestamp: 985 });
+    expect(await store.imageRetries.readSummary()).toMatchObject({ pending: 1, failed: 16, total: 17 });
 
     await fixture.reopen();
     const reopenedStore = new ZToolsCanonicalClipboardStore(
@@ -141,11 +142,13 @@ describe("persistent history-image retry rotation", () => {
       expect(await store.findRecordByItemId("ztools:between-retries")).toBeDefined();
     }
     expect(failingIds).toEqual(new Set(images.map(({ id }) => id)));
+    expect(await store.imageRetries.readSummary()).toMatchObject({ pending: 0, failed: 40, total: 40 });
 
     const recovered = vi.fn(async (_raw: unknown, record: CanonicalClipboardRecord) => record);
     await expect(mirrorHostHistory(hostFor(items), store, { deviceId, prepareRecord: recovered }))
       .resolves.toMatchObject({ imported: 40 });
     expect(await store.getImageRetryBoundary()).toBeUndefined();
+    expect(await store.imageRetries.readSummary()).toMatchObject({ total: 0 });
     expect(await store.getCursor()).toEqual({ id: "between-retries", timestamp: 2_000 });
   });
 
@@ -195,9 +198,11 @@ describe("persistent history-image retry rotation", () => {
     }));
     expect(wrapped).not.toHaveBeenCalled();
     expect(await noOlderStore.getImageRetryBoundary()).toBeUndefined();
-    await expect(mirrorHostHistory(hostFor(noOlderItems), noOlderStore, {
+    await expectPending(mirrorHostHistory(hostFor(noOlderItems), noOlderStore, {
       deviceId, prepareRecord: wrapped,
-    })).resolves.toMatchObject({ imported: 15 });
+    }));
+    expect(await noOlderStore.imageRetries.readSummary()).toMatchObject({ total: 2, failed: 1, pending: 1 });
+    expect(await noOlderStore.getCursor()).toEqual(initialCursor);
   });
 
   it("rechecks current privacy before retry work and does not charge denied images", async () => {

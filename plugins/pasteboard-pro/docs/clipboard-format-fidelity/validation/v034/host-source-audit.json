@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 1,
+  "evidenceLevel": "source-only",
+  "repository": "ZToolsCenter/ZTools",
+  "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+  "source": "Official GitHub connector fetch_file with explicit ref; archived structuredContent originals",
+  "observationsUtc": {
+    "entryPoints": "2026-11-02T04:08:55Z",
+    "lmdbImplementations": "2026-11-02T04:24:12Z",
+    "routerTail": "2026-11-02T04:30:06Z",
+    "note": "Clock observations after each read batch, not server-provided fetch timestamps."
+  },
+  "workspace": {
+    "plugin": {
+      "path": "/Users/harris/Desktop/ZTools-plugins",
+      "branch": "plugin/pasteboard-pro",
+      "head": "db6fb73c32dbf4a977d658f8454051386c0dea52",
+      "existingChangesPreserved": true
+    },
+    "host": {
+      "path": "/Users/harris/Desktop/ZTools",
+      "branch": "fix/security-protocol-validation",
+      "head": "9b15fb1a2a9f3ec886016632761c7bb21e39557a",
+      "mode": "read-only; not authorized development branch"
+    }
+  },
+  "baseline": {
+    "localMain": "b185b5ad6056ea8fd6e7215dd909e641c55d5ed6",
+    "localOriginMain": "b185b5ad6056ea8fd6e7215dd909e641c55d5ed6",
+    "securityHead": "9b15fb1a2a9f3ec886016632761c7bb21e39557a",
+    "securityAheadOfLocalMain": 3,
+    "upstreamMainAtObservation": "76addc6a03940006b5c208e125737d7d4ce953e9",
+    "upstreamAheadOfLocalMain": 140,
+    "comparisonSource": "Official GitHub connector fetch_commit(main) and compare_commits(base=b185b5ad6056ea8fd6e7215dd909e641c55d5ed6, head=76addc6a03940006b5c208e125737d7d4ce953e9): ahead_by=140, behind_by=0, merge_base=b185b5ad6056ea8fd6e7215dd909e641c55d5ed6",
+    "comparisonExactObservationUtc": null,
+    "comparisonRawPreserved": false,
+    "note": "Comparison metadata was observed and reported by audit agent before first 04:08:55 UTC file batch; no raw comparison tool result retained. No git fetch/checkout/worktree creation."
+  },
+  "entries": [
+    {
+      "path": "src/main/managers/clipboardManager.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "45041abbfc2496b60a976572cb3c815da436b99a",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/managers/clipboardManager.ts",
+      "lineCount": 1062,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__managers__clipboardManager.ts.json",
+      "rawStructuredContentSha256": "03db9ea94ce296bd9a2053b22a70b08fdc21fd6fa7aa480262d63addea371f8a",
+      "excerpts": [
+        {
+          "startLine": 21,
+          "endLine": 55,
+          "content": "type ClipboardType = 'text' | 'image' | 'file'\n\nexport type LastCopiedContent = {\n  type: 'text' | 'image' | 'file'\n  data: string | FileItem[]\n  timestamp: number\n  sequence: number\n}\n\nexport type ClipboardWriteContentData =\n  | { type: 'text'; content: string }\n  | { type: 'image'; content: string }\n  | { type: 'file'; content: string | string[] }\n\n// 文件项\ninterface FileItem {\n  path: string // 文件完整路径\n  name: string // 文件名\n  isDirectory: boolean // 是否为文件夹\n}\n\n// 剪贴板记录\ninterface ClipboardItem {\n  id: string\n  type: ClipboardType\n  timestamp: number\n  hash: string\n  appName?: string // 复制时的应用名称\n  bundleId?: string // 复制时的应用 Bundle ID\n  content?: string // text: 文本内容\n  files?: FileItem[] // file: 文件列表\n  imagePath?: string // image: 保存的图片路径\n  resolution?: string // image: 图片分辨率 \"width * height\"\n  preview?: string // 预览文本\n}"
+        },
+        {
+          "startLine": 122,
+          "endLine": 149,
+          "content": "  constructor() {\n    this.IMAGE_DIR = path.join(getClipboardPath(), 'images')\n    this.clipboardMonitor = new ClipboardMonitor()\n    this.windowMonitor = new WindowMonitor()\n    this.init()\n  }\n\n  private async init(): Promise<void> {\n    // 确保图片目录存在\n    await fs.mkdir(this.IMAGE_DIR, { recursive: true })\n\n    // 读取剪贴板配置（如：历史记录保存天数）\n    try {\n      const settings = api.dbGet('settings-general')\n      if (settings && typeof settings.clipboardRetentionDays === 'number') {\n        console.log('[Clipboard] 加载剪贴板配置，保存天数:', settings.clipboardRetentionDays)\n        this.updateConfig({ retentionDays: settings.clipboardRetentionDays })\n      }\n    } catch (error) {\n      console.error('[Clipboard] 加载剪贴板配置失败:', error)\n    }\n\n    // 启动剪贴板监听器（原生事件已做去重）\n    this.clipboardMonitor.start(() => {\n      if (this.cancelWatchTimeout) return\n      console.log('[Clipboard] 剪贴板变化事件触发')\n      this.handleClipboardChange()\n    })"
+        },
+        {
+          "startLine": 223,
+          "endLine": 271,
+          "content": "  public temporaryCancelWatch(): void {\n    if (this.cancelWatchTimeout) {\n      clearTimeout(this.cancelWatchTimeout)\n    }\n    this.cancelWatchTimeout = setTimeout(() => {\n      this.cancelWatchTimeout = null\n    }, 300)\n  }\n\n  // 更新配置\n  public updateConfig(config: Partial<ClipboardConfig>): void {\n    this.config = { ...this.config, ...config }\n  }\n\n  // 处理剪贴板变化（原生事件已去重，直接处理）\n  private async handleClipboardChange(): Promise<void> {\n    try {\n      let item: Partial<ClipboardItem> | null = null\n\n      // 优先级：文件 > 图片（仅纯图片）> 文本\n      // 跨平台文件检测\n      let hasFiles = false\n      try {\n        hasFiles = hasClipboardFiles()\n      } catch (error) {\n        console.error('[Clipboard] 检测文件剪贴板失败:', error)\n        hasFiles = false\n      }\n\n      if (hasFiles) {\n        item = await this.handleFile()\n      } else if (this.shouldTreatAsImage()) {\n        item = await this.handleImage()\n      } else {\n        item = await this.handleText()\n      }\n\n      if (item) {\n        // 连续复制相同内容时跳过记录（保留顺序去重）\n        if (item.hash && item.hash === this.lastSavedHash) {\n          console.log('[Clipboard] 连续重复内容，跳过保存:', item.preview)\n          return\n        }\n        await this.saveItem(item as ClipboardItem)\n        if (item.hash) {\n          this.lastSavedHash = item.hash\n        }\n        // 通知插件剪贴板变化\n        pluginManager?.sendPluginMessage('clipboard-change', item)"
+        },
+        {
+          "startLine": 278,
+          "endLine": 293,
+          "content": "  /**\n   * 判断剪贴板是否应按图片处理。\n   *\n   * Word / WPS 等 Office 应用复制文本时，会额外写入选区的 TIFF/PDF 渲染，\n   * 使 readImage() 非空。这类情况下板上同时存在有效纯文本，应按文本处理。\n   */\n  private shouldTreatAsImage(): boolean {\n    try {\n      if (clipboard.readImage().isEmpty()) {\n        return false\n      }\n      return clipboard.readText().trim().length === 0\n    } catch (error) {\n      console.error('[Clipboard] 检测图片剪贴板失败:', error)\n      return false\n    }"
+        }
+      ],
+      "facts": [
+        "Clipboard models retain single text/image/file type.",
+        "Constructor owns and starts monitor; callback invokes single-type selection.",
+        "Adds consecutive hash deduplication and Office text priority; these are not multi-representation snapshots."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "src/main/core/native/index.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "006beb8310e9ecda443f816f60dc4bb6d8d86935",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/core/native/index.ts",
+      "lineCount": 1523,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__core__native__index.ts.json",
+      "rawStructuredContentSha256": "bd8a3e1685430a3d2a76b07348eea4e76b0f37c936771bf10048753479b4395e",
+      "excerpts": [
+        {
+          "startLine": 117,
+          "endLine": 143,
+          "content": "interface NativeAddon {\n  startMonitor: (callback: () => void) => void\n  stopMonitor: () => void\n  setClipboardPollingBoost?: (intervalMs: number, durationMs: number) => void\n  startWindowMonitor: (callback: (windowInfo: WindowInfo) => void) => void\n  stopWindowMonitor: () => void\n  getActiveWindow: () => ActiveWindowResult | null\n  activateWindow: (identifier: string | number) => boolean\n  simulatePaste: () => boolean\n  simulateKeyboardTap: (key: string, ...modifiers: string[]) => boolean\n  ensureOptimizedShortcutListener: (\n    callback: (payload: { shortcut: string; primed: boolean }) => void\n  ) => void\n  stopOptimizedShortcutListener: () => void\n  registerOptimizedShortcut: (shortcut: string) => { success: boolean; error?: string }\n  unregisterOptimizedShortcut: (shortcut: string) => { success: boolean; error?: string }\n  getOptimizedShortcutCount: () => number\n  primeScreenshotFrame: () => boolean\n  startRegionCapture: (\n    callback: (result: { success: boolean; width?: number; height?: number }) => void\n  ) => void\n  startRegionCaptureWithPrimedFrame: (\n    options: ScreenCaptureOptions,\n    callback: (result: ScreenCaptureResult) => void\n  ) => void\n  getClipboardFiles: () => ClipboardFile[]\n  setClipboardFiles: (files: Array<string | { path: string }>) => boolean"
+        },
+        {
+          "startLine": 268,
+          "endLine": 327,
+          "content": "export class ClipboardMonitor {\n  private _callback: (() => void) | null = null\n  private _isMonitoring = false\n  private _pollTimer: ReturnType<typeof setInterval> | null = null\n\n  /**\n   * 启动剪贴板监控\n   * @param callback - 剪贴板变化时的回调函数（无参数）\n   */\n  start(callback: () => void): void {\n    if (this._isMonitoring) {\n      throw new Error('Monitor is already running')\n    }\n\n    if (typeof callback !== 'function') {\n      throw new TypeError('Callback must be a function')\n    }\n\n    this._callback = callback\n    this._isMonitoring = true\n\n    if (platform === 'linux') {\n      // Linux 降级：使用 Electron clipboard 轮询（每 500ms 检测一次变化）\n      let lastText = clipboard.readText()\n      this._pollTimer = setInterval(() => {\n        const current = clipboard.readText()\n        if (current !== lastText) {\n          lastText = current\n          if (this._callback) {\n            this._callback()\n          }\n        }\n      }, 500)\n    } else {\n      ;(addon as NativeAddon).startMonitor(() => {\n        if (this._callback) {\n          this._callback()\n        }\n      })\n    }\n  }\n\n  /**\n   * 停止剪贴板监控\n   */\n  stop(): void {\n    if (!this._isMonitoring) {\n      return\n    }\n\n    if (platform === 'linux') {\n      if (this._pollTimer !== null) {\n        clearInterval(this._pollTimer)\n        this._pollTimer = null\n      }\n    } else {\n      ;(addon as NativeAddon).stopMonitor()\n    }\n    this._isMonitoring = false\n    this._callback = null"
+        }
+      ],
+      "facts": [
+        "Façade declares zero-argument clipboard monitor signal and basic file APIs.",
+        "No snapshot/revision/batch-publication interface in inspected full source; opaque binary internals are unknown."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "resources/preload.js",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "50d3468829c54c960a5fdcd4c4c05e4f184dd617",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/resources/preload.js",
+      "lineCount": 2254,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/resources__preload.js.json",
+      "rawStructuredContentSha256": "7191cf580a87b06974c2f82f7412adb8ffb30daff40f387a467d3d5cb3800763",
+      "excerpts": [
+        {
+          "startLine": 556,
+          "endLine": 581,
+          "content": "  // 标准数据库 API - 完全兼容 UTools\n  // 同步版本（供插件使用）\n  db: {\n    put: (doc) => electron.ipcRenderer.sendSync('db:put', doc),\n    get: (id) => electron.ipcRenderer.sendSync('db:get', id),\n    remove: (docOrId) => electron.ipcRenderer.sendSync('db:remove', docOrId),\n    bulkDocs: (docs) => electron.ipcRenderer.sendSync('db:bulk-docs', docs),\n    allDocs: (key) => electron.ipcRenderer.sendSync('db:all-docs', key),\n    postAttachment: (id, attachment, type) =>\n      electron.ipcRenderer.sendSync('db:post-attachment', id, attachment, type),\n    getAttachment: (id) => electron.ipcRenderer.sendSync('db:get-attachment', id),\n    getAttachmentType: (id) => electron.ipcRenderer.sendSync('db:get-attachment-type', id),\n\n    // Promise API（供渲染进程使用）\n    promises: {\n      put: async (doc) => await electron.ipcRenderer.invoke('db:put', doc),\n      get: async (id) => await electron.ipcRenderer.invoke('db:get', id),\n      remove: async (docOrId) => await electron.ipcRenderer.invoke('db:remove', docOrId),\n      bulkDocs: async (docs) => await electron.ipcRenderer.invoke('db:bulk-docs', docs),\n      allDocs: async (key) => await electron.ipcRenderer.invoke('db:all-docs', key),\n      postAttachment: async (id, attachment, type) =>\n        await electron.ipcRenderer.invoke('db:post-attachment', id, attachment, type),\n      getAttachment: async (id) => await electron.ipcRenderer.invoke('db:get-attachment', id),\n      getAttachmentType: async (id) =>\n        await electron.ipcRenderer.invoke('db:get-attachment-type', id)\n    }"
+        },
+        {
+          "startLine": 600,
+          "endLine": 620,
+          "content": "  clipboard: {\n    getHistory: async (page, pageSize, filter) =>\n      await electron.ipcRenderer.invoke('clipboard:get-history', page, pageSize, filter),\n    search: async (keyword) => await electron.ipcRenderer.invoke('clipboard:search', keyword),\n    delete: async (id) => await electron.ipcRenderer.invoke('clipboard:delete', id),\n    clear: async (type) => await electron.ipcRenderer.invoke('clipboard:clear', type),\n    getStatus: async () => await electron.ipcRenderer.invoke('clipboard:get-status'),\n    write: async (id, shouldPaste = true) =>\n      await electron.ipcRenderer.invoke('clipboard:write', id, shouldPaste),\n    // 写入内容到剪贴板（file 类型的 content 支持单路径或路径数组）\n    writeContent: async (data, shouldPaste = true) =>\n      await electron.ipcRenderer.invoke('clipboard:write-content', data, shouldPaste),\n    updateConfig: async (config) =>\n      await electron.ipcRenderer.invoke('clipboard:update-config', config),\n    // 监听剪贴板变化事件\n    onChange: async (callback) => {\n      clipboardChangeCallback = callback\n      if (callback) {\n        lazyClipboardChange.attach()\n      }\n    }"
+        }
+      ],
+      "facts": [
+        "Public db sync calls sendSync and promise calls invoke dedicated db channels; not plugin.api dispatcher.",
+        "Clipboard public surface has V1 history/write/config/onChange, without production V2 negotiation/feed/plan/result API."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "src/main/api/plugin/pluginApiDispatcher.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "f807dcda60cec3b7a6028bfc4f4bfe1577374090",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/api/plugin/pluginApiDispatcher.ts",
+      "lineCount": 73,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__api__plugin__pluginApiDispatcher.ts.json",
+      "rawStructuredContentSha256": "e9190956ed643bf18e60a9552394d7677a835bce202e4c2ae7c87ff882a2e2f1",
+      "excerpts": [
+        {
+          "startLine": 38,
+          "endLine": 71,
+          "content": "export function initPluginApiDispatcher(): void {\n  // 同步分发（ipcRenderer.sendSync / ipcRenderer.send → ipcMain.on）\n  ipcMain.on('plugin.api', (event, apiName: string, args: unknown) => {\n    const handler = pluginApiServices[apiName]\n    if (!handler) {\n      console.warn(`[plugin.api:dispatch] API \"${apiName}\" not found`)\n      event.returnValue = new Error(`API \"${apiName}\" not found`)\n      return\n    }\n    try {\n      handler(event, args)\n    } catch (e) {\n      // 同步 handler 异常兜底：确保 event.returnValue 始终被设置\n      if (event.returnValue === undefined || event.returnValue === null) {\n        event.returnValue = e instanceof Error ? e : new Error(String(e))\n      }\n      console.error(`[plugin.api:sync] handler \"${apiName}\" threw:`, e)\n    }\n  })\n\n  // 异步分发（ipcRenderer.invoke → ipcMain.handle）\n  ipcMain.handle('plugin.api', async (event, apiName: string, args: unknown) => {\n    const handler = pluginApiServices[apiName]\n    if (!handler) {\n      console.warn(`[plugin.api:dispatch] API \"${apiName}\" not found`)\n      throw new Error(`API \"${apiName}\" not found`)\n    }\n    try {\n      return await handler(event, args)\n    } catch (e) {\n      console.error(`[plugin.api:async] handler \"${apiName}\" threw:`, e)\n      throw e\n    }\n  })"
+        }
+      ],
+      "facts": [
+        "Dispatcher selects registered handler and calls it; this layer has no sender/grant/policy checks.",
+        "Dedicated public db channels bypass this dispatcher."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "src/main/api/shared/database.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "2472551d02beb523a01e386e5f05dd26bcf2cd08",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/api/shared/database.ts",
+      "lineCount": 816,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__api__shared__database.ts.json",
+      "rawStructuredContentSha256": "1d543072287ea0e731ac7ea6a1a0af64e59443b7a3ba7b5af3055cb0854cd7bc",
+      "excerpts": [
+        {
+          "startLine": 49,
+          "endLine": 70,
+          "content": "  private getPluginPrefix(event: IpcMainEvent | IpcMainInvokeEvent): string | null {\n    // 1. 检查是否来自插件主 BrowserView\n    const pluginInfo = this.pluginManager?.getPluginInfoByWebContents(event.sender)\n    if (pluginInfo) {\n      return getPluginDataPrefix(pluginInfo.name)\n    }\n\n    // 2. 检查是否来自插件创建的子窗口（BrowserWindow）\n    const pluginName = pluginWindowManager.getPluginNameByWebContentsId(event.sender.id)\n    if (pluginName) {\n      return getPluginDataPrefix(pluginName)\n    }\n\n    const partition = (event.sender.session as any)?.partition\n    if (typeof partition === 'string' && partition.startsWith('persist:')) {\n      const partitionPluginName = partition.slice('persist:'.length)\n      if (partitionPluginName) {\n        return getPluginDataPrefix(partitionPluginName)\n      }\n    }\n\n    return null"
+        },
+        {
+          "startLine": 88,
+          "endLine": 98,
+          "content": "    ipcMain.on('db:get', (event, id) => {\n      const prefix = this.getPluginPrefix(event)\n      if (prefix) {\n        id = prefix + id\n      }\n      const doc = lmdbInstance.get(id)\n      // 如果是插件调用，需要去除返回文档的前缀\n      if (doc && prefix && doc._id.startsWith(prefix)) {\n        doc._id = doc._id.slice(prefix.length)\n      }\n      event.returnValue = doc"
+        },
+        {
+          "startLine": 138,
+          "endLine": 159,
+          "content": "    ipcMain.on('db:all-docs', (event, key) => {\n      const prefix = this.getPluginPrefix(event)\n      if (prefix) {\n        if (Array.isArray(key)) {\n          key = key.map((k) => prefix + k)\n        } else if (typeof key === 'string') {\n          key = prefix + key\n        } else {\n          // 如果未指定 key，则查询该插件下的所有文档\n          key = prefix\n        }\n      }\n      const docs = lmdbInstance.allDocs(key)\n      // 如果是插件调用，需要去除返回文档的前缀\n      if (prefix && Array.isArray(docs)) {\n        docs.forEach((doc) => {\n          if (doc._id.startsWith(prefix)) {\n            doc._id = doc._id.slice(prefix.length)\n          }\n        })\n      }\n      event.returnValue = docs"
+        },
+        {
+          "startLine": 206,
+          "endLine": 216,
+          "content": "    ipcMain.handle('db:get', async (event, id) => {\n      const prefix = this.getPluginPrefix(event)\n      if (prefix) {\n        id = prefix + id\n      }\n      const doc = await lmdbInstance.promises.get(id)\n      // 如果是插件调用，需要去除返回文档的前缀\n      if (doc && prefix && doc._id.startsWith(prefix)) {\n        doc._id = doc._id.slice(prefix.length)\n      }\n      return doc"
+        },
+        {
+          "startLine": 256,
+          "endLine": 277,
+          "content": "    ipcMain.handle('db:all-docs', async (event, key) => {\n      const prefix = this.getPluginPrefix(event)\n      if (prefix) {\n        if (Array.isArray(key)) {\n          key = key.map((k) => prefix + k)\n        } else if (typeof key === 'string') {\n          key = prefix + key\n        } else {\n          // 如果未指定 key，则查询该插件下的所有文档\n          key = prefix\n        }\n      }\n      const docs = await lmdbInstance.promises.allDocs(key)\n      // 如果是插件调用，需要去除返回文档的前缀\n      if (prefix && Array.isArray(docs)) {\n        docs.forEach((doc) => {\n          if (doc._id.startsWith(prefix)) {\n            doc._id = doc._id.slice(prefix.length)\n          }\n        })\n      }\n      return docs"
+        },
+        {
+          "startLine": 420,
+          "endLine": 432,
+          "content": "  public dbGet(key: string): any {\n    try {\n      const docId = `ZTOOLS/${key}`\n      const doc = lmdbInstance.get(docId)\n\n      if (!doc) {\n        return null\n      }\n\n      return doc.data\n    } catch (error) {\n      console.error('[Database] dbGet 失败:', key, error)\n      return null"
+        }
+      ],
+      "facts": [
+        "Public db handlers route to lmdbInstance and return document/array values without typed read envelope.",
+        "Internal dbGet is distinct and catches failures to null; public read failure semantics require tracing router and SyncApi."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "src/main/core/lmdb/index.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "c0ffa405abd5b8d0644ec6151f41de69b67ad4ea",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/core/lmdb/index.ts",
+      "lineCount": 382,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__core__lmdb__index.ts.json",
+      "rawStructuredContentSha256": "790feacf524f4e5f6b65817e8845b0681ea22c2f3122e933ca86630842fec2b5",
+      "excerpts": [
+        {
+          "startLine": 94,
+          "endLine": 112,
+          "content": "    this.syncApi = new SyncApi(\n      this.env,\n      this.mainDb,\n      this.metaDb,\n      this.attachmentDb,\n      this.changelogDb,\n      this.revisionDb,\n      this\n    )\n    this.promiseApi = new PromiseApi(this.syncApi)\n\n    // 设置 promises 对象\n    this.promises = {\n      put: (doc: DbDoc) => this.promiseApi.put(doc),\n      get: (id: string) => this.promiseApi.get(id),\n      remove: (docOrId: DbDoc | string) => this.promiseApi.remove(docOrId),\n      removeAndResolve: (docOrId: DbDoc | string) => this.promiseApi.removeAndResolve(docOrId),\n      bulkDocs: (docs: DbDoc[]) => this.promiseApi.bulkDocs(docs),\n      allDocs: (key?: string | string[]) => this.promiseApi.allDocs(key),"
+        },
+        {
+          "startLine": 137,
+          "endLine": 138,
+          "content": "  get(id: string): DbDoc | null {\n    return this.syncApi.get(id)"
+        },
+        {
+          "startLine": 168,
+          "endLine": 169,
+          "content": "  allDocs(key?: string | string[]): DbDoc[] {\n    return this.syncApi.allDocs(key)"
+        }
+      ],
+      "facts": [
+        "LmdbDatabase sync get/allDocs delegate directly to SyncApi.",
+        "Its own PromiseApi exists but is not the public StorageRouter.promises chain."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "src/main/core/lmdb/syncApi.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "99682ee4e51513a49dece1dc19eff2517479491b",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/core/lmdb/syncApi.ts",
+      "lineCount": 1070,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__core__lmdb__syncApi.ts.json",
+      "rawStructuredContentSha256": "30754def98e748823b914997ebc397bde2464735523292164226a578095ed652",
+      "excerpts": [
+        {
+          "startLine": 427,
+          "endLine": 438,
+          "content": "  get(id: string): DbDoc | null {\n    try {\n      const docStr = this.mainDb.get(id)\n      if (!docStr) return null\n      const doc = safeJsonParse(docStr) as DbDoc | null\n      const cleaned = this.stripLegacyCloudSyncState(doc)\n      if (cleaned && cleaned !== doc) this.mainDb.putSync(id, safeJsonStringify(cleaned))\n      return cleaned\n    } catch (e: any) {\n      console.error('[LMDB] get error:', e)\n      return null\n    }"
+        },
+        {
+          "startLine": 561,
+          "endLine": 597,
+          "content": "  allDocs(key?: string | string[]): DbDoc[] {\n    try {\n      const results: DbDoc[] = []\n      if (Array.isArray(key)) {\n        for (const id of key) {\n          const doc = this.get(id)\n          if (doc) results.push(doc)\n        }\n      } else {\n        const prefix = key || ''\n        let endPrefix: string | undefined\n        if (prefix) {\n          const lastChar = prefix[prefix.length - 1]\n          const nextChar = String.fromCharCode(lastChar.charCodeAt(0) + 1)\n          endPrefix = prefix.slice(0, -1) + nextChar\n        }\n        const rangeOptions: any = { start: prefix }\n        if (endPrefix) {\n          rangeOptions.end = endPrefix\n        }\n        for (const { key: currentKey, value: docStr } of Array.from(\n          this.mainDb.getRange(rangeOptions)\n        )) {\n          if (!currentKey.startsWith(prefix)) break\n          const doc = safeJsonParse(docStr) as DbDoc | null\n          const cleaned = this.stripLegacyCloudSyncState(doc)\n          if (cleaned) {\n            if (cleaned !== doc) this.mainDb.putSync(currentKey, safeJsonStringify(cleaned))\n            results.push(cleaned)\n          }\n        }\n      }\n      return results\n    } catch (e: any) {\n      console.error('[LMDB] allDocs error:', e)\n      return []\n    }"
+        }
+      ],
+      "facts": [
+        "get catches storage/cleanup exceptions and returns null.",
+        "allDocs catches exceptions and returns []; array get mode can omit failed/null rows and return others."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "src/main/core/lmdb/promiseApi.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "8b301e813c09dffa97e34991195c6a2200195177",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/core/lmdb/promiseApi.ts",
+      "lineCount": 276,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__core__lmdb__promiseApi.ts.json",
+      "rawStructuredContentSha256": "cda5b32e53cde02bbb8fa5bddddf9a32c9e4b5e51fdf40d793341270aa27e42c",
+      "excerpts": [
+        {
+          "startLine": 36,
+          "endLine": 48,
+          "content": "  async get(id: string): Promise<DbDoc | null> {\n    return new Promise((resolve, reject) => {\n      setImmediate(() => {\n        try {\n          // console.log('lmdb get', id)\n          const result = this.syncApi.get(id)\n          // console.log('lmdb get result', result)\n          resolve(result)\n        } catch (e) {\n          reject(e)\n        }\n      })\n    })"
+        },
+        {
+          "startLine": 105,
+          "endLine": 115,
+          "content": "  async allDocs(key?: string | string[]): Promise<DbDoc[]> {\n    return new Promise((resolve, reject) => {\n      setImmediate(() => {\n        try {\n          const results = this.syncApi.allDocs(key)\n          resolve(results)\n        } catch (e) {\n          reject(e)\n        }\n      })\n    })"
+        }
+      ],
+      "facts": [
+        "Wraps SyncApi calls and resolves their values; only exceptions escaping SyncApi reject.",
+        "Not on public StorageRouter.promises read path."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "src/main/core/lmdb/lmdbInstance.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "382c4819b2892dbb3c2888b65cf854adf51ab9a3",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/core/lmdb/lmdbInstance.ts",
+      "lineCount": 40,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__core__lmdb__lmdbInstance.ts.json",
+      "rawStructuredContentSha256": "55e0d6f5a6ccb7559457004b04f106f8f6d2c932008bd5617bf22e9048e12687",
+      "excerpts": [
+        {
+          "startLine": 1,
+          "endLine": 21,
+          "content": "import { app } from 'electron'\nimport { storageManager } from '../storage/storageManager'\n\n/**\n * 3.0 共享数据库入口。\n *\n * 这里导出的是 StorageRouter：调用方继续使用 lmdbInstance，\n * 实际读写会按 key 路由到 device/account LMDB。\n */\nconst initState = storageManager.init()\nconst lmdbInstance = storageManager.getRouter()\n\nconsole.log('[LMDB] ZTools 3.0 storage initialized', {\n  firstRun: initState.firstRun,\n  legacyLmdbFound: initState.legacyLmdbFound,\n  device: initState.layout.deviceLmdbPath,\n  defaultAccount: initState.layout.defaultAccountLmdbPath\n})\n\n// 导出单例实例\nexport default lmdbInstance"
+        }
+      ],
+      "facts": [
+        "Exports storageManager.getRouter(); source comment explicitly identifies StorageRouter."
+      ],
+      "archivedContentGitBlobMatches": true
+    },
+    {
+      "path": "src/main/core/storage/storageRouter.ts",
+      "ref": "76addc6a03940006b5c208e125737d7d4ce953e9",
+      "blobSha": "21e5bb69b1f4c65e3529ce95cf2f8772a457a921",
+      "sourceUrl": "https://github.com/ZToolsCenter/ZTools/blob/76addc6a03940006b5c208e125737d7d4ce953e9/src/main/core/storage/storageRouter.ts",
+      "lineCount": 235,
+      "rawArtifact": "artifacts/pasteboardpro/clipboard-format-g0/v034-host-audit/raw/src__main__core__storage__storageRouter.ts.json",
+      "rawStructuredContentSha256": "420fe8a27627b3cf87973d19891a31b346f21e0c7d6323478eadaebf5d10a868",
+      "excerpts": [
+        {
+          "startLine": 28,
+          "endLine": 41,
+          "content": "  constructor(private manager: StorageManager) {\n    super()\n    this.promises = {\n      put: async (doc) => this.put(doc),\n      get: async (id) => this.get(id),\n      remove: async (docOrId) => this.remove(docOrId),\n      removeAndResolve: async (docOrId) => this.removeAndResolve(docOrId),\n      bulkDocs: async (docs) => this.bulkDocs(docs),\n      allDocs: async (key) => this.allDocs(key),\n      postAttachment: async (id, attachment, type) => this.postAttachment(id, attachment, type),\n      getAttachment: async (id) => this.getAttachment(id),\n      getAttachmentType: async (id) => this.getAttachmentType(id),\n      getSyncMeta: async (id) => this.getSyncMeta(id)\n    }"
+        },
+        {
+          "startLine": 62,
+          "endLine": 85,
+          "content": "  get(id: string): DbDoc | null {\n    return this.selectByKey(id).get(id)\n  }\n\n  remove(docOrId: DbDoc | string): DbResult {\n    return this.selectByDocOrId(docOrId).remove(docOrId)\n  }\n\n  removeAndResolve(docOrId: DbDoc | string): DbResult {\n    return this.selectByDocOrId(docOrId).removeAndResolve(docOrId)\n  }\n\n  bulkDocs(docs: DbDoc[]): DbResult[] {\n    return docs.map((doc) => this.put(doc))\n  }\n\n  allDocs(key?: string | string[]): DbDoc[] {\n    if (Array.isArray(key)) {\n      return key.map((id) => this.get(id)).filter(Boolean) as DbDoc[]\n    }\n    const scope = getStorageScopeForKey(key)\n    if (scope === 'device') return this.getDeviceDb().allDocs(key)\n    if (scope === 'account') return this.getAccountDb().allDocs(key)\n    return mergeDocs(this.getDeviceDb().allDocs(key), this.getAccountDb().allDocs(key))"
+        },
+        {
+          "startLine": 212,
+          "endLine": 225,
+          "content": "  private selectByKey(key: string): LmdbDatabase {\n    return this.dbBySelector(getStorageScopeForKey(key) === 'device' ? 'device' : 'account')\n  }\n\n  private dbBySelector(selector: DbSelector): LmdbDatabase {\n    return selector === 'device' ? this.getDeviceDb() : this.getAccountDb()\n  }\n\n  private getDeviceDb(): LmdbDatabase {\n    return this.manager.getDeviceDb()\n  }\n\n  private getAccountDb(): LmdbDatabase {\n    return this.manager.getAccountDb()"
+        }
+      ],
+      "facts": [
+        "get/allDocs select LmdbDatabase and do not catch or rewrite errors.",
+        "Public promises wrap router synchronous get/allDocs with async functions, bypassing LmdbDatabase.PromiseApi.",
+        "Null/empty-array values already folded by SyncApi resolve; exceptions escaping routing reject async reads. Uncaught sync IPC behavior is not runtime-verified."
+      ],
+      "archivedContentGitBlobMatches": true
+    }
+  ],
+  "publicReadChain": [
+    "resources/preload.js db.get/db.allDocs or db.promises.get/allDocs",
+    "dedicated database.ts db:get/db:all-docs IPC handlers",
+    "lmdbInstance default export StorageRouter",
+    "StorageRouter get/allDocs, with promises implemented as async wrappers of these same synchronous methods",
+    "LmdbDatabase get/allDocs",
+    "SyncApi get/allDocs"
+  ],
+  "conclusions": {
+    "v2PublicInterfaceAvailableInInspectedFiles": false,
+    "publicReadTypedErrors": false,
+    "readErrorsFoldedAtSyncApi": "get -> null; allDocs -> []; null rows can be omitted",
+    "promiseApiNotOnPublicRouterPath": true,
+    "allPossibleErrorsSwallowed": false,
+    "remainingThrowBoundary": "Routing/selection/IPC errors outside SyncApi catch are not proven folded. Router async wrappers reject escaping exceptions; synchronous IPC uncaught behavior was not executed."
+  },
+  "limitations": [
+    "No installed app/runtime verification; installed ZTools 3.2.0 remains unknown.",
+    "No native binary loading or capability inference from façade/binary update.",
+    "No production policy/service ownership or settings UI/asset provenance established outside the ten inspected files.",
+    "No host modifications, dependency installation, test execution, checkout, fetch, stage, commit or push.",
+    "Ten original per-file structuredContent results are archived; original comparison response and exact comparison timestamp are not retained.",
+    "StorageManager factory implementation was not fetched in this pinned file set; lmdbInstance documentation/getRouter export and StorageRouter LmdbDatabase type/delegations support the traced route."
+  ],
+  "missingRawFileEntries": []
+}

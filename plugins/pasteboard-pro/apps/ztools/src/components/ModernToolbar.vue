@@ -34,6 +34,7 @@ const emit = defineEmits<{
   clearStack: [];
 }>();
 
+const filterOpen = ref(false);
 const moreOpen = ref(false);
 const moreTrigger = ref<HTMLButtonElement>();
 const morePanel = ref<HTMLElement>();
@@ -145,8 +146,20 @@ onBeforeUnmount(closeMoreMenu);
     <SearchBar
       :model-value="query"
       collapsible
+      :keep-expanded="filterOpen"
       @update:model-value="emit('update:query', $event)"
-    />
+    >
+      <template #trailing>
+        <ShelfFilters
+          icon-only
+          :query="query"
+          :items="items"
+          :edge="edge"
+          @open-change="filterOpen = $event"
+          @update:query="emit('update:query', $event)"
+        />
+      </template>
+    </SearchBar>
 
     <div class="modern-toolbar__collections" aria-label="收藏夹">
       <slot name="collections" />
@@ -201,13 +214,6 @@ onBeforeUnmount(closeMoreMenu);
           @click="emit('clearStack')"
           >×</button>
       </div>
-
-      <ShelfFilters
-        :query="query"
-        :items="items"
-        :edge="edge"
-        @update:query="emit('update:query', $event)"
-      />
 
       <div class="modern-more-anchor">
         <button

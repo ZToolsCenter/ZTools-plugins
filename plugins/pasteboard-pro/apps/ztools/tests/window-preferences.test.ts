@@ -74,6 +74,29 @@ describe("ZTools window preferences", () => {
     await expect(store.get()).resolves.toEqual(defaultWindowPreferences);
   });
 
+  it("persists fetchUrlMetadata preference when set", async () => {
+    let document: Record<string, unknown> | undefined;
+    const store = new ZToolsWindowPreferencesStore({
+      async get() {
+        if (document === undefined) throw { status: 404 };
+        return structuredClone(document);
+      },
+      async put(next) {
+        document = { ...structuredClone(next), _rev: "1-test" };
+        return { ok: true };
+      },
+    });
+
+    await store.put({
+      ...defaultWindowPreferences,
+      fetchUrlMetadata: false,
+    });
+    await expect(store.get()).resolves.toEqual({
+      ...defaultWindowPreferences,
+      fetchUrlMetadata: false,
+    });
+  });
+
   it("rejects invalid persisted and requested edges safely", async () => {
     const store = new ZToolsWindowPreferencesStore({
       async get() {

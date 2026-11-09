@@ -13,11 +13,15 @@ import {
   type ImageCropHandle,
   type ImageDimensions,
   type ImageRotation,
+  type ImageEditState,
 } from "../theme-image-edit";
 
-const props = defineProps<{ imageDataUrl: string }>();
+const props = defineProps<{
+  imageDataUrl: string;
+  initialState?: ImageEditState | undefined;
+}>();
 const emit = defineEmits<{
-  apply: [dataUrl: string];
+  apply: [dataUrl: string, editState: ImageEditState];
   close: [];
 }>();
 
@@ -96,8 +100,8 @@ const maxWidthFromAspect = computed(() => Math.sqrt(
   16_000_000 * cropPixelSize.value.width / cropPixelSize.value.height,
 ));
 const maximumOutputWidth = computed(() => Math.max(1, Math.floor(Math.min(
-  4096,
-  4096 * cropPixelSize.value.width / cropPixelSize.value.height,
+  2560,
+  2560 * cropPixelSize.value.width / cropPixelSize.value.height,
   maxWidthFromAspect.value,
 ))));
 const hasImage = computed(() => image.value !== undefined && loadError.value.length === 0);
@@ -130,7 +134,7 @@ function resetCropForCurrentRatio(): void {
   crop.value = aspectRatio.value === undefined
     ? { x: 0, y: 0, width: 1, height: 1 }
     : fitImageCrop(orientedSize.value, aspectRatio.value);
-  outputWidth.value = clampOutputWidth(cropPixelSize.value.width);
+  outputWidth.value = clampOutputWidth(Math.min(1920, cropPixelSize.value.width));
 }
 
 function resetImage(): void {
@@ -236,7 +240,13 @@ async function applyImage(): Promise<void> {
       width: outputWidth.value,
       height: outputHeight.value,
     });
-    emit("apply", edited);
+    const editState: ImageEditState = {
+      rotation: rotation.value,
+      ratioOption: ratioOption.value,
+      crop: crop.value,
+      outputWidth: outputWidth.value,
+    };
+    emit("apply", edited, editState);
   } catch (error) {
     editError.value = error instanceof Error ? error.message : "图片导出失败，请调整尺寸后重试";
   } finally {
@@ -276,7 +286,14 @@ watch([image, rotation], async () => {
 onMounted(async () => {
   try {
     image.value = await loadEditableImage(props.imageDataUrl);
-    resetCropForCurrentRatio();
+    if (props.initialState) {
+      rotation.value = props.initialState.rotation ?? 0;
+      ratioOption.value = props.initialState.ratioOption ?? "original";
+      crop.value = constrainImageCrop(props.initialState.crop ?? { x: 0, y: 0, width: 1, height: 1 });
+      outputWidth.value = clampOutputWidth(props.initialState.outputWidth ?? cropPixelSize.value.width);
+    } else {
+      resetCropForCurrentRatio();
+    }
   } catch (error) {
     loadError.value = error instanceof Error ? error.message : "无法读取所选图片";
   }

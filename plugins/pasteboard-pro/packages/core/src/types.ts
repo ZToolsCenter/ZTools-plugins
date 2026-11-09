@@ -6,6 +6,12 @@ export const HybridClockSchema = z.object({
   deviceId: z.string().min(1),
 });
 
+export const UrlMetaSchema = z.object({
+  title: z.string().optional(),
+  favicon: z.string().optional(),
+  hostname: z.string().optional(),
+});
+
 export const PastePayloadSchema = z.object({
   revision: z.string().min(1),
   text: z.string().optional(),
@@ -13,6 +19,7 @@ export const PastePayloadSchema = z.object({
   blobId: z.string().optional(),
   mediaType: z.string().optional(),
   filePaths: z.array(z.string()).optional(),
+  urlMeta: UrlMetaSchema.optional(),
 });
 
 export const PasteItemSchema = z.object({
@@ -57,6 +64,7 @@ export const PinboardSchema = z.object({
 });
 
 export type HybridClock = z.infer<typeof HybridClockSchema>;
+export type UrlMeta = z.infer<typeof UrlMetaSchema>;
 export type PastePayload = z.infer<typeof PastePayloadSchema>;
 export type PasteItem = z.infer<typeof PasteItemSchema>;
 export type Pinboard = z.infer<typeof PinboardSchema>;

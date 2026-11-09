@@ -169,3 +169,32 @@
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
+
+/* Sleek custom scrollbars for all teleported popovers and their internal scroll containers */
+.popover-surface *::-webkit-scrollbar,
+.popover-surface::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.popover-surface *::-webkit-scrollbar-track,
+.popover-surface::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.popover-surface *::-webkit-scrollbar-thumb,
+.popover-surface::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--popover-muted, #a0a8b2) 35%, transparent);
+  border-radius: 4px;
+}
+
+.popover-surface *::-webkit-scrollbar-thumb:hover,
+.popover-surface::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--popover-muted, #a0a8b2) 60%, transparent);
+}
+
+.popover-surface,
+.popover-surface * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--popover-muted, #a0a8b2) 35%, transparent) transparent;
+}

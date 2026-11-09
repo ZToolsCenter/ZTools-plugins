@@ -44,10 +44,10 @@
 .shelf.shelf--modern.shelf--theme-background{--pb-theme-opaque-surface:#fff}
 .shelf--modern.shelf--theme-background .modern-toolbar{background:var(--pb-theme-opaque-surface)}
 .shelf--modern.shelf--theme-background-image .modern-toolbar{
-  background:color-mix(in srgb,var(--pb-theme-background-color,#24212d) 20%,transparent);
+  background:transparent;
 }
 .shelf--modern.shelf--theme-background-image:not(.shelf--image-frosted) .modern-toolbar{
-  background:color-mix(in srgb,var(--pb-theme-background-color,#24212d) 82%,transparent);
+  background:transparent;
 }
 .shelf--modern.shelf--theme-background .timeline{position:relative}
 .shelf--modern.shelf--theme-background .empty-state{

@@ -1,4 +1,19 @@
 # Paste 格式保真与可靠采集技术方案
+
+> v039：插件内 Unicode portable text/projection 候选已获有限范围源码复核；具名检查通过，两个顶层 runner 失败事实及证据见 [组件说明](PORTABLE_TEXT_PROJECTION.md)。完整 G0–G4、G2/G3、可信 host 与 Windows 仍未完成或未验收；V2 开关关闭，未提交或发布。
+
+v0.38 当前增量：[启动预算、事务与资源验证](G3_BUDGET_RESOURCE_VALIDATION.md)。项目类型、构建和公共包检查通过；相关回归三运行时各 71 PASS / 2 child-only skips，独立复核限定通过。完整 G0–G4/G3、真实宿主和 Windows 仍未完成；见[本轮证据](EVIDENCE_INDEX.md#v038)。
+
+v0.37: [verification-only budget](G3_VERIFICATION_BUDGET.md); [current evidence](EVIDENCE_INDEX.md#v037). Component-only, full G0-G4/G3 incomplete.
+
+
+v0.36 当前增量：[pure wire](G3_WIRE_IMPLEMENTATION.md)与[Node crypto组件](G3_CRYPTO_COMPONENT.md)已实现并经限定代码安全复审。这是独立库组件，不是生产同步、宿主激活或完整G3验收；最终证据见[本轮索引](EVIDENCE_INDEX.md#v036)，原G0–G4、Windows和六方向门禁不变。
+
+
+v0.35 当前增量：[G3 crypto ADR](G3_CRYPTO_ADR.md) 限定设计接受，尚未实施；公开原语在三个 darwin/arm64 运行时各通过24项标准KAT，另各1次候选KDF观测。不是协议vectors、Windows或六方向同步验收，G0–G4仍未完成；A/B范围审批仍pending。见[v0.35根证据](validation/v035/v035-root-evidence.json)。
+
+
+v0.34 当前推进：[宿主实施 ADR](IMPLEMENTATION_ADR.md) 的限定设计门禁与 [A/B 范围审批](MAINLINE_SCOPE_APPROVAL.md)。本轮仅文档和只读源码审计；宿主、根 CI 与本 ADR 新增 wire/bootstrap/queue 均未实施，审批待用户。v0.33 是上一运行基线，本轮不重跑其测试。见[本轮根证据](validation/v034/v034-root-evidence.json)。
 v0.32 当前仅在插件目录实现[精确清理身份与回灌抑制](HISTORY_CLEAR_BOUNDARY.md)；[根证据](validation/v032/v032-root-evidence.json)。v0.31 [宿主接线](HOST_V2_INTEGRATION_CONTRACT.md)与[回贴/portable契约](V2_PLANNER_PORTABLE_CONTRACT.md)仍为 NOT-IMPLEMENTED 设计，属于本轮范围外依赖；完整 G0—G4 未通过。
 v0.30 历史图片重试轮转与清空串行化说明：[实现记录](HISTORY_IMAGE_RETRY_ROTATION.md)。 机器收据见[v0.30 根证据](EVIDENCE_INDEX.md#v030)。
 v0.28根证据：[root evidence](EVIDENCE_INDEX.md#v028)；独立源码review：[review](EVIDENCE_INDEX.md#v028)，结论为有限范围APPROVE；完整G0—G4仍未通过。
@@ -493,3 +508,72 @@ Coordinator失败时best-effort尝试dispatch已确认record变化，刷新异�
 Node与Electron全工作区均为144 passed files/5 skipped files、1298 PASS/6 skips；Node 20.28s、Electron 20.91s。两端scanner/preload/image/isolation各17/6/10/7项通过，8个bounded child均exit0、signal null、stdio为空且确认终止。6项build/types/contracts及root types检查通过；15个打包文件中仅dist/ztools/preload.js变化，renderer未改未重建；2个snapshot-store runtime文件保持原样且未重建。独立source review有限范围APPROVE，reviewer未运行测试。
 
 v0.26一份hash-bound Node journal timing JSON正文不可恢复；v0.28新收据不替代旧证明，另一benchmark已恢复原SHA。具体边界见[历史数据库说明](LEGACY_DATABASE_CONFIRMATION.md)与[incident report](EVIDENCE_INDEX.md#v028)。Windows105项NOT-RUN，生产host、general clipboard、目标应用和完整G0—G4仍未验收。
+
+
+## v0.33 逐图持久重试与正式插件调用方
+
+§6.2.5 的现有 V1 镜像现接入设备隔离的逐图 pending/failed 元数据日志、重启后的已保存图片对账、容量不足时旧任务继续恢复，以及主窗口有界重试和设置状态。清空沿同一 mutation 队列合并 host/日志精确身份，旧 timer 与已排队工作在清空和卸载时失效。本地编辑的来源绑定与具体编辑后 blob 关联，不代表原始格式 exact 保真。实现和预算见[持久重试说明](HISTORY_IMAGE_RETRY_JOURNAL.md)。
+
+最终 Node24/Electron 全工作区各 1439 PASS、6 skips；Node20 定向 113 PASS；工作区实际打包 CJS 两端各 27/27，旧图各 9 项预期失败；设置新旧版浏览器 2/2。源码、测试和已验产物均保留在当前开发工作区。见[根证据](validation/v033/v033-root-evidence.json)。第一候选 1433/6 和 22 项 CJS 是历史中间记录，不作为最终数量。
+
+日志只有元数据，不能重建失效原图；宿主将读取错误折叠为 null 的语义仍无法在插件内可靠消除。完整 G0—G4、Windows 105 项与 15 项存储探针、可信宿主 owner/current-policy、统一 V2 回贴与六方向同步均保持原要求和未完成状态。当前主仓库 CI 的多平台路由只选 Linux；仅改插件不能诚实新增 Windows job。后续运行需根 workflow 授权或独立 Windows 执行入口，且托管 Windows 构建不能替代 Windows10/11 真实应用验收。
+
+
+## v0.34 宿主实施设计门禁与范围依赖
+
+完成原接线契约要求的[实施 ADR](IMPLEMENTATION_ADR.md)并经限定设计复审，明确可信宿主 owner、版本化 wire/sender 授权、scope bootstrap 与增量交接、跨记录队列及冻结 expected OS revision、私有根/锁/flush 与 pin 恢复边界。三项设计 P2（bootstrap、跨记录 queue、首项 revision 重新锚定）已按复核修正；这是设计接受，不是协议运行、宿主集成或平台验收。G3 crypto/key 恢复仍须独立 ADR、review 与 known vectors。
+
+只读[宿主源码审计](validation/v034/host-source-audit.json)绑定上游 `76addc6a03940006b5c208e125737d7d4ce953e9` 的10份源码原文和摘录；所审入口仍无完整 V2 service。已追踪公开 DB 路由中的 SyncApi get/allDocs catch 分别返回 null/空数组；不能外推为所有异常均被吞掉。Promise 入口中逃逸异常可 reject，同步 IPC 未捕获异常及安装包行为未执行。StorageManager factory 未在该 pin 额外读取；140提交比较的原响应和精确观察时间未保留，不把这一观察值当作新取证。
+
+[审批范围 A/B](MAINLINE_SCOPE_APPROVAL.md)分别涵盖宿主隔离开发主链和插件仓库唯一根 Windows workflow，当前均待用户授权。没有创建宿主分支/worktree、fetch、改宿主/CI、提交、推送或发布。只读 pin 不是可直接开发的本地工作区；本地 main/security 历史分支不可冒充实施基线。v0.33 的797项非文档源码及 executable bits 按原清单保持一致，1439/6、CJS、浏览器结果仅继承，不声明本轮重跑。原§1–11、Windows10/11首期、105+15探针、真实应用、G2、G3六方向及G4成功标准全部保留，完整目标继续 active。
+
+
+## v0.35 G3 独立加密设计与公开原语验证
+
+[G3 ADR](G3_CRYPTO_ADR.md)完成独立安全设计复审，结论为 APPROVE DESIGN ONLY / NOT IMPLEMENTED。首审4项P1和2项P2、次审剩余1项P1和2项P2经定向修正后闭合；末次受审文本与当前仅状态/沿革更新后的文本分别绑定本轮根收据。publicationRoot绑定精确index/control checkpoint和删除水位；恢复包需可信anchor、RSK与独立Ed25519管理权，epoch cutover/历史keyring不能仅凭root MAC授权。设计采用最多32个lifetime domain的本地counter预算，不依赖恶意WebDAV提供全局allocator；provenance union、immutable wrappers与分阶段expected context/bootstrap边界一并明确。
+
+V1仍是scrypt N=32768、旧AAD未绑定account/vault/model、固定凭据槽及先apply实体后处理附件的独立旧路径；新V2设计不复用其wire/AAD/key slot，未改产品代码、依赖、sync flag或接收端激活链。不能据设计接受声称V2加密已接入。
+
+公开RFC5869/RFC7914/NIST AES-GCM用例每运行时14项标准原语KAT，另1次候选scrypt N=131072/r=8/p=1、maxmem192MiB的API/耗时观测；RFC8032两个Ed25519向量另各10项KAT。Node24.15.0、Node20.19.3、Electron41.4.0（ELECTRON_RUN_AS_NODE）各合计24项标准KAT+1次观测，子进程均exit0，均仅darwin/arm64。不是25项协议测试、NIST/FIPS认证、硬RSS/生产KDF预算或宿主应用运行；原始脚本、公开来源及运行日志仅保存在owned local artifacts，公开根JSON保存其哈希和限定摘要。非实施者已限定复核原语来源、脚本、日志与hash，无P1/P2；本轮不重跑这些用例。
+
+组合协议known vectors、可信宿主key隔离、持久checkpoint/恢复与fault测试、Win10/11客户端及G3六方向仍未完成。实现测试、构建和原生探针本轮未运行；v0.33的1439/6等只继承。797项原源码选择集、字节/执行位与原§1–11不变，v0.34根收据保持原SHA；宿主/根CI仍未写入，A/B授权pending，无暂存、提交、推送或发布。完整目标active，goalComplete=false、gateComplete=false、G3Complete=false。详见[v0.35根证据](validation/v035/v035-root-evidence.json)。
+
+
+## v0.36 V2 wire 与 Node crypto 库组件
+
+新增独立`./v2` pure wire/schema/JCS/PBV2与`./v2-node` Node crypto组件，包括CSPRNG seal、HKDF/GCM/scrypt wrappers、control MAC和独立Ed25519签名、publication、readonly包及后继root/keyring恢复。授权fence和durable budget要求显式callback，无默认伪授权。详见[pure模块](G3_WIRE_IMPLEMENTATION.md)和[crypto组件](G3_CRYPTO_COMPONENT.md)。V1默认exports与调用链不改；原797项源码中仅package.json新增两个subpath，formatSyncV2仍关闭。
+
+普通非实施者分别发现pure与Node各3项P2并经独立probe确认修复。Astra对实际crypto恢复链另发现2项P1和1项P2，4个原公开probe全部RED。修复曾被自动审批两次拒绝（原风险及缺少具体授权），未绕过执行机制。用户随后明确确认仅7源码和2测试的九文件修复与验证，原执行机制接受新授权后应用精确字节。原probe正文不改，修复后4/4 GREEN；Node24相关包11文件147项及严格类型边界通过。Astra基于实际九文件、trace与日志作受影响点LIMITED APPROVE，无本轮残余P1/P2；不是只审proposal，也不是完整G3安全证明。
+
+独立Python cryptography generator给出12份公开固定输入golden records，fixture111522字节、SHA256 `cc7d06a489bbda8be501cf53d0750d81b8a04ff5ac043061fc60f176047f2e15`。Python/Node交叉向量仅覆盖组合库和受限ASCII/safe-integer输入，不是可信宿主、密钥隔离、远端同步或六方向实机证据。最终snapshot与三运行时同一测试集合的实收据绑定[本轮根证据](validation/v036/v036-root-evidence.json)；中间158/167项候选不能冒充修复后最终结果。
+
+诊断原件保留：首候选两处TS2532、HOME重定向导致Python假缺包、首次runner hash缺口；820项候选167项通过仍早于Astra恢复链红测，其sameTestFiles=false来自有序数组比较，另以实际集合收据限定纠正。interop类型guard未放宽规则，旧210行摘要不替代当前213行源码。最终用安全修复后新snapshot和实际日志，不覆盖旧收据。
+
+本轮componentOnly：可信宿主owner/authorizer、keychain/helper隔离、持久counter/budget/registry/checkpoint store、watchdog/current-policy、transport与activation尚未接入。Win10/11的105项原生与15项存储探针、真实应用格式闭环、G3六方向和G4未验收。原§1–11和完整P1标准不变；A宿主/B根CI审批仍pending，九文件授权不包含这些范围或Git发布。未暂存、提交、推送或发布，goalStatus=active、goalComplete=false、gateComplete=false、G3Complete=false。
+
+
+最终安全修复后验证：Node20.19.3、Node24.15.0和Electron41.4.0 as Node各19文件189项通过，fail/skip/timeout均0；排序(path,count)集合一致。root tsc、workspace contract与Python3.9.6/cryptography50 oracle通过，111522字节fixture逐字节一致。最终823项源码aggregate 76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae，相对原797项新增26、删除0、仅既有package.json新增两个exports。[本轮根证据](validation/v036/v036-root-evidence.json)绑定最终收据。未重跑全工作区1439测试、生产宿主、Windows或原生探针。运行summary冻结时sourceSecurityReview仍标PENDING；其后Astra实际LIMITED APPROVE及最终运行证据补充复核另行记录，不覆盖旧收据。
+
+
+## v0.37 verification-only 持久预算组件
+
+新增[verification budget有限实现](G3_VERIFICATION_BUDGET.md)：Node LMDB日志、验证预算与codec接线、unknown恢复锁定、32失败、prepare/promote和同步guard。设计ADR保留实施前快照状态；当前实现不是生产owner/完整G3。普通与Astra实际受影响点复核LIMITED APPROVE，无残余同范围P1/P2；NodeNext20文件79个specifier仅路径literal变更，旧九文件已授权应用完成，宿主A/根CIB仍pending。
+
+最终candidate003：Node24/20/Electron各73文件568case=562PASS、6个精确fixtureSKIP；14个父进程case实际PASS，选集/状态digest一致。11个process checks均exit0且无timeout；roottypes、workspace contract、build、公共包双运行入口与strict NodeNext imports通过。845项源码aggregate cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329，相对823基线新增22、改22（4config+18core/sync import）、删0。manifest原文件SHA和内部metadataDigest分开绑定[根证据](validation/v037/v037-root-evidence.json)，不混称。此前focused55PASS/1childskip和旧candidate仅历史证据。
+
+日志事故必须保留：四个artifacts/pasteboardpro下build/nodenext stdout/stderr旧状态UNKNOWN，被误truncate后移走，无法排除旧日志丢失；没有restore/cleanup。空诊断日志不作成功证明；80份受保护收据保持原hash不能外推所有artifacts未变。
+
+可信host owner/锁/resolver/key隔离/current policy、transport/activation、seal/checkpoint/registry、Win10/11的105+15、真实应用、六方向和G4仍未验；大规模容量/30s压力、事务内部kill/断电与反回滚也未验。after-reserve SIGKILL不替代这些证明。原§1–11与完整P1不变，flags off，无Git/发布，goalStatus=active、goalComplete=false、gateComplete=false、G3Complete=false。
+
+
+
+## v0.38 启动预算、事务与资源验证
+
+验证 G3 启动预算、事务隔离、4096 epoch 与资源上限（512 MiB / 2^32 计数器）。项目类型、构建和公共包检查通过；相关回归三运行时各 71 PASS / 2 child-only skips，独立复核限定通过。完整 G0–G4/G3、真实宿主和 Windows 仍未完成；详见[启动预算与资源验证说明](G3_BUDGET_RESOURCE_VALIDATION.md)与[本轮证据](EVIDENCE_INDEX.md#v038)。
+
+
+## v0.39 Portable Unicode text 与 projection 候选
+
+新增严格 Unicode codec（`packages/sync-protocol/src/v2/portable-text.ts`）与 ProjectionV2 候选组装流水线（`packages/sync-protocol/src/v2/projection-builder.ts`、`projection-input.ts`）。在 `packages/snapshot-store/tests/portable-projection.test.ts` 中跑通真实 LMDB 本地快照存储写入 -> 变更日志 upsert -> 重新读取 -> projection 生成与摘要验证的端到端回环。
+
+三运行时（Node 24.15.0、Node 20.19.3、Electron 41.4.0 as Node）各 4 个文件、87 项相关用例全部通过（68 项新增 + 19 项既有 wire），0 FAIL / 0 skip；9 项具名检查均退出 0；Sol 独立源码静态复核 LIMITED APPROVE。两个外层 runner 因脚本排序比对与传参语法问题退出码为 1 的客观记录完整保留于[根证据](validation/v039/v039-root-evidence.json)；生产宿主接线、Windows 105+15 项探针及其他 P1 格式仍未完成。详见[组件说明](PORTABLE_TEXT_PROJECTION.md)与[证据索引](EVIDENCE_INDEX.md#v039)。

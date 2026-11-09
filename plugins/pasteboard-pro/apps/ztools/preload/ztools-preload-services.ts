@@ -25,6 +25,8 @@ import { ZToolsListOrderStore } from "./list-order-store";
 import { ZToolsSyncStore } from "./sync-store";
 import { ZToolsSyncEntityRepository } from "./sync-repository";
 import { ThumbnailService } from "./thumbnail";
+import { takeRecordChanges } from "./record-index";
+import { UrlMetadataScheduler } from "./url-metadata-scheduler";
 import { ZToolsWindowPreferencesStore } from "./window-preferences";
 import { PanelWindowManager, ShelfWindowManager } from "./window";
 import { createCheckedZToolsDocumentDatabase } from "./clipboard-document-database";
@@ -69,6 +71,7 @@ export function createSupportedPreloadServices(input: Readonly<{
   ocrClient: ReturnType<typeof createOcrClient> | ReturnType<typeof createTesseractOcrClient>;
   canonicalClipboardHost: ReturnType<typeof withRichClipboard>;
   pasteStackRuntime: PasteStackRuntime | undefined;
+  urlMetadataScheduler: UrlMetadataScheduler | undefined;
 }> {
   const { ztools, environment, window, role, platform } = input;
   const { clipboard, ipcRenderer, nativeImage, safeStorage } = environment;
@@ -150,6 +153,43 @@ export function createSupportedPreloadServices(input: Readonly<{
     );
   });
 
+  const notifyHistoryUpdated = (changes?: readonly string[]) => {
+    historySearch.invalidate(changes);
+    window.dispatchEvent(new CustomEvent("pasteboard-pro:history-changed", { detail: changes }));
+    if (isPrimaryWindow) {
+      shelfWindows.notifyHistoryChanged(changes);
+      panelWindows.notifyHistoryChanged();
+    }
+  };
+
+  const urlMetadataScheduler = isPrimaryWindow
+    ? new UrlMetadataScheduler({
+        store,
+        windowPreferencesStore,
+        onItemUpdated: () => {
+          try {
+            thumbnailService.invalidateRecordIndex();
+            const changes = takeRecordChanges(database);
+            notifyHistoryUpdated(changes.length > 0 ? changes : undefined);
+          } catch {
+            notifyHistoryUpdated();
+          }
+        },
+      })
+    : undefined;
+
+  if (urlMetadataScheduler) {
+    window.addEventListener("pasteboard-pro:history-mirrored", () => {
+      void urlMetadataScheduler.scanHistoricalItems(30);
+    });
+    setTimeout(() => {
+      void urlMetadataScheduler.scanHistoricalItems(50);
+    }, 2000);
+    window.addEventListener("beforeunload", () => {
+      urlMetadataScheduler.destroy();
+    });
+  }
+
   const ocrClient = platform === "darwin"
     ? createOcrClient({ helperPath: path.join(__dirname, "pasteboard-vision") })
     : createTesseractOcrClient({ platform });
@@ -204,5 +244,6 @@ export function createSupportedPreloadServices(input: Readonly<{
     ocrClient,
     canonicalClipboardHost,
     pasteStackRuntime,
+    urlMetadataScheduler,
   };
 }

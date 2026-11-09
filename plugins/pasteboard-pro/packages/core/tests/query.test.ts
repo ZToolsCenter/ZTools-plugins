@@ -221,6 +221,14 @@ describe("searchPasteItems", () => {
   it.each([
     ["title", { title: "needle" }],
     [
+      "urlMeta title",
+      { kind: "url", payload: { revision: "r-url-meta", text: "https://example.com", urlMeta: { title: "needle page" } } },
+    ],
+    [
+      "urlMeta hostname",
+      { kind: "url", payload: { revision: "r-url-host", text: "https://needle.org", urlMeta: { hostname: "needle.org" } } },
+    ],
+    [
       "URL payload text",
       { kind: "url", payload: { revision: "r-url-text", text: "https://needle.test" } },
     ],

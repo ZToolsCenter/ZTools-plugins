@@ -19,6 +19,9 @@
   "references": [
     {
       "path": "../core"
+    },
+    {
+      "path": "../sync-protocol"
     }
   ]
 }

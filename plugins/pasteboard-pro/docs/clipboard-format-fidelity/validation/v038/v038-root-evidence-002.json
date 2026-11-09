@@ -1,0 +1,304 @@
+{
+  "schemaVersion": 1,
+  "increment": "v0.38",
+  "observedAtUtc": "2026-11-02T10:37:31.805242+00:00",
+  "repository": {
+    "root": "/Users/harris/Desktop/ZTools-plugins",
+    "pluginWorktree": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro",
+    "branch": "plugin/pasteboard-pro",
+    "head": "db6fb73c32dbf4a977d658f8454051386c0dea52"
+  },
+  "goalStatus": "active",
+  "goalComplete": false,
+  "gateComplete": false,
+  "G3Complete": false,
+  "libraryOnly": true,
+  "productionFlags": "unchanged/off against v037; no activation",
+  "implementation": {
+    "doc": {
+      "path": "docs/clipboard-format-fidelity/G3_BUDGET_RESOURCE_VALIDATION.md",
+      "sha256": "ea01a8078d463d1d848a2aaaab555ed194724c520147d56aaf98a85da131df8a",
+      "bytes": 4204,
+      "availability": "repository"
+    },
+    "change": "One shared monotonic cooperative startup deadline across open/audit/recovery/await/handle delivery; early capacity checks before JSON decode and Map insertion after native materialization",
+    "nativeLimit": "Cannot preempt native materialization or a blocking native call; no hard 30-second or RSS guarantee"
+  },
+  "source": {
+    "count": 860,
+    "aggregateSha256": "3595a5e874516b67c3327276f9fa372f777ec84954c572952db6717317db92a2",
+    "manifest": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-final-checks/candidate001/source-before.json",
+      "sha256": "acb6e2807eef4672bcbcd9f51e6b4c9236d8c4f324596540cf525163b07ce87c",
+      "bytes": 194204,
+      "availability": "local-only"
+    },
+    "afterManifest": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-final-checks/candidate001/source-after.json",
+      "sha256": "acb6e2807eef4672bcbcd9f51e6b4c9236d8c4f324596540cf525163b07ce87c",
+      "bytes": 194204,
+      "availability": "local-only"
+    },
+    "canonicalAndCopyBytesAndExecutableBitsMatch": true,
+    "deltaFromV037": {
+      "added": [
+        "packages/snapshot-store/src/g3-verification-budget/startup-budget.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/OWNER.json",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/arithmetic.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/capacity.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/dependency-shims.py",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/evidence.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/factory.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/factory.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/internal-interface.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/public-boundaries.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/run.py",
+        "packages/snapshot-store/tests/g3-verification-budget/limits/vitest.config.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/startup-budget.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/transaction-child-fixture.test.ts",
+        "packages/snapshot-store/tests/g3-verification-budget/transaction-process.test.ts"
+      ],
+      "changed": [
+        "packages/snapshot-store/src/g3-verification-budget/audit.ts",
+        "packages/snapshot-store/src/g3-verification-budget/budget.ts",
+        "packages/snapshot-store/src/g3-verification-budget/store.ts"
+      ],
+      "removed": []
+    },
+    "newOrChangedCodeMaxLines": 262
+  },
+  "validation": {
+    "summary": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-final-checks/candidate001/summary.json",
+      "sha256": "a11186ff5d1ff58cfba81235860b3dfe038e26f995c47653334880f01f30c3df",
+      "bytes": 164272,
+      "availability": "local-only"
+    },
+    "terminalVerification": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-final-checks/candidate001/terminal-verification.json",
+      "sha256": "88b9ec178b3468cd88ac051943ee221fd7c432c5a3264c4652073328bcf0ec38",
+      "bytes": 3560,
+      "availability": "local-only"
+    },
+    "processChecks": [
+      {
+        "name": "node24-root-tsc",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "node24-workspace-contract",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "node24-snapshot-store-build",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "node24-public-package-imports",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "node24-public-type-assignability",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "node24-version",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "node24-budget",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "node20-version",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "node20-budget",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "electron-version",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      },
+      {
+        "name": "electron-budget",
+        "exitCode": 0,
+        "timedOut": false,
+        "processGroupTerminated": true
+      }
+    ],
+    "runtimes": {
+      "electron": {
+        "files": 15,
+        "cases": 73,
+        "passed": 71,
+        "failed": 0,
+        "skipped": 2,
+        "report": {
+          "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-final-checks/candidate001/checks/electron-budget.report.json",
+          "sha256": "3a61429e8c5b29eeea5972001f583e10d83dfae9f7aef1ac58585bb95878353d",
+          "availability": "local-only"
+        }
+      },
+      "node20": {
+        "files": 15,
+        "cases": 73,
+        "passed": 71,
+        "failed": 0,
+        "skipped": 2,
+        "report": {
+          "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-final-checks/candidate001/checks/node20-budget.report.json",
+          "sha256": "5e78d92c3afc4acfd75f9409f72c96e0da5dcf92bf6389e9aaf9359954eecbc5",
+          "availability": "local-only"
+        }
+      },
+      "node24": {
+        "files": 15,
+        "cases": 73,
+        "passed": 71,
+        "failed": 0,
+        "skipped": 2,
+        "report": {
+          "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-final-checks/candidate001/checks/node24-budget.report.json",
+          "sha256": "3e363b3d0f5abf433b431f5003a3ea3c017ea142f835a36ef43cd9ba66bf6203",
+          "availability": "local-only"
+        }
+      }
+    },
+    "comparison": {
+      "caseSetDigests": {
+        "electron": "8d362640e542e258aacb3deaf3d24a7552495674828fd18e2283efd247b2bff5",
+        "node20": "8d362640e542e258aacb3deaf3d24a7552495674828fd18e2283efd247b2bff5",
+        "node24": "8d362640e542e258aacb3deaf3d24a7552495674828fd18e2283efd247b2bff5"
+      },
+      "fileSetDigests": {
+        "electron": "0d8443a26410d718e6f31fd47eacbc905f756b00dd924d98857151db4491ce19",
+        "node20": "0d8443a26410d718e6f31fd47eacbc905f756b00dd924d98857151db4491ce19",
+        "node24": "0d8443a26410d718e6f31fd47eacbc905f756b00dd924d98857151db4491ce19"
+      },
+      "labels": [
+        "electron",
+        "node20",
+        "node24"
+      ],
+      "sameCasesAndStatuses": true,
+      "sameFilesAndCounts": true
+    },
+    "selection": "15 budget test files only; no product-wide suite or repeated pressure",
+    "childSkipMeaning": "Two child-only fixture defaults; old after-reserve parent and two new transaction-before-commit parent cases actually passed in each runtime",
+    "focused16PassHistory": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-budget-tests/focused-result-final-001.json",
+      "sha256": "93cd7494c9b996689913d36074090383a42dd49c6a6e8a3d9d57673d23f52be3",
+      "bytes": 10130,
+      "availability": "local-only"
+    },
+    "resourceResults": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-resource-limits/final-summary-001.json",
+      "sha256": "bcbc452fffea5d5aee9354cff4513255f62fb56e30d435bf9b6006ba839db2f2",
+      "bytes": 103792,
+      "availability": "local-only"
+    },
+    "resourceUniqueCases": 10,
+    "resourceBoundary": "10 independent resource cases not added to any runtime 73-case count; epoch seed is schema/capacity only, private seams are not public legal E2E, 512MiB and 2^32 are arithmetic only"
+  },
+  "independentReview": {
+    "reviewer": "/root/v2_acceptance_gap_audit",
+    "model": "GPT-6.1 Sol",
+    "recording": "Root records actual reviewer tool messages, not a separate reviewer-authored or signed artifact",
+    "status": "LIMITED APPROVE",
+    "remainingP1P2InReviewedScope": 0,
+    "scope": "4 affected product source files, 3 new startup/transaction test files, 10 resource cases/87 receipt hashes, 860 current canonical/copy sources, actual 11 checks and runtime/child evidence",
+    "notReviewedAsComplete": "Production trust/host, Windows, hard native time/memory or full G0-G4/G3"
+  },
+  "preservation": {
+    "protectedReceiptCount": 80,
+    "protectedReceiptsAllMatch": true,
+    "priorLocalPublicRoots": {
+      "v033": "7d4edc02a4c6c9aa4f76ea79a46b5a63fffc1d0778d6e6611df52d7dd929469a",
+      "v034": "37494a37bc48e5035d9a1b0e2a9e123a117d97211319a10f8c87af37c9f60bae",
+      "v035": "d6492065f1ad357bdd490bb6eeafd0459fc49cd1193d4447bfdec3b2ecdef203",
+      "v036": "e0d656ddf15dcf6fd9824565c5f72a84b26cc76c37b80db388306e067579c850",
+      "v037": "a9553f45388168f298c6bbd44f96dac09523d1cd52e8db9767001ff02bc2ceae"
+    },
+    "originalSections1To11Sha256": "32eead80c17fdf531a2d8ce09ac75d7b233f9cd851003b7f54dd4cdb1421a883",
+    "acceptedCryptoADRAndBudgetDesignSnapshotUnchanged": true,
+    "limit": "Named protected evidence only; not all artifacts preserved"
+  },
+  "incidents": {
+    "fourDiagnosticLogs": {
+      "record": {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v037-nodenext-diagnostic-001/log-path-incident.json",
+        "sha256": "256fbc46a4f9ff889f9ed878709ec574cab4e6f46bd9d8dc4381e53565d647e0",
+        "bytes": 3893,
+        "availability": "local-only"
+      },
+      "state": "Original existence/content UNKNOWN; possible old log loss; no restore or cleanup"
+    },
+    "initialResourceCacheIsolation": {
+      "record": {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-resource-limits/initial-diagnostic-isolation-assessment.json",
+        "sha256": "b1e7bfed076f628be8d17440606c9ceb28eccbdd71f1ff2c9f4d67bae292c124",
+        "bytes": 1766,
+        "availability": "local-only"
+      },
+      "state": "Early whole node_modules symlinks allowed shared cache; historical prestate UNKNOWN; corrected final runs use owned cache directories, no universal filesystem isolation claim"
+    }
+  },
+  "remaining": [
+    "Trusted production host owner/OS lock, resolver/key isolation/current-policy and supervision/watchdog",
+    "Production seal/checkpoint/registry, transport and activation",
+    "4096 epoch actual trusted-parent history within max128 steps NOT VERIFIED",
+    "Windows10/11 105 native +15 storage cases and actual application matrix NOT RUN; later Windows versions independent gates",
+    "Real macOS host/application clipboard capture-persist-paste, six sync directions, full G0-G4/G3 acceptance"
+  ],
+  "authorization": {
+    "writeScope": "plugins/pasteboard-pro only",
+    "hostA": "PENDING",
+    "rootWorkflowB": "PENDING",
+    "scopeProposal": {
+      "path": "docs/clipboard-format-fidelity/MAINLINE_SCOPE_APPROVAL.md",
+      "sha256": "3e08b43d2f873edaa63e180761da2a3e8b6e6cfd1d39cb31b6c89bb62e744c0b",
+      "bytes": 5237,
+      "availability": "repository"
+    },
+    "gitStageCommitPushPublish": "not performed in this increment",
+    "indexEmpty": true
+  },
+  "noProgressAudit": {
+    "previousGoalTurn": "no progress: user-requested status-only report",
+    "thisGoalTurn": "progress: current-source formal checks, bounded independent acceptance and documentation completed; original full objective unchanged"
+  },
+  "supersedesWithinIncrement": {
+    "path": "artifacts/pasteboardpro/clipboard-format-g0/v038-root-evidence.json",
+    "sha256": "b75802ea2605e26f172b306d57407b494e6218c0de365e812d549e333d421815",
+    "publicPath": "docs/clipboard-format-fidelity/validation/v038/v038-root-evidence.json",
+    "reason": "P3 doc availability clarification: raw artifacts local-only; prior root retained byte-for-byte"
+  },
+  "documentationReview": {
+    "reviewer": "/root/v2_acceptance_gap_audit",
+    "model": "GPT-6.1 Sol",
+    "status": "LIMITED APPROVE on predecessor; sole P3 availability wording corrected here",
+    "changeFromReviewedRoot": "Only doc reference hash/bytes, observation time, supersedes and this review record; no product/source/test/result change"
+  }
+}

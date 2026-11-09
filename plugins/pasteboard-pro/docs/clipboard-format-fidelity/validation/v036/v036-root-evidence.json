@@ -1,0 +1,801 @@
+{
+  "schemaVersion": 1,
+  "increment": "v0.36",
+  "observedAtUtc": "2026-11-02T07:10:23.200393+00:00",
+  "dateAsiaShanghai": "2026-11-02",
+  "repository": {
+    "branch": "plugin/pasteboard-pro",
+    "head": "db6fb73c32dbf4a977d658f8454051386c0dea52",
+    "indexEmpty": true,
+    "pluginRoot": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro",
+    "root": "/Users/harris/Desktop/ZTools-plugins"
+  },
+  "goalStatus": "active",
+  "goalComplete": false,
+  "gateComplete": false,
+  "G3Complete": false,
+  "libraryOnly": true,
+  "componentDocs": [
+    {
+      "path": "docs/clipboard-format-fidelity/G3_WIRE_IMPLEMENTATION.md",
+      "sha256": "82687468b6a986421b153beff884ea7dca3be8aadb72ac7c08a42b1a4085cddf",
+      "bytes": 3365,
+      "availability": "public-with-plugin-docs"
+    },
+    {
+      "path": "docs/clipboard-format-fidelity/G3_CRYPTO_COMPONENT.md",
+      "sha256": "b784318940ba48c97207f5143a0d228f18b5e2a97232faa9c8fe607d3dd11f4e",
+      "bytes": 9692,
+      "availability": "public-with-plugin-docs"
+    }
+  ],
+  "acceptedADR": {
+    "path": "docs/clipboard-format-fidelity/G3_CRYPTO_ADR.md",
+    "sha256": "cdf462681a8170c5e2a92089d23c22817217df9d956b5bcff3edeb498b577d00",
+    "bytes": 30654,
+    "availability": "public-with-plugin-docs"
+  },
+  "finalValidation": {
+    "summary": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/summary.json",
+      "sha256": "ce2deb03fcfb34529951a422ebddb6f59fb2f383c8a37733ee8f62406b246220",
+      "bytes": 405951,
+      "availability": "local-only"
+    },
+    "sourceManifest": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/source-manifest.json",
+      "sha256": "b45c305bcb18a534c3432a0b756f1c4fd16cbeadea777e8d83f775195545e770",
+      "bytes": 257431,
+      "availability": "local-only"
+    },
+    "sourceAggregate": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+    "sourceEntryCount": 823,
+    "runtimeResults": {
+      "electron": {
+        "fileCount": {
+          "failed": 0,
+          "passed": 19,
+          "skipped": 0,
+          "total": 19
+        },
+        "process": {
+          "argv": [
+            "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--cache",
+            "false",
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 2.3,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "1",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/electron",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/electron",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/electron",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/electron",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/electron"
+          },
+          "exitCode": 0,
+          "name": "electron-sync-vitest",
+          "processGroupTerminated": true,
+          "runtimeLabel": "electron",
+          "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/electron-sync-vitest.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 2373,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/electron-sync-vitest.stdout.log",
+          "stdoutSha256": "464a0afb64dd1364937d77f1d939809f2ed4615494b7ede327149162a2a5571b",
+          "testSelection": [
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync"
+          ],
+          "timedOut": false,
+          "timeoutSeconds": 60
+        },
+        "runtime": {
+          "arch": "arm64",
+          "electron": "41.4.0",
+          "node": "v24.15.0",
+          "openssl": "0.0.0",
+          "platform": "darwin"
+        },
+        "summaryLines": {
+          "files": "Test Files  19 passed (19)",
+          "tests": "Tests  189 passed (189)"
+        },
+        "testCount": {
+          "failed": 0,
+          "passed": 189,
+          "skipped": 0,
+          "total": 189
+        }
+      },
+      "node20": {
+        "fileCount": {
+          "failed": 0,
+          "passed": 19,
+          "skipped": 0,
+          "total": 19
+        },
+        "process": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--cache",
+            "false",
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 1.645,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/node20",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/node20",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/node20",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/node20",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/node20"
+          },
+          "exitCode": 0,
+          "name": "node20-sync-vitest",
+          "processGroupTerminated": true,
+          "runtimeLabel": "node20",
+          "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node20-sync-vitest.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 1914,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node20-sync-vitest.stdout.log",
+          "stdoutSha256": "ba42555af28df80b430bf299db6e9b211598d955c9899be72a1f4b8794e7a176",
+          "testSelection": [
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync"
+          ],
+          "timedOut": false,
+          "timeoutSeconds": 60
+        },
+        "runtime": {
+          "arch": "arm64",
+          "electron": null,
+          "node": "v20.19.3",
+          "openssl": "3.0.15+quic",
+          "platform": "darwin"
+        },
+        "summaryLines": {
+          "files": "Test Files  19 passed (19)",
+          "tests": "Tests  189 passed (189)"
+        },
+        "testCount": {
+          "failed": 0,
+          "passed": 189,
+          "skipped": 0,
+          "total": 189
+        }
+      },
+      "node24": {
+        "fileCount": {
+          "failed": 0,
+          "passed": 19,
+          "skipped": 0,
+          "total": 19
+        },
+        "process": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            "node_modules/vitest/vitest.mjs",
+            "run",
+            "--cache",
+            "false",
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 1.697,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/node24",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/node24",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/node24",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/node24",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/node24"
+          },
+          "exitCode": 0,
+          "name": "node24-sync-vitest",
+          "processGroupTerminated": true,
+          "runtimeLabel": "node24",
+          "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node24-sync-vitest.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 1912,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node24-sync-vitest.stdout.log",
+          "stdoutSha256": "e89c11ef3a71a10b99fe6ed409cb6e5feb74f2bc0f3c83b414d29325631980c2",
+          "testSelection": [
+            "packages/sync-protocol/tests",
+            "apps/ztools/tests/sync"
+          ],
+          "timedOut": false,
+          "timeoutSeconds": 60
+        },
+        "runtime": {
+          "arch": "arm64",
+          "electron": null,
+          "node": "v24.15.0",
+          "openssl": "3.5.5",
+          "platform": "darwin"
+        },
+        "summaryLines": {
+          "files": "Test Files  19 passed (19)",
+          "tests": "Tests  189 passed (189)"
+        },
+        "testCount": {
+          "failed": 0,
+          "passed": 189,
+          "skipped": 0,
+          "total": 189
+        }
+      }
+    },
+    "sameTestFilesAndCountsAllRuntimes": true,
+    "testSetComparison": "sorted set of (test path, test count) tuples",
+    "selection": [
+      "run",
+      "--cache",
+      "false",
+      "packages/sync-protocol/tests",
+      "apps/ztools/tests/sync"
+    ],
+    "rootTsc": {
+      "errors": [],
+      "passed": true,
+      "process": {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "node_modules/typescript/bin/tsc",
+          "-b",
+          "--pretty",
+          "false",
+          "--force"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 3.539,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/node24",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/node24",
+          "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/node24",
+          "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/node24",
+          "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/node24"
+        },
+        "exitCode": 0,
+        "name": "node24-root-tsc",
+        "processGroupTerminated": true,
+        "runtimeLabel": "node24",
+        "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node24-root-tsc.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node24-root-tsc.stdout.log",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "testSelection": null,
+        "timedOut": false,
+        "timeoutSeconds": 60
+      },
+      "workingDirectory": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro"
+    },
+    "workspaceContract": {
+      "passed": true,
+      "process": {
+        "argv": [
+          "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "scripts/test-workspace-contract.mjs"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.163,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/node24",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/node24",
+          "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/node24",
+          "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/node24",
+          "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/node24"
+        },
+        "exitCode": 0,
+        "name": "node24-workspace-contract",
+        "processGroupTerminated": true,
+        "runtimeLabel": "node24",
+        "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node24-workspace-contract.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 0,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node24-workspace-contract.stdout.log",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "testSelection": null,
+        "timedOut": false,
+        "timeoutSeconds": 60
+      }
+    },
+    "pythonOracle": {
+      "byteIdentical": true,
+      "checkedInBytes": 111522,
+      "checkedInCopy": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro/packages/sync-protocol/fixtures/crypto-v2.json",
+      "checkedInSha256": "cc7d06a489bbda8be501cf53d0750d81b8a04ff5ac043061fc60f176047f2e15",
+      "cryptographyVersion": "50.0.0",
+      "expectedFixtureSha256": "cc7d06a489bbda8be501cf53d0750d81b8a04ff5ac043061fc60f176047f2e15",
+      "generatedBytes": 111522,
+      "generatedSha256": "cc7d06a489bbda8be501cf53d0750d81b8a04ff5ac043061fc60f176047f2e15",
+      "output": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/oracle-check/crypto-v2.generated.json",
+      "process": {
+        "argv": [
+          "/usr/bin/python3",
+          "scripts/generate-crypto-v2-fixtures.py",
+          "--output",
+          "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/oracle-check/crypto-v2.generated.json",
+          "--receipt",
+          "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/oracle-check/generator.receipt.json"
+        ],
+        "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+        "durationSeconds": 0.816,
+        "environmentSettings": {
+          "ELECTRON_RUN_AS_NODE": "unset",
+          "HOME": "inherited unchanged from os.environ",
+          "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/python39",
+          "NODE_OPTIONS": "unset",
+          "NODE_PATH": "unset",
+          "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/python39",
+          "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/python39",
+          "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/python39",
+          "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/python39"
+        },
+        "exitCode": 0,
+        "name": "python39-oracle-generator",
+        "processGroupTerminated": true,
+        "runtimeLabel": "python39",
+        "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+        "sourceUnchangedAfterRun": true,
+        "sourceVerificationError": null,
+        "stderrBytes": 0,
+        "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/python39-oracle-generator.stderr.log",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutBytes": 129,
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/python39-oracle-generator.stdout.log",
+        "stdoutSha256": "820b0e7341f3b65ec6d3d7c6d6e1c26a56384d620f542c46cf188839b8a7a110",
+        "testSelection": null,
+        "timedOut": false,
+        "timeoutSeconds": 60
+      },
+      "pythonBinary": "/usr/bin/python3",
+      "pythonVersion": "3.9.6",
+      "status": "PASS"
+    },
+    "homeHandling": {
+      "fullEnvironmentDumped": false,
+      "inheritedFromOsEnviron": true,
+      "nodeOptionsAndNodePathCleared": true,
+      "overridden": false
+    },
+    "runtimes": {
+      "binaryFingerprints": {
+        "electron": {
+          "bytes": 33968,
+          "inode": 5451052,
+          "mtimeNs": 1784720215644543290,
+          "path": "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+          "realpath": "/Users/harris/Desktop/ZTools/node_modules/.pnpm/electron@41.4.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+          "sha256": "d921bdb39608b6700b15800dfb2c18ae10d3ee34874f3cc85a7a9eca52815e92"
+        },
+        "node20": {
+          "bytes": 89015904,
+          "inode": 462346,
+          "mtimeNs": 1750657205000000000,
+          "path": "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+          "realpath": "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+          "sha256": "dea6f78c2669e9c301781c6ffdb76a37f38ea55f74ecf436cf080a0ff40f8a98"
+        },
+        "node24": {
+          "bytes": 119944608,
+          "inode": 46422205,
+          "mtimeNs": 1776217542000000000,
+          "path": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "realpath": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+          "sha256": "3200fbd9f7fd4410426dd541e10d1ab829d3472f270d743c7fabd1696c03fe32"
+        }
+      },
+      "preflights": {
+        "electron-version": {
+          "argv": [
+            "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+            "-p",
+            "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 0.364,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "1",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/electron",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/electron",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/electron",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/electron",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/electron"
+          },
+          "exitCode": 0,
+          "name": "electron-version",
+          "processGroupTerminated": true,
+          "runtimeLabel": "electron",
+          "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/electron-version.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 93,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/electron-version.stdout.log",
+          "stdoutSha256": "97b277d8f864631d8ed710fc6f061e4160d506f489cbfee451e6cccf7dd5abe6",
+          "testSelection": null,
+          "timedOut": false,
+          "timeoutSeconds": 15
+        },
+        "node20-version": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+            "-p",
+            "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 0.205,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/node20",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/node20",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/node20",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/node20",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/node20"
+          },
+          "exitCode": 0,
+          "name": "node20-version",
+          "processGroupTerminated": true,
+          "runtimeLabel": "node20",
+          "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node20-version.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 95,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node20-version.stdout.log",
+          "stdoutSha256": "2a5be913104504065af0e0a6e32ae4dc4f32602ccf239027f3b7154ecfd8fa0a",
+          "testSelection": null,
+          "timedOut": false,
+          "timeoutSeconds": 15
+        },
+        "node24-version": {
+          "argv": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            "-p",
+            "JSON.stringify({node:process.version,electron:process.versions.electron||null,openssl:process.versions.openssl,platform:process.platform,arch:process.arch})"
+          ],
+          "cwd": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/workspace/plugins/pasteboard-pro",
+          "durationSeconds": 0.141,
+          "environmentSettings": {
+            "ELECTRON_RUN_AS_NODE": "unset",
+            "HOME": "inherited unchanged from os.environ",
+            "NODE_COMPILE_CACHE": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/node-compile-cache/node24",
+            "NODE_OPTIONS": "unset",
+            "NODE_PATH": "unset",
+            "PATH": "/Users/harris/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPYCACHEPREFIX": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/python-pycache/node24",
+            "TMPDIR": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/tmp/node24",
+            "XDG_CACHE_HOME": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/xdg-cache/node24",
+            "npm_config_cache": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/npm-cache/node24"
+          },
+          "exitCode": 0,
+          "name": "node24-version",
+          "processGroupTerminated": true,
+          "runtimeLabel": "node24",
+          "sourceManifestSha256": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+          "sourceUnchangedAfterRun": true,
+          "sourceVerificationError": null,
+          "stderrBytes": 0,
+          "stderrPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node24-version.stderr.log",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdoutBytes": 89,
+          "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-validation-security-fixed/logs/node24-version.stdout.log",
+          "stdoutSha256": "b76a1cf4793d139b8527c500bffcaec13bc85b7ddfa826a6c617e98a5080a685",
+          "testSelection": null,
+          "timedOut": false,
+          "timeoutSeconds": 15
+        }
+      },
+      "vitestVersion": "3.2.7"
+    },
+    "limits": [
+      "This validates approved sync-protocol library code and its tests only; it is not production integration or G3 completion.",
+      "No Windows or host/CI validation.",
+      "No V1 caller, package dependency, or feature flag was changed by the approved patch.",
+      "No product source or test file was modified by this verifier."
+    ],
+    "rawEvidenceAvailability": "Owned local-only raw logs and receipts; public capsule is bounded hash-indexed summary"
+  },
+  "sourcePreservation": {
+    "receipt": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v036-doccheck/preservation.json",
+      "sha256": "a7653e396eb52b7518f84612b6aa7edb6a0e6e94676c27df773dcd62d72d12ed",
+      "bytes": 1115,
+      "availability": "local-only"
+    },
+    "result": {
+      "observedAtUtc": "2026-11-02T07:10:23.197592+00:00",
+      "scope": "Source identity and standards preservation only; no runtime rerun",
+      "entryCount": 823,
+      "aggregate": "76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae",
+      "selectionMatchesFinalManifest": true,
+      "canonicalAndCopyBytesAndExecutableBitsMatch": true,
+      "baseline797Added": 26,
+      "baseline797Removed": 0,
+      "changedExisting": [
+        "packages/sync-protocol/package.json"
+      ],
+      "priorRoots": {
+        "v033": {
+          "sha256": "7d4edc02a4c6c9aa4f76ea79a46b5a63fffc1d0778d6e6611df52d7dd929469a",
+          "localPublicBytesUnchanged": true
+        },
+        "v034": {
+          "sha256": "37494a37bc48e5035d9a1b0e2a9e123a117d97211319a10f8c87af37c9f60bae",
+          "localPublicBytesUnchanged": true
+        },
+        "v035": {
+          "sha256": "d6492065f1ad357bdd490bb6eeafd0459fc49cd1193d4447bfdec3b2ecdef203",
+          "localPublicBytesUnchanged": true
+        }
+      },
+      "originalSections1To11Sha256": "32eead80c17fdf531a2d8ce09ac75d7b233f9cd851003b7f54dd4cdb1421a883",
+      "originalSections1To11Unchanged": true,
+      "acceptedADRUnchanged": true,
+      "indexEmpty": true
+    },
+    "baselineComparison": {
+      "addedCodeFileLineCounts": {
+        "packages/sync-protocol/src/v2-node.ts": 7,
+        "packages/sync-protocol/src/v2-node/body.ts": 50,
+        "packages/sync-protocol/src/v2-node/codec.ts": 210,
+        "packages/sync-protocol/src/v2-node/encryption.ts": 222,
+        "packages/sync-protocol/src/v2-node/gate.ts": 91,
+        "packages/sync-protocol/src/v2-node/primitives.ts": 150,
+        "packages/sync-protocol/src/v2-node/records.ts": 137,
+        "packages/sync-protocol/src/v2-node/recovery.ts": 135,
+        "packages/sync-protocol/src/v2-node/root-ledger.ts": 36,
+        "packages/sync-protocol/src/v2-node/types.ts": 77,
+        "packages/sync-protocol/src/v2-node/verification.ts": 89,
+        "packages/sync-protocol/src/v2.ts": 7,
+        "packages/sync-protocol/src/v2/bodies.ts": 199,
+        "packages/sync-protocol/src/v2/canonical.ts": 144,
+        "packages/sync-protocol/src/v2/envelope.ts": 116,
+        "packages/sync-protocol/src/v2/primitives.ts": 86,
+        "packages/sync-protocol/src/v2/records.ts": 151,
+        "packages/sync-protocol/src/v2/types.ts": 149,
+        "packages/sync-protocol/tests/v2-crypto-boundaries.test.ts": 87,
+        "packages/sync-protocol/tests/v2-crypto-records.test.ts": 139,
+        "packages/sync-protocol/tests/v2-crypto-recovery-security.test.ts": 272,
+        "packages/sync-protocol/tests/v2-crypto.test.ts": 178,
+        "packages/sync-protocol/tests/v2-interop.test.ts": 213,
+        "packages/sync-protocol/tests/v2-wire.test.ts": 80,
+        "scripts/generate-crypto-v2-fixtures.py": 249
+      },
+      "addedCodeFilesOver500Lines": [],
+      "addedCount": 26,
+      "addedPackageExports": {
+        "./v2": "./src/v2.ts",
+        "./v2-node": "./src/v2-node.ts"
+      },
+      "addedPaths": [
+        "packages/sync-protocol/fixtures/crypto-v2.json",
+        "packages/sync-protocol/src/v2-node.ts",
+        "packages/sync-protocol/src/v2-node/body.ts",
+        "packages/sync-protocol/src/v2-node/codec.ts",
+        "packages/sync-protocol/src/v2-node/encryption.ts",
+        "packages/sync-protocol/src/v2-node/gate.ts",
+        "packages/sync-protocol/src/v2-node/primitives.ts",
+        "packages/sync-protocol/src/v2-node/records.ts",
+        "packages/sync-protocol/src/v2-node/recovery.ts",
+        "packages/sync-protocol/src/v2-node/root-ledger.ts",
+        "packages/sync-protocol/src/v2-node/types.ts",
+        "packages/sync-protocol/src/v2-node/verification.ts",
+        "packages/sync-protocol/src/v2.ts",
+        "packages/sync-protocol/src/v2/bodies.ts",
+        "packages/sync-protocol/src/v2/canonical.ts",
+        "packages/sync-protocol/src/v2/envelope.ts",
+        "packages/sync-protocol/src/v2/primitives.ts",
+        "packages/sync-protocol/src/v2/records.ts",
+        "packages/sync-protocol/src/v2/types.ts",
+        "packages/sync-protocol/tests/v2-crypto-boundaries.test.ts",
+        "packages/sync-protocol/tests/v2-crypto-records.test.ts",
+        "packages/sync-protocol/tests/v2-crypto-recovery-security.test.ts",
+        "packages/sync-protocol/tests/v2-crypto.test.ts",
+        "packages/sync-protocol/tests/v2-interop.test.ts",
+        "packages/sync-protocol/tests/v2-wire.test.ts",
+        "scripts/generate-crypto-v2-fixtures.py"
+      ],
+      "allOtherBaselineEntriesBytesAndExecUnchanged": true,
+      "baselineEntryCount": 797,
+      "baselineManifestSha256": "ddea96679214cb895d53082f28685feb643c3d9a9c3c285054974c5a0f07889e",
+      "changedExistingCount": 1,
+      "changedExistingPaths": [
+        "packages/sync-protocol/package.json"
+      ],
+      "currentEntryCount": 823,
+      "onlyTwoExpectedExportsAdded": true,
+      "removedCount": 0,
+      "removedPaths": []
+    }
+  },
+  "authorization": {
+    "nineFileFix": "Explicit user approval received; original mechanism accepted and ACTUALLY APPLIED",
+    "confirmation": "确认应用九文件修复并验证",
+    "applyReceipt": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v036-user-authorized-fix/user-authorized-apply-freeze.json",
+      "sha256": "c9f3d47a86b2bdd84d896c59cd921f61cbd6eb1565707d91f838c71708909335",
+      "bytes": 3800,
+      "availability": "local-only"
+    },
+    "priorTwoRejectionsPreserved": true,
+    "notBypassed": true,
+    "hostA": "PENDING",
+    "rootCIB": "PENDING",
+    "gitPublishAuthorized": false
+  },
+  "securityReview": {
+    "status": "Astra actual affected-code LIMITED APPROVE",
+    "findings": "2 P1 + 1 P2 recovery-chain findings closed; no residual P1/P2 in affected scope",
+    "basis": "Exact nine-file bytes, traces, 147-test execution and unchanged original independent probes; final runtime evidence subsequently supplemented",
+    "timing": "Frozen runtime summary scope.sourceSecurityReview ASTRA_FINAL_REVIEW_PENDING is an earlier point-in-time label, preserved unchanged; current actual review is LIMITED APPROVE",
+    "originalProbes": {
+      "count": 4,
+      "before": "4 RED",
+      "after": "4 GREEN",
+      "unchangedProbeText": true
+    },
+    "postfixProcess": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v036-ordinary-review/recovery-chain-probes-postfix.process.json",
+      "sha256": "94f5cef176654c46775b7b91a5bff457dc0f1fbe3903521481631dcdba90e3e3",
+      "bytes": 314933,
+      "availability": "local-only"
+    },
+    "history": {
+      "postfix": {
+        "failed": 0,
+        "passed": 4,
+        "processExitCode": 0,
+        "processPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-ordinary-review/recovery-chain-probes-postfix.process.json",
+        "processSha256": "94f5cef176654c46775b7b91a5bff457dc0f1fbe3903521481631dcdba90e3e3",
+        "reportPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-ordinary-review/recovery-chain-probes-postfix.report.json",
+        "reportSha256": "221eff4e6129d495eb87f722b045fe836efe5907036678e39bab158b72e551b0",
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-ordinary-review/recovery-chain-probes-postfix.stdout.txt",
+        "stdoutSha256": "5c754d2e185090d03ce93f8e1dd82f182445803ca80cb5e077f7f056c598a1ca",
+        "totalTests": 4
+      },
+      "traced": {
+        "failed": 4,
+        "passed": 0,
+        "processExitCode": 1,
+        "processPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-ordinary-review/recovery-chain-probes-traced.process.json",
+        "processSha256": "5f1053681c8ca38c9afe1aecf2789f9dab2c22504d1668ec1a86250a22221e6f",
+        "reportPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-ordinary-review/recovery-chain-probes-traced.report.json",
+        "reportSha256": "36d2c9ed9761473a40d115783f566365a85b532740b65416c1216a7e16f9dfd6",
+        "stdoutPath": "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v036-ordinary-review/recovery-chain-probes-traced.stdout.txt",
+        "stdoutSha256": "8dc8c1338754744ab2ece2fb76fa5bc664287686192a39a828644d52aa23f0c8",
+        "totalTests": 4
+      }
+    },
+    "fullG3Proof": false,
+    "finalEvidenceSupplement": {
+      "conclusion": "LIMITED APPROVE maintained, no new gap affecting bounded approval",
+      "readOnlyVerified": "Final ce2deb summary;823 manifest aggregate76b856; nine actual/copy/manifest bytes;80 preserved historical receipts; three actual logs19 files189PASS nofail/skip/timeout and hash match;roottypes/contract exit0;Python generated fixture111522bytes identical",
+      "productionAcceptance": false
+    }
+  },
+  "diagnosticCandidates": {
+    "initial819": "158 each but two TS2532 fail; HOME/Python false missing dependency and initial runner-hash gap retained; not final",
+    "preSecurity820": "167 each/type/contract/oracle pass before Astra RED; not final security evidence",
+    "sameTestFilesFalse": "Ordering artifact, independently compared sorted path/count sets; historical receipt retained",
+    "oldInteropReceipt": "210-line test hash historical; current 213-line source bound by final823 manifest; types not loosened"
+  },
+  "executionScope": {
+    "productChange": "New component library and tests; V1 callers/default exports unchanged, existing package.json only two subpath exports",
+    "flagsUnchanged": true,
+    "formatSyncV2Enabled": false,
+    "hostWritten": false,
+    "rootCIWritten": false,
+    "fullWorkspace1439Rerun": false,
+    "nativeProbesRun": false,
+    "windowsRun": false,
+    "stageCommitPushPublish": false
+  },
+  "remainingAcceptance": {
+    "activation": "NOT_DONE",
+    "currentPolicyEndToEnd": "NOT_DONE",
+    "durableAdapters": "NOT_DONE",
+    "fullG3": "NOT_DONE",
+    "hostCI": "NOT_RUN",
+    "sixDirections": "NOT_DONE",
+    "transport": "NOT_DONE",
+    "trustedOwner": "NOT_DONE",
+    "windows10_11_12": "NOT_RUN"
+  },
+  "originalGates": "P1, sections1-11 and G0-G4 unchanged; Win10/11 native105+storage15, actual apps and six-direction G3 still open",
+  "noProgressAudit": {
+    "previousTurn": "progress",
+    "thisTurn": "progress",
+    "basis": "Real component implementation, security fixes and three-runtime/Python verification",
+    "blockedThresholdReached": false
+  },
+  "priorRoots": {
+    "v033": {
+      "sha256": "7d4edc02a4c6c9aa4f76ea79a46b5a63fffc1d0778d6e6611df52d7dd929469a",
+      "localPublicBytesUnchanged": true
+    },
+    "v034": {
+      "sha256": "37494a37bc48e5035d9a1b0e2a9e123a117d97211319a10f8c87af37c9f60bae",
+      "localPublicBytesUnchanged": true
+    },
+    "v035": {
+      "sha256": "d6492065f1ad357bdd490bb6eeafd0459fc49cd1193d4447bfdec3b2ecdef203",
+      "localPublicBytesUnchanged": true
+    }
+  }
+}

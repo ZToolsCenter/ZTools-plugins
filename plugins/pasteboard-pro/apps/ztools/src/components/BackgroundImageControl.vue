@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref } from "vue";
 import BackgroundImageEditor from "./BackgroundImageEditor.vue";
+import type { ImageEditState } from "../theme-image-edit";
+import {
+  clearRawBackgroundImage,
+  getRawBackgroundImage,
+  saveRawBackgroundImage,
+} from "../raw-image-cache";
 
 const props = defineProps<{ modelValue: string; disabled?: boolean }>();
 const emit = defineEmits<{
@@ -13,6 +19,9 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const chooseButton = ref<HTMLButtonElement | null>(null);
 const editButton = ref<HTMLButtonElement | null>(null);
 const editingImage = ref<string>();
+const editingState = ref<ImageEditState | undefined>();
+const sessionRawImage = ref<string>();
+const sessionEditState = ref<ImageEditState | undefined>();
 const reading = ref(false);
 const error = ref("");
 let reader: FileReader | undefined;
@@ -21,16 +30,24 @@ let readGeneration = 0;
 function choose(): void {
   if (props.disabled || reading.value) return;
   error.value = "";
-  // Chromium attaches this chooser to the current settings window.
   if (fileInput.value !== null) {
     fileInput.value.value = "";
     fileInput.value.click();
   }
 }
 
-function edit(image: string): void {
+function startEdit(image: string, state?: ImageEditState): void {
   editingImage.value = image;
+  editingState.value = state;
   emit("update:editing", true);
+}
+
+async function editExisting(): Promise<void> {
+  if (!props.modelValue) return;
+  const cached = await getRawBackgroundImage();
+  const source = sessionRawImage.value || cached?.rawImageDataUrl || props.modelValue;
+  const state = sessionEditState.value || cached?.editState;
+  startEdit(source, state);
 }
 
 async function selected(event: Event): Promise<void> {
@@ -58,7 +75,12 @@ async function selected(event: Event): Promise<void> {
       nextReader.onabort = () => reject(new Error("图片读取已取消。"));
       nextReader.readAsDataURL(file);
     });
-    if (generation === readGeneration) edit(result);
+    if (generation === readGeneration) {
+      sessionRawImage.value = result;
+      sessionEditState.value = undefined;
+      void saveRawBackgroundImage(result);
+      startEdit(result, undefined);
+    }
   } catch (cause) {
     if (generation === readGeneration) {
       error.value = cause instanceof Error ? cause.message : "图片读取失败。";
@@ -73,15 +95,30 @@ async function selected(event: Event): Promise<void> {
 
 async function closeEditor(): Promise<void> {
   editingImage.value = undefined;
+  editingState.value = undefined;
   emit("update:editing", false);
   await nextTick();
   (editButton.value ?? chooseButton.value)?.focus({ preventScroll: true });
 }
 
-function applyImage(dataUrl: string): void {
+function applyImage(dataUrl: string, editState: ImageEditState): void {
+  sessionEditState.value = editState;
   emit("update:modelValue", dataUrl);
+  const rawToSave = sessionRawImage.value || editingImage.value;
+  if (rawToSave) {
+    sessionRawImage.value = rawToSave;
+    void saveRawBackgroundImage(rawToSave, editState);
+  }
   emit("chosen");
   void closeEditor();
+}
+
+function remove(): void {
+  sessionRawImage.value = undefined;
+  sessionEditState.value = undefined;
+  void clearRawBackgroundImage();
+  emit("update:modelValue", "");
+  emit("remove");
 }
 
 onBeforeUnmount(() => {
@@ -96,10 +133,16 @@ onBeforeUnmount(() => {
     <div>
       <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp" aria-label="选择背景图片文件" hidden :disabled="disabled || reading" @change="selected" />
       <button ref="chooseButton" type="button" class="quiet-action" :disabled="disabled || reading" @click="choose">{{ reading ? "正在读取…" : modelValue ? "更换图片" : "选择图片" }}</button>
-      <button v-if="modelValue" ref="editButton" type="button" class="quiet-action" :disabled="disabled || reading" @click="edit(modelValue)">编辑图片</button>
-      <button v-if="modelValue" type="button" class="quiet-action quiet-action--danger" :disabled="disabled || reading" @click="emit('remove')">移除</button>
+      <button v-if="modelValue" ref="editButton" type="button" class="quiet-action" :disabled="disabled || reading" @click="editExisting">编辑图片</button>
+      <button v-if="modelValue" type="button" class="quiet-action quiet-action--danger" :disabled="disabled || reading" @click="remove">移除</button>
     </div>
   </div>
   <p v-if="error" class="settings-error" role="alert">{{ error }}</p>
-  <BackgroundImageEditor v-if="editingImage !== undefined" :image-data-url="editingImage" @apply="applyImage" @close="closeEditor" />
+  <BackgroundImageEditor
+    v-if="editingImage !== undefined"
+    :image-data-url="editingImage"
+    :initial-state="editingState"
+    @apply="applyImage"
+    @close="closeEditor"
+  />
 </template>

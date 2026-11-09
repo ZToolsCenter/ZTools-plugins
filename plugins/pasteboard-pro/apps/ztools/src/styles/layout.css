@@ -32,3 +32,40 @@ button {
   white-space: nowrap;
   border: 0;
 }
+
+/* Shelf window height expansion for outside popovers */
+body.shelf-window--expanded-bottom #app,
+body.shelf-window--expanded-bottom .stage {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+body.shelf-window--expanded-bottom .shelf {
+  height: 360px !important;
+  max-height: 360px !important;
+  min-height: 360px !important;
+  flex: 0 0 360px !important;
+  align-self: end !important;
+}
+
+body.shelf-window--expanded-top #app,
+body.shelf-window--expanded-top .stage {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+body.shelf-window--expanded-top .shelf {
+  height: 360px !important;
+  max-height: 360px !important;
+  min-height: 360px !important;
+  flex: 0 0 360px !important;
+  align-self: start !important;
+}

@@ -9,6 +9,7 @@ import {
 } from "./screenshot-import";
 import { openQuickLook } from "./quick-look";
 import { rotateImageFile } from "./image-rotation";
+import { fetchUrlMetadata } from "./url-metadata-service";
 import {
   copyCanonicalRecord,
   pasteCanonicalRecord,
@@ -32,6 +33,7 @@ import type { SupportedPreloadServices } from "./ztools-preload-services";
 import type { ZToolsHistoryCoordinator } from "./ztools-history-coordinator";
 
 const PANEL_REQUEST_CHANNEL = "pasteboard-pro:open-panel";
+const EXPAND_SHELF_CHANNEL = "pasteboard-pro:expand-shelf";
 const PASTE_STACK_CHANGED_CHANNEL = "pasteboard-pro:paste-stack-changed";
 const REQUEST_HISTORY_MIRROR_CHANNEL = "pasteboard-pro:request-history-mirror";
 
@@ -86,6 +88,19 @@ export function createZToolsPreloadBridge(input: Readonly<{
     getPlatformCapabilities: () => platformCapabilities,
     getSourceAppIcon: (sourceApp) => sourceAppIcons.getSourceAppIcon(sourceApp),
     listApplications: (refresh) => applicationCatalog.listApplications(refresh),
+    async getImageRetryStatus() {
+      const { pending, failed, total, capacity } = await store.imageRetries.readSummary();
+      return { pending, failed, total, capacity };
+    },
+    requestImageRetry() {
+      if (isPrimaryWindow) {
+        coordinator.requestHistoryMirror();
+      } else if (ztools.sendToParent !== undefined) {
+        ztools.sendToParent(REQUEST_HISTORY_MIRROR_CHANNEL, "image-retry");
+      } else {
+        throw new Error("当前窗口无法请求图片重试，请从主窗口重试");
+      }
+    },
     captureScreenshot: async () => {
       const result = await importScreenCapture(
         ztools,
@@ -99,7 +114,7 @@ export function createZToolsPreloadBridge(input: Readonly<{
         },
       );
       if (isPrimaryWindow) {
-        triggerFastHistoryMirror(4, 250);
+        triggerFastHistoryMirror();
       } else {
         ztools.sendToParent?.(REQUEST_HISTORY_MIRROR_CHANNEL);
       }
@@ -182,6 +197,13 @@ export function createZToolsPreloadBridge(input: Readonly<{
       broadcastHistoryChanged();
       return record.item;
     },
+    async updateItemUrlMetadata(itemId, metadata) {
+      const record = await store.updateItemUrlMetadata(itemId, metadata);
+      void scheduleVaultSync().catch(reportSynchronizationError);
+      broadcastHistoryChanged();
+      return record.item;
+    },
+    fetchUrlMetadata: (url) => fetchUrlMetadata(url),
     listPinboards: () => pinboardStore.list(),
     async createPinboard(name, color) {
       const result = await pinboardStore.create(name, color);
@@ -340,6 +362,14 @@ export function createZToolsPreloadBridge(input: Readonly<{
         ztools.sendToParent?.(PASTE_STACK_CHANGED_CHANNEL, saved);
       }
       return saved;
+    },
+    setShelfExpanded(expanded: boolean, extraHeight = 320) {
+      const extra = expanded ? Math.max(0, extraHeight) : 0;
+      if (isPrimaryWindow) {
+        shelfWindows.setExpandedHeight(extra);
+      } else if (ztools.sendToParent !== undefined) {
+        ztools.sendToParent(EXPAND_SHELF_CHANNEL, extra);
+      }
     },
     openPanel(panel, params) {
       const request: PanelRequest = { panel, ...(params === undefined ? {} : { params }) };

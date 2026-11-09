@@ -1,0 +1,593 @@
+{
+  "schemaVersion": 1,
+  "increment": "v0.35",
+  "observedAtUtc": "2026-11-02T05:14:33.901038+00:00",
+  "dateAsiaShanghai": "2026-11-02",
+  "repository": "/Users/harris/Desktop/ZTools-plugins",
+  "branch": "plugin/pasteboard-pro",
+  "head": "db6fb73c32dbf4a977d658f8454051386c0dea52",
+  "goalStatus": "active",
+  "goalComplete": false,
+  "gateComplete": false,
+  "G3Complete": false,
+  "design": {
+    "adr": {
+      "path": "docs/clipboard-format-fidelity/G3_CRYPTO_ADR.md",
+      "bytes": 30654,
+      "sha256": "cdf462681a8170c5e2a92089d23c22817217df9d956b5bcff3edeb498b577d00",
+      "availability": "public-with-plugin-docs"
+    },
+    "status": "ACCEPTED DESIGN / NOT IMPLEMENTED",
+    "reviewConclusion": "APPROVE DESIGN ONLY",
+    "reviewedTexts": [
+      {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v035-design/adr-first-reviewed.md",
+        "bytes": 18930,
+        "sha256": "f1f36a5a6ea68d073ff3cd6cfc57938f66d3cc5eb390972283d02c132aa9c716",
+        "availability": "local-only",
+        "stage": "first",
+        "findings": "4 P1 + 2 P2; REQUEST_CHANGES"
+      },
+      {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v035-design/adr-second-reviewed.md",
+        "bytes": 26827,
+        "sha256": "bc1a03462e996dbef987a75093b9abfd3f87adde3e1c3613e92bb55116f622d1",
+        "availability": "local-only",
+        "stage": "second",
+        "findings": "remaining 1 P1 + 2 P2; REQUEST_CHANGES"
+      },
+      {
+        "path": "artifacts/pasteboardpro/clipboard-format-g0/v035-design/adr-final-reviewed.md",
+        "bytes": 30137,
+        "sha256": "f09de8a145324e9c417b8fe3bc40257b7903d0230c1d8d20e74cf9150a4c784b",
+        "availability": "local-only",
+        "stage": "final",
+        "findings": "affected findings closed; APPROVE DESIGN ONLY"
+      }
+    ],
+    "finalMetadataChangesOnly": "status and review history; protocol unchanged after last reviewed text",
+    "runtimeProtocolVerified": false
+  },
+  "primitiveEvidence": {
+    "mainSummary": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/summary-final.json",
+      "bytes": 15978,
+      "sha256": "238dc1713a1a077b99ed23ae063787810848dd6f40e2ed28c941772406a018bd",
+      "availability": "local-only"
+    },
+    "ed25519Summary": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/ed25519/summary.json",
+      "bytes": 12492,
+      "sha256": "d6e5e5a645dd36d4e542412cf030a776e4adc766837063d5b4a1535ae3ea482f",
+      "availability": "local-only"
+    },
+    "initialSummaryPreserved": {
+      "nodeRuntimeResultsInherited": true,
+      "path": "summary.json",
+      "preservedUnchanged": true,
+      "sha256": "28d57eb6558d464dc1ecce89891ad6f3cb2ca461aaac0ef2cb2531ad1d9cbfd2"
+    },
+    "mainEvidenceFileManifest": {
+      "cache/electron/v24.15.0-arm64-e27d4a24-501/3af5cee3": {
+        "bytes": 5556,
+        "sha256": "f247887a4cb08db5cb0fa2d39c1148083754c8ec76c67530d2bda2ac8d6bc818"
+      },
+      "electron-launch.json": {
+        "bytes": 2252,
+        "sha256": "19674223f78e64b42b2539829d5b4e694df33281ff6436b829d97295a0f0c8d2"
+      },
+      "electron-preflight.json": {
+        "bytes": 1085,
+        "sha256": "b6c8e8c08b0e8f3761de291d6d09032d33720fa51ced48a2bbf692bef5ad836e"
+      },
+      "extract_vectors.py": {
+        "bytes": 10103,
+        "sha256": "a67b96f281b81fb4ce70eea1e86df44dad613ec0e889f76ce2a65ca910816adf"
+      },
+      "run_kats.mjs": {
+        "bytes": 5304,
+        "sha256": "cb478c5cf97c91a275b47474e3a35508a5d6b0ba2852dc89e83b5ffeab697ec8"
+      },
+      "run_runtime.py": {
+        "bytes": 2692,
+        "sha256": "dc71a6c319e47e2a4c718db7d40dc0ebd9b570631ba3fe56385778486e747117"
+      },
+      "runs/electron41-4-0.process.json": {
+        "bytes": 565,
+        "sha256": "b7b7a037c6228591274373246699f7b735bc8e719f8cc5680323880c2a6a1722"
+      },
+      "runs/electron41-4-0.stderr.txt": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runs/electron41-4-0.stdout.json": {
+        "bytes": 2082,
+        "sha256": "91ced9ca1c2e32d58c728307b5dd3b4cc0bf3689b7416309814b55e10a9734b0"
+      },
+      "runs/node20-19-3.process.json": {
+        "bytes": 520,
+        "sha256": "6b9f5b64be8a7e62c4564f2907b534d51c6132ddf8a4e429269b5365b340a5b8"
+      },
+      "runs/node20-19-3.stderr.txt": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runs/node20-19-3.stdout.json": {
+        "bytes": 2084,
+        "sha256": "3ec653892b4f3d1f94794e40ed63c3e4fe6e67f77290d273e18279ecde0e56fc"
+      },
+      "runs/node24-15-0.process.json": {
+        "bytes": 520,
+        "sha256": "ecbb20c48a8748e0ecfbe7ecb1838c6f24757af48c5d41273572032b022683cf"
+      },
+      "runs/node24-15-0.stderr.txt": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runs/node24-15-0.stdout.json": {
+        "bytes": 2078,
+        "sha256": "4ec49dfce80728acd2f2adacb938d5aae14897273929279dd292d5e88c6e3a85"
+      },
+      "sources/gcmEncryptExtIV256.rsp": {
+        "bytes": 3182939,
+        "sha256": "4448b4998c3f58cd9f5542ddf7c573189a721ff3d3ac24cd5177bb4910a787f8"
+      },
+      "sources/gcmtestvectors.zip": {
+        "bytes": 9154174,
+        "sha256": "f9fc479e134cde2980b3bb7cddbcb567b2cd96fd753835243ed067699f26a023"
+      },
+      "sources/rfc5869.txt": {
+        "bytes": 25854,
+        "sha256": "7a40eb3835b35fc947eb12a2ed614db079d43b26e50dbc537c31fba16397089c"
+      },
+      "sources/rfc7914.txt": {
+        "bytes": 29222,
+        "sha256": "df55932f8b6a5d271f36a634d91a25903724e189ba6c120bf7257cd47f10b197"
+      },
+      "summarize.py": {
+        "bytes": 5095,
+        "sha256": "9b312afde533863f1b0cfc0b928d7e120443c99f6ad149a124f5fe12aeaeaeab"
+      },
+      "summary.json": {
+        "bytes": 11449,
+        "sha256": "28d57eb6558d464dc1ecce89891ad6f3cb2ca461aaac0ef2cb2531ad1d9cbfd2"
+      },
+      "vectors.json": {
+        "bytes": 5132,
+        "sha256": "9b4e6aabf11c1a537dfcf380943506e3a7ca6af157ffedb52911fbdfd9792e31"
+      }
+    },
+    "ed25519EvidenceFileManifest": {
+      "cache/electron/v24.15.0-arm64-e27d4a24-501/840b9eaf": {
+        "bytes": 3836,
+        "sha256": "3663c1f63e4e69fede8651628ebc33d95e2a1e3dcf4d78307923d53d43560c11"
+      },
+      "cache/node24/v24.15.0-arm64-cf738c9d-501/840b9eaf": {
+        "bytes": 4284,
+        "sha256": "629c3e5d54a846abd214eaa884e777799ca7763309e158e1113193512b069f9c"
+      },
+      "extract_vectors.py": {
+        "bytes": 4132,
+        "sha256": "b3d23093287bfddce6b4016589c038810dfdc5a069c49d1f660a71d192126317"
+      },
+      "run_ed25519.mjs": {
+        "bytes": 3410,
+        "sha256": "0c92bd07585f1e7956af3cf925b3146649e1e372bbb8e042d8e0cc9495c13b5a"
+      },
+      "run_runtime.py": {
+        "bytes": 2661,
+        "sha256": "201db73365aba8f9760c38656c85d9bfb10789cb79fc57fd5f025ff050b4fef5"
+      },
+      "runs/electron41-4-0.process.json": {
+        "bytes": 584,
+        "sha256": "d66774aa32b52fcecc90eb8435d24edfcbdc8c701ac880a4e0d278ad50a96aa4"
+      },
+      "runs/electron41-4-0.stderr.txt": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runs/electron41-4-0.stdout.json": {
+        "bytes": 1391,
+        "sha256": "592952e440fd85c67e6ab8229f846998c5ff5219728f5dbbfa9e3dabbc73ed99"
+      },
+      "runs/node20-19-3.process.json": {
+        "bytes": 539,
+        "sha256": "b8ef5080f717f0b4142b87b5f4cf13882e629df7cd1de7e68cb38ddedc27f1ea"
+      },
+      "runs/node20-19-3.stderr.txt": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runs/node20-19-3.stdout.json": {
+        "bytes": 1393,
+        "sha256": "8ce71b39e40521bae8e76095e445ba9f829cc70e561fd6d37416fb9dfc116dda"
+      },
+      "runs/node24-15-0.process.json": {
+        "bytes": 539,
+        "sha256": "4f02057ad313be30ddecf629bef33b604c06a4a0f1d1cd465c749645ca9a1b63"
+      },
+      "runs/node24-15-0.stderr.txt": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "runs/node24-15-0.stdout.json": {
+        "bytes": 1387,
+        "sha256": "6636e852f37b9804f854d2ee7da2563b09beedda538e1d57294386aff20bc33b"
+      },
+      "sources/rfc8032.txt": {
+        "bytes": 103210,
+        "sha256": "ed63657ff389301282b169b0abde9b5dd2c7e4d524fdfa5da6ff3094fc93c4c3"
+      },
+      "summarize.py": {
+        "bytes": 5615,
+        "sha256": "4814a4ff5183ecefb771681069b178624ffeabf40ed26a811b05df8f49f3bc45"
+      },
+      "vectors.json": {
+        "bytes": 1392,
+        "sha256": "43a0fe50b65046366138dc509f796039160b489dc35c8e172cb9f52930dc874a"
+      }
+    },
+    "sources": {
+      "nistCavp": {
+        "archiveMember": "gcmEncryptExtIV256.rsp",
+        "archiveUrl": "https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/mac/gcmtestvectors.zip",
+        "cases": [
+          {
+            "count": 0,
+            "expectedCiphertextHex": "8995ae2e6df3dbf96fac7b7137bae67f",
+            "expectedTagHex": "eca5aa77d51d4a0a14d9c51e1da474ab",
+            "id": "NIST-CAVP-GCM256-Count-0",
+            "lineNumbers": {
+              "AAD": 5309,
+              "CT": 5310,
+              "Count": 5305,
+              "IV": 5307,
+              "Key": 5306,
+              "PT": 5308,
+              "Tag": 5311
+            },
+            "nonEmptyAAD": true,
+            "nonEmptyPlaintext": true,
+            "section": {
+              "AADlen": 128,
+              "IVlen": 96,
+              "Keylen": 256,
+              "PTlen": 128,
+              "Taglen": 128
+            },
+            "sectionStartLine": 5299
+          },
+          {
+            "count": 1,
+            "expectedCiphertextHex": "6be61b17b7f7d494a7cdf270562f37ba",
+            "expectedTagHex": "5e702a38323fe1160b780d17adad3e96",
+            "id": "NIST-CAVP-GCM256-Count-1",
+            "lineNumbers": {
+              "AAD": 5317,
+              "CT": 5318,
+              "Count": 5313,
+              "IV": 5315,
+              "Key": 5314,
+              "PT": 5316,
+              "Tag": 5319
+            },
+            "nonEmptyAAD": true,
+            "nonEmptyPlaintext": true,
+            "section": {
+              "AADlen": 128,
+              "IVlen": 96,
+              "Keylen": 256,
+              "PTlen": 128,
+              "Taglen": 128
+            },
+            "sectionStartLine": 5299
+          }
+        ],
+        "memberSha256": "4448b4998c3f58cd9f5542ddf7c573189a721ff3d3ac24cd5177bb4910a787f8",
+        "pageUrl": "https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/cavp-testing-block-cipher-modes"
+      },
+      "rfc5869": {
+        "sections": [
+          "Appendix A.1",
+          "Appendix A.3"
+        ],
+        "sha256": "7a40eb3835b35fc947eb12a2ed614db079d43b26e50dbc537c31fba16397089c",
+        "url": "https://www.rfc-editor.org/rfc/rfc5869.txt"
+      },
+      "rfc7914": {
+        "section": "Section 12, first two vectors only",
+        "sha256": "df55932f8b6a5d271f36a634d91a25903724e189ba6c120bf7257cd47f10b197",
+        "url": "https://www.rfc-editor.org/rfc/rfc7914.txt"
+      }
+    },
+    "ed25519Source": {
+      "rfcTextSha256": "ed63657ff389301282b169b0abde9b5dd2c7e4d524fdfa5da6ff3094fc93c4c3",
+      "section": "7.1 Test Vectors for Ed25519",
+      "url": "https://www.rfc-editor.org/rfc/rfc8032.txt",
+      "vectors": [
+        {
+          "id": "RFC8032-Ed25519-TEST1",
+          "messageHex": "",
+          "messageMutation": "append-00",
+          "publicKeyHex": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+          "signatureHex": "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b",
+          "sourceLineRange": {
+            "end": 1320,
+            "start": 1301
+          }
+        },
+        {
+          "id": "RFC8032-Ed25519-TEST2",
+          "messageHex": "72",
+          "messageMutation": "flip-first-bit",
+          "publicKeyHex": "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c",
+          "signatureHex": "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00",
+          "sourceLineRange": {
+            "end": 1342,
+            "start": 1322
+          }
+        }
+      ]
+    },
+    "runtimeBinaryFiles": {
+      "electron41-4-0": {
+        "bytes": 33968,
+        "path": "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+        "sha256": "d921bdb39608b6700b15800dfb2c18ae10d3ee34874f3cc85a7a9eca52815e92"
+      },
+      "node20-19-3": {
+        "bytes": 89015904,
+        "path": "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+        "sha256": "dea6f78c2669e9c301781c6ffdb76a37f38ea55f74ecf436cf080a0ff40f8a98"
+      },
+      "node24-15-0": {
+        "bytes": 119944608,
+        "path": "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+        "sha256": "3200fbd9f7fd4410426dd541e10d1ab829d3472f270d743c7fabd1696c03fe32"
+      }
+    },
+    "runtimes": {
+      "node20-19-3": {
+        "runtime": {
+          "architecture": "arm64",
+          "electron": null,
+          "node": "v20.19.3",
+          "openssl": "3.0.15+quic",
+          "platform": "darwin"
+        },
+        "mainPassed": 15,
+        "mainFailed": 0,
+        "mainProcess": {
+          "command": [
+            "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/run_kats.mjs",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/vectors.json"
+          ],
+          "elapsedSeconds": 0.259,
+          "label": "node20-19-3",
+          "returnCode": 0,
+          "stderrBytes": 0,
+          "stdoutBytes": 2084,
+          "timedOut": false,
+          "timeoutSeconds": 28
+        },
+        "candidateScryptElapsedMs": 155.331,
+        "ed25519Passed": 10,
+        "ed25519Failed": 0,
+        "ed25519Process": {
+          "command": [
+            "/Users/harris/.nvm/versions/node/v20.19.3/bin/node",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/ed25519/run_ed25519.mjs",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/ed25519/vectors.json"
+          ],
+          "elapsedSeconds": 0.083,
+          "label": "node20-19-3",
+          "returnCode": 0,
+          "stderrBytes": 0,
+          "stdoutBytes": 1393,
+          "timedOut": false,
+          "timeoutSeconds": 28
+        },
+        "standardPrimitiveKats": 24,
+        "candidateKdfObservations": 1
+      },
+      "node24-15-0": {
+        "runtime": {
+          "architecture": "arm64",
+          "electron": null,
+          "node": "v24.15.0",
+          "openssl": "3.5.5",
+          "platform": "darwin"
+        },
+        "mainPassed": 15,
+        "mainFailed": 0,
+        "mainProcess": {
+          "command": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/run_kats.mjs",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/vectors.json"
+          ],
+          "elapsedSeconds": 0.203,
+          "label": "node24-15-0",
+          "returnCode": 0,
+          "stderrBytes": 0,
+          "stdoutBytes": 2078,
+          "timedOut": false,
+          "timeoutSeconds": 28
+        },
+        "candidateScryptElapsedMs": 156.562,
+        "ed25519Passed": 10,
+        "ed25519Failed": 0,
+        "ed25519Process": {
+          "command": [
+            "/Users/harris/.nvm/versions/node/v24.15.0/bin/node",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/ed25519/run_ed25519.mjs",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/ed25519/vectors.json"
+          ],
+          "elapsedSeconds": 0.028,
+          "label": "node24-15-0",
+          "returnCode": 0,
+          "stderrBytes": 0,
+          "stdoutBytes": 1387,
+          "timedOut": false,
+          "timeoutSeconds": 28
+        },
+        "standardPrimitiveKats": 24,
+        "candidateKdfObservations": 1
+      },
+      "electron41-4-0": {
+        "runtime": {
+          "architecture": "arm64",
+          "electron": "41.4.0",
+          "node": "v24.15.0",
+          "openssl": "0.0.0",
+          "platform": "darwin"
+        },
+        "mainPassed": 15,
+        "mainFailed": 0,
+        "mainProcess": {
+          "command": [
+            "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/run_kats.mjs",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/vectors.json"
+          ],
+          "elapsedSeconds": 0.402,
+          "label": "electron41-4-0",
+          "returnCode": 0,
+          "stderrBytes": 0,
+          "stdoutBytes": 2082,
+          "timedOut": false,
+          "timeoutSeconds": 28
+        },
+        "candidateScryptElapsedMs": 257.166,
+        "status": "EXECUTED_AS_NODE",
+        "ed25519Passed": 10,
+        "ed25519Failed": 0,
+        "ed25519Process": {
+          "command": [
+            "/Users/harris/Desktop/ZTools/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/ed25519/run_ed25519.mjs",
+            "/Users/harris/Desktop/ZTools-plugins/plugins/pasteboard-pro/artifacts/pasteboardpro/clipboard-format-g0/v035-primitives/ed25519/vectors.json"
+          ],
+          "elapsedSeconds": 0.177,
+          "label": "electron41-4-0",
+          "returnCode": 0,
+          "stderrBytes": 0,
+          "stdoutBytes": 1391,
+          "timedOut": false,
+          "timeoutSeconds": 28
+        },
+        "standardPrimitiveKats": 24,
+        "candidateKdfObservations": 1
+      }
+    },
+    "limits": [
+      "This checks Node primitive behavior against public known vectors only; no G3 protocol or wire implementation was tested.",
+      "Candidate scrypt observation records API acceptance and wall time only; no hard RSS, Windows, or production-budget claim.",
+      "No formal NIST CAVP validation is claimed.",
+      "Electron evidence runs the public primitive KAT script with ELECTRON_RUN_AS_NODE=1; no ZTools host application or account/clipboard data was accessed.",
+      "Electron reports process.versions.openssl as 0.0.0; recorded verbatim. Successful AES-GCM KATs demonstrate the exposed crypto API behavior for these cases, not an OpenSSL release identity.",
+      "Primitive KATs only; no admin authorization or wire protocol was implemented or tested.",
+      "No formal FIPS validation is claimed.",
+      "Runtime coverage is limited to the recorded darwin/arm64 Node and Electron binaries; Windows is not covered."
+    ],
+    "independentReview": "Sol read-only source/expected/script/log/hash review: limited APPROVE; no P1/P2; not a protocol review or product runtime acceptance",
+    "rawAvailability": "Owned local-only artifacts; paths are provenance, not remotely accessible raw evidence"
+  },
+  "codeNoChange": true,
+  "codeUnchangedVerification": {
+    "path": "artifacts/pasteboardpro/clipboard-format-g0/v035-validation/code-unchanged.json",
+    "bytes": 1613,
+    "sha256": "6df92c1aaa97fcb744928478fbc1aa8e75da471307ef30121802e04c82172c44",
+    "availability": "local-only",
+    "result": {
+      "priorV034RootUnchanged": true,
+      "priorV034RootSha256": "37494a37bc48e5035d9a1b0e2a9e123a117d97211319a10f8c87af37c9f60bae",
+      "schemaVersion": 1,
+      "scope": "Non-documentation source identity and original requirements preservation only; no runtime tests or native probes",
+      "observedAtUtc": "2026-11-02T05:14:33.895626+00:00",
+      "repository": "/Users/harris/Desktop/ZTools-plugins",
+      "branch": "plugin/pasteboard-pro",
+      "head": "db6fb73c32dbf4a977d658f8454051386c0dea52",
+      "manifestPath": "artifacts/pasteboardpro/clipboard-format-g0/v033-validation-final/source-manifest.json",
+      "manifestFileSha256": "ddea96679214cb895d53082f28685feb643c3d9a9c3c285054974c5a0f07889e",
+      "entryCount": 797,
+      "entriesSha256": "60eda5be280b94accb62279ee3f9b22b753443a92226b69b4c2f7730e74a7b16",
+      "selectionRule": "Exact v033 runner source_list: git ls-files cached+others exclude-standard under plugin, excluding top-level docs and artifacts; no selection changes",
+      "selectionMatchesOriginal": true,
+      "canonicalBytesAndExecutableBitsMatch": true,
+      "isolatedCopyBytesAndExecutableBitsMatch": true,
+      "originalSections1To11Sha256": "32eead80c17fdf531a2d8ce09ac75d7b233f9cd851003b7f54dd4cdb1421a883",
+      "originalSections1To11UnchangedFromHead": true,
+      "priorV033RootLocalPublicUnchanged": true,
+      "priorV033RootSha256": "7d4edc02a4c6c9aa4f76ea79a46b5a63fffc1d0778d6e6611df52d7dd929469a",
+      "indexEmpty": true,
+      "testsRun": false,
+      "nativeProbesRun": false,
+      "productCodeChangedThisIncrement": false,
+      "gateComplete": false,
+      "verifierSha256": "4a837949b25830dfea8a52e042a0089e2d63bedf0d27a22ec8a600a814b8910f"
+    }
+  },
+  "verifier": {
+    "path": "artifacts/pasteboardpro/clipboard-format-g0/v035-validation/verify-code-unchanged.py",
+    "bytes": 4310,
+    "sha256": "4a837949b25830dfea8a52e042a0089e2d63bedf0d27a22ec8a600a814b8910f",
+    "availability": "local-only"
+  },
+  "previousV034Root": {
+    "path": "artifacts/pasteboardpro/clipboard-format-g0/v034-root-evidence.json",
+    "bytes": 8093,
+    "sha256": "37494a37bc48e5035d9a1b0e2a9e123a117d97211319a10f8c87af37c9f60bae",
+    "availability": "local-only"
+  },
+  "previousV034PublicRoot": {
+    "path": "docs/clipboard-format-fidelity/validation/v034/v034-root-evidence.json",
+    "bytes": 8093,
+    "sha256": "37494a37bc48e5035d9a1b0e2a9e123a117d97211319a10f8c87af37c9f60bae",
+    "availability": "public-with-plugin-docs"
+  },
+  "priorV033ImplementationTests": "Inherited unchanged; Node24/Electron1439 PASS/6skip, Node20focused113, actual CJS27 each, browser2/2; NOT rerun this increment",
+  "executionThisIncrement": {
+    "productCodeChanged": false,
+    "dependenciesChanged": false,
+    "flagsChanged": false,
+    "formatSyncV2Enabled": false,
+    "implementationTestsRun": false,
+    "buildRun": false,
+    "nativeProbesRun": false,
+    "publicPrimitiveFixturesExecutedByWorker": true,
+    "primitiveRerunByDocAuthor": false,
+    "hostWritten": false,
+    "rootCIWritten": false,
+    "stageCommitPushPublish": false
+  },
+  "authorization": {
+    "scopePlan": {
+      "path": "docs/clipboard-format-fidelity/MAINLINE_SCOPE_APPROVAL.md",
+      "bytes": 5237,
+      "sha256": "3e08b43d2f873edaa63e180761da2a3e8b6e6cfd1d39cb31b6c89bb62e744c0b",
+      "availability": "public-with-plugin-docs"
+    },
+    "AHost": "PENDING",
+    "BRootWorkflow": "PENDING",
+    "questionAlreadyRequestedByRoot": true,
+    "noRepeatQuestion": true
+  },
+  "noProgressAudit": {
+    "previousTurn": "progress",
+    "thisTurn": "progress",
+    "basis": "Required independent G3 crypto ADR/security design review and executed public primitive known vectors; not runtime protocol completion",
+    "blockedThresholdReached": false
+  },
+  "wholePlanOpen": [
+    "G0 full macOS/general clipboard and Windows105 probes",
+    "G1 trusted owner, durable native service and Windows15 storage probes",
+    "G2 actual application local capture/persist/replay",
+    "G3 composed protocol vectors, implementation, key isolation/checkpoint/fault recovery, Win10/11 and all six directions",
+    "G4 future Windows/Linux and full release acceptance"
+  ],
+  "sourceUnchangedSha256": "60eda5be280b94accb62279ee3f9b22b753443a92226b69b4c2f7730e74a7b16",
+  "originalSections1To11Unchanged": true,
+  "scope": "Only six status docs, G3 ADR by its owner, and plugin-owned evidence; original P1/G0-G4 success criteria unchanged"
+}
