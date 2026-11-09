@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { usePromptStore } from '../stores/prompt'
 import { showNotification } from '../utils/platform'
-import { useModal } from '../composables/useModal'
 
 const prompt = usePromptStore()
-const modal = useModal()
 
 async function restoreItem(id: string) {
   try {
@@ -15,8 +13,7 @@ async function restoreItem(id: string) {
   }
 }
 
-async function deleteItem(id: string, title: string) {
-  if (!await modal.confirm(`确定永久删除「${title}」？此操作不可恢复。`, { danger: true })) return
+async function deleteItem(id: string) {
   try {
     await prompt.hardDelete(id)
     showNotification('已永久删除')
@@ -24,46 +21,19 @@ async function deleteItem(id: string, title: string) {
     showNotification(`删除失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
   }
 }
-
-async function clearAll() {
-  const count = prompt.trashItems.value.length
-  if (!await modal.confirm(`确定清空回收站？${count} 条记录将被永久删除，不可恢复。`, { danger: true })) return
-  try {
-    for (const item of prompt.trashItems.value) {
-      await prompt.hardDelete(item.id)
-    }
-    showNotification('✓ 回收站已清空')
-  } catch (error) {
-    showNotification(`清空失败: ${error instanceof Error ? error.message : '本地存储不可用'}`)
-  }
-}
-
-function formatDeleteTime(updatedAt: number): string {
-  const diff = Date.now() - updatedAt
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return '刚刚'
-  if (mins < 60) return `${mins} 分钟前`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours} 小时前`
-  const days = Math.floor(hours / 24)
-  return `${days} 天前`
-}
 </script>
 
 <template>
   <div class="trash-list">
-    <div v-if="prompt.trashItems.value.length" class="trash-header">
-      <button class="btn danger" @click="clearAll">清空回收站</button>
-    </div>
     <div v-if="!prompt.trashItems.value.length" class="empty-hint">回收站为空</div>
     <div v-for="item in prompt.trashItems.value" :key="item.id" class="trash-item">
       <div class="trash-info">
         <div class="trash-title">{{ item.title }}</div>
-        <div class="trash-meta">{{ formatDeleteTime(item.updatedAt) }}删除 · {{ item.type }} · {{ item.tags.slice(0, 3).map(t => '#' + t).join(' ') }}</div>
+        <div class="trash-meta">{{ item.type }} · {{ item.tags.slice(0, 3).map(t => '#' + t).join(' ') }}</div>
       </div>
       <div class="trash-actions">
         <button class="btn" @click="restoreItem(item.id)">恢复</button>
-        <button class="btn danger" @click="deleteItem(item.id, item.title)">永久删除</button>
+        <button class="btn danger" @click="deleteItem(item.id)">永久删除</button>
       </div>
     </div>
   </div>
@@ -71,8 +41,6 @@ function formatDeleteTime(updatedAt: number): string {
 
 <style scoped>
 .trash-list { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-.trash-header { display: flex; justify-content: flex-end; margin-bottom: 4px; }
-.trash-header .btn.danger { height: 26px; padding: 0 10px; font-size: 11px; }
 .trash-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--pf-radius-md); border: 1px solid var(--pf-border); background: var(--pf-surface); }
 .trash-info { flex: 1; min-width: 0; }
 .trash-title { font-size: 13px; font-weight: 600; color: var(--pf-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

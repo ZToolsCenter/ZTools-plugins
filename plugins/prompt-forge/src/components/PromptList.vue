@@ -50,10 +50,7 @@ const ctxMenu = ref<{ visible: boolean; x: number; y: number; item: PromptItem |
 
 function onContextMenu(e: MouseEvent, item: PromptItem) {
   e.preventDefault()
-  const menuW = 160, menuH = 80
-  const x = Math.min(e.clientX, window.innerWidth - menuW - 4)
-  const y = Math.min(e.clientY, window.innerHeight - menuH - 4)
-  ctxMenu.value = { visible: true, x, y, item }
+  ctxMenu.value = { visible: true, x: e.clientX, y: e.clientY, item }
 }
 
 function closeCtxMenu() {
@@ -131,7 +128,6 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
             <span v-if="item.lastUsedAt" class="time">{{ timeAgo(item.lastUsedAt) }}</span>
           </div>
         </div>
-        <button class="card-more" title="更多操作" @click.stop="onContextMenu($event, item)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
         <div class="card-right">
           <span class="ver">v{{ item.version || 1 }}</span>
         </div>
@@ -156,14 +152,14 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
 
     <!-- 右键菜单 -->
     <teleport to="body">
-      <div v-if="ctxMenu.visible" class="prompt-ctx-menu" role="menu" :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }" @click.stop @keydown.esc="closeCtxMenu">
-        <button class="prompt-ctx-item" role="menuitem" @click="emit('edit', ctxMenu.item!.id); closeCtxMenu()">
+      <div v-if="ctxMenu.visible" class="prompt-ctx-menu" :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }" @click.stop>
+        <div class="prompt-ctx-item" @click="emit('edit', ctxMenu.item!.id); closeCtxMenu()">
           <Pencil :size="14" /><span>编辑</span>
-        </button>
+        </div>
         <div class="prompt-ctx-divider"></div>
-        <button class="prompt-ctx-item danger" role="menuitem" @click="emit('delete', ctxMenu.item!.id); closeCtxMenu()">
+        <div class="prompt-ctx-item danger" @click="emit('delete', ctxMenu.item!.id); closeCtxMenu()">
           <Trash2 :size="14" /><span>删除</span>
-        </button>
+        </div>
       </div>
     </teleport>
   </div>
@@ -183,7 +179,6 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
 .create-time { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--pf-text-faint); font-family: var(--pf-font-mono); }
 .card {
   display: flex; align-items: center;
-  user-select: none;
   gap: 14px; padding: 14px 16px;
   border-radius: var(--pf-radius-md);
   border: 1px solid var(--pf-border);
@@ -210,8 +205,8 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
   display: flex; align-items: center; justify-content: center;
   transition: color 0.15s;
 }
-.dot:hover { color: var(--pf-warning-strong); }
-.dot.fav { color: var(--pf-warning-strong); }
+.dot:hover { color: var(--pf-warning); }
+.dot.fav { color: var(--pf-warning); }
 .card-body { flex: 1; min-width: 0; }
 .card-title {
   font-size: 14px; font-weight: 600;
@@ -255,9 +250,6 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
   color: var(--pf-text-faint);
   margin-left: auto;
 }
-.card-more { display: none; flex-shrink: 0; width: 24px; height: 24px; border-radius: var(--pf-radius-xs); color: var(--pf-text-muted); cursor: pointer; align-items: center; justify-content: center; transition: all 0.12s; }
-.card:hover .card-more { display: flex; }
-.card-more:hover { background: var(--pf-surface-hover); color: var(--pf-text); }
 .card-right { flex-shrink: 0; }
 .ver {
   font-size: 11px; font-weight: 600;
@@ -292,12 +284,11 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
 @keyframes ctxFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 .prompt-ctx-item {
   display: flex; align-items: center; gap: 8px;
-  width: 100%; padding: 7px 14px; font-size: 13px; color: var(--pf-text);
+  padding: 7px 14px; font-size: 13px; color: var(--pf-text);
   cursor: pointer; transition: background 0.1s;
-  border: none; background: none; text-align: left;
 }
 .prompt-ctx-item:hover { background: var(--pf-surface-hover); }
-.prompt-ctx-item.danger { color: var(--pf-danger); }
-.prompt-ctx-item.danger:hover { background: var(--pf-danger-soft); }
+.prompt-ctx-item.danger { color: var(--pf-danger, #ef4444); }
+.prompt-ctx-item.danger:hover { background: rgba(239, 68, 68, 0.08); }
 .prompt-ctx-divider { height: 1px; background: var(--pf-border); margin: 4px 0; }
 </style>

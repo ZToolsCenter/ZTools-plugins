@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, nextTick, watch } from 'vue'
-import type { PromptItem, Variable } from '../types'
-import { getMissingRequiredVariables, renderVariables, resolveVariableValues, shouldUseTextarea } from '../utils/index'
+import { computed, ref, nextTick } from 'vue'
+import type { PromptItem } from '../types'
+import { renderVariables, shouldUseTextarea } from '../utils/index'
 import { renderMarkdown } from '../utils/markdown'
 
 const props = defineProps<{
@@ -16,25 +16,13 @@ const emit = defineEmits<{
 }>()
 
 const variables = computed(() => props.unit?.variables || [])
-const effectiveValues = computed(() => resolveVariableValues(variables.value, props.values))
-const missingVariables = computed(() => getMissingRequiredVariables(variables.value, props.values))
-const missingCount = computed(() => missingVariables.value.length)
-const submitAttempted = ref(false)
+const missingCount = computed(() =>
+  variables.value.filter(v => v.required && !props.values[v.name]?.trim()).length
+)
 const preview = computed(() => {
   if (!props.unit?.content) return ''
-  return renderVariables(props.unit.content, effectiveValues.value)
+  return renderVariables(props.unit.content, props.values)
 })
-
-watch(() => props.unit?.id, () => { submitAttempted.value = false })
-
-// 自动聚焦第一个变量输入框
-function focusFirstInput() {
-  requestAnimationFrame(() => {
-    const el = document.querySelector('.fill-form input, .fill-form textarea') as HTMLElement
-    el?.focus()
-  })
-}
-watch(() => props.unit?.id, () => { if (variables.value.length) focusFirstInput() }, { immediate: true })
 
 // 预览视图模式：text 纯文本 / markdown 渲染
 const previewMode = ref<'text' | 'markdown'>('text')
@@ -42,28 +30,6 @@ const markdownHtml = computed(() => renderMarkdown(preview.value))
 
 function updateValue(name: string, value: string) {
   emit('update:values', { ...props.values, [name]: value })
-}
-
-function hasDefaultValue(variable: Variable): boolean {
-  return Boolean(variable.defaultValue?.trim())
-}
-
-function isUsingDefault(variable: Variable): boolean {
-  const value = props.values[variable.name]
-  return hasDefaultValue(variable) && (value === variable.defaultValue || !value?.trim())
-}
-
-function hasError(variable: Variable): boolean {
-  return submitAttempted.value && missingVariables.value.some(missing => missing.name === variable.name)
-}
-
-function restoreDefault(variable: Variable) {
-  updateValue(variable.name, variable.defaultValue ?? '')
-}
-
-function handleSubmit() {
-  submitAttempted.value = true
-  emit('submit')
 }
 
 function autoResize(e: Event) {
@@ -94,10 +60,8 @@ function onTextareaInput(name: string, e: Event) {
             <div v-for="v in variables" :key="v.name" class="field">
               <label>
                 {{ v.name }}
-                <span v-if="v.required && !hasDefaultValue(v)" class="req">*</span>
-                <span class="hint" :class="{ default: hasDefaultValue(v) }">
-                  {{ hasDefaultValue(v) ? (isUsingDefault(v) ? '默认值' : '已修改') : (v.required ? '必填' : '可选') }}
-                </span>
+                <span v-if="v.required" class="req">*</span>
+                <span class="hint">{{ v.required ? '必填' : '可选' }}</span>
               </label>
               <textarea
                 v-if="shouldUseTextarea(v)"
@@ -105,8 +69,6 @@ function onTextareaInput(name: string, e: Event) {
                 rows="2"
                 :placeholder="v.defaultValue ? `默认: ${v.defaultValue}` : '请输入…'"
                 class="var-textarea"
-                :class="{ 'has-error': hasError(v) }"
-                :aria-invalid="hasError(v)"
                 @input="onTextareaInput(v.name, $event)"
               ></textarea>
               <input
@@ -114,19 +76,8 @@ function onTextareaInput(name: string, e: Event) {
                 :value="values[v.name]"
                 type="text"
                 :placeholder="v.defaultValue ? `默认: ${v.defaultValue}` : '请输入…'"
-                :class="{ 'has-error': hasError(v) }"
-                :aria-invalid="hasError(v)"
                 @input="updateValue(v.name, ($event.target as HTMLInputElement).value)"
               />
-              <div v-if="hasError(v) || (hasDefaultValue(v) && !isUsingDefault(v))" class="field-footer">
-                <span v-if="hasError(v)" class="field-error">请填写 {{ v.name }}</span>
-                <button
-                  v-if="hasDefaultValue(v) && !isUsingDefault(v)"
-                  type="button"
-                  class="reset-default"
-                  @click="restoreDefault(v)"
-                >恢复默认</button>
-              </div>
             </div>
           </div>
         </div>
@@ -152,12 +103,11 @@ function onTextareaInput(name: string, e: Event) {
     <div class="form-actions">
       <button class="btn" @click="emit('cancel')"><kbd>Esc</kbd> 返回</button>
       <span class="spacer"></span>
-      <button class="btn primary" @click="handleSubmit">
+      <button class="btn primary" @click="emit('submit')">
         <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round">
           <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
         </svg>
         复制
-        <kbd class="btn-kbd">Ctrl</kbd>+<kbd class="btn-kbd">Enter</kbd>
       </button>
     </div>
   </div>
@@ -172,7 +122,7 @@ function onTextareaInput(name: string, e: Event) {
 .fill-body {
   flex: 1; min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 2fr;
+  grid-template-columns: minmax(200px, 1fr) 2fr;
   overflow: hidden;
 }
 /* 无变量：隐藏表单，预览单列占满全部空间 */
@@ -214,6 +164,7 @@ function onTextareaInput(name: string, e: Event) {
   font-size: 12px; font-weight: 600;
   color: var(--pf-text-secondary);
   display: flex; align-items: center; gap: 6px;
+  text-transform: uppercase; letter-spacing: 0.04em;
 }
 .req { color: var(--pf-danger); }
 .hint {
@@ -225,7 +176,6 @@ function onTextareaInput(name: string, e: Event) {
   background: var(--pf-surface-raised);
   border-radius: var(--pf-radius-xs);
 }
-.hint.default { color: var(--pf-accent); background: var(--pf-accent-soft); }
 .field input {
   height: 42px; padding: 0 14px;
   background: var(--pf-surface);
@@ -256,13 +206,6 @@ function onTextareaInput(name: string, e: Event) {
   box-shadow: 0 0 0 3px var(--pf-accent-soft);
 }
 .var-textarea::placeholder { color: var(--pf-text-faint); }
-.field input.has-error, .var-textarea.has-error { border-color: var(--pf-danger); }
-.field input.has-error:focus, .var-textarea.has-error:focus { border-color: var(--pf-danger); box-shadow: 0 0 0 3px var(--pf-danger-soft); }
-.field-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 18px; }
-.field-error { margin-right: auto; color: var(--pf-danger); font-size: 11px; }
-.reset-default { padding: 1px 0; border: none; background: none; color: var(--pf-accent); font-size: 11px; cursor: pointer; }
-.reset-default:hover { text-decoration: underline; }
-.reset-default:focus-visible { outline: 2px solid var(--pf-accent); outline-offset: 2px; border-radius: var(--pf-radius-xs); }
 .form-actions {
   height: 52px; min-height: 52px;
   padding: 12px 20px;
@@ -272,7 +215,6 @@ function onTextareaInput(name: string, e: Event) {
   flex-shrink: 0;
 }
 .spacer { flex: 1; }
-.btn-kbd { display: inline-block; margin: 0 1px; padding: 1px 4px; font-size: 9px; font-family: var(--pf-font-mono); border-radius: 3px; background: rgba(255,255,255,0.15); opacity: 0.8; }
 
 /* 右侧预览 */
 .fill-preview {
@@ -300,7 +242,6 @@ function onTextareaInput(name: string, e: Event) {
 }
 .preview-body {
   flex: 1; min-height: 0; overflow-y: auto;
-  user-select: text;
   padding: 16px 20px;
   font-size: 13.5px; line-height: 1.7;
   color: var(--pf-text-secondary);
@@ -316,11 +257,10 @@ function onTextareaInput(name: string, e: Event) {
   line-height: 1.7;
 }
 
-@media (max-width: 880px) {
+@media (max-width: 700px) {
   .fill-body:not(.single) {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-    overflow-y: auto;
+    grid-template-rows: minmax(180px, 1fr) minmax(180px, 1fr);
   }
   .fill-form { border-right: 0; border-bottom: 1px solid var(--pf-border); }
   .form-header, .preview-header { padding: 10px 12px; }
