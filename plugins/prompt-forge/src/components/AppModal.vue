@@ -49,11 +49,9 @@ function onKeydown(e: KeyboardEvent) {
             <button v-if="modal.state.value.mode !== 'alert'" class="btn" @click="modal.handleCancel()">
               {{ modal.state.value.cancelText }}
             </button>
-            <button
-              :class="['btn', modal.state.value.danger ? 'danger' : 'primary']"
-              :data-autofocus="modal.state.value.mode === 'prompt' ? undefined : ''"
-              @click="modal.handleConfirm()"
-            >{{ modal.state.value.confirmText }}</button>
+            <button class="btn primary" :data-autofocus="modal.state.value.mode === 'prompt' ? undefined : ''" @click="modal.handleConfirm()">
+              {{ modal.state.value.confirmText }}
+            </button>
           </div>
         </div>
       </div>
@@ -113,8 +111,6 @@ function onKeydown(e: KeyboardEvent) {
   display: flex; justify-content: flex-end; gap: 8px;
 }
 .modal-footer .btn { height: 32px; padding: 0 16px; font-size: 13px; }
-.modal-footer .btn.danger { background: var(--pf-danger); color: #fff; }
-.modal-footer .btn.danger:hover { opacity: 0.9; }
 
 /* 过渡动画 */
 .modal-enter-active, .modal-leave-active { transition: opacity 0.15s ease; }
