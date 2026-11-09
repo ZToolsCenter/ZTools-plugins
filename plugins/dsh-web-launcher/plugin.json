@@ -1,0 +1,36 @@
+{
+  "name": "dsh-web-launcher",
+  "title": "dsh",
+  "description": "dsh 启动 DSH Web；dsh update 更新 DSH；dsh config 打开启动器配置",
+  "version": "1.1.0",
+  "author": "meliauk",
+  "platform": ["win32"],
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "dsh-web",
+      "explain": "启动 DSH Web",
+      "icon": "logo.png",
+      "cmds": [
+        "dsh"
+      ]
+    },
+    {
+      "code": "dsh-update",
+      "explain": "更新 DSH",
+      "icon": "logo.png",
+      "cmds": [
+        "dsh update"
+      ]
+    },
+    {
+      "code": "dsh-config",
+      "explain": "打开启动器配置文件",
+      "icon": "logo.png",
+      "cmds": [
+        "dsh config"
+      ]
+    }
+  ]
+}
