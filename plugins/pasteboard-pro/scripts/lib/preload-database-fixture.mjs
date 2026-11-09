@@ -11,11 +11,12 @@ const nativeRequire = createRequire(import.meta.url);
 const publicItem = { id: "fixture-host-text", type: "text", timestamp: Date.now(), content: "public fixture clipboard text", appName: "Fixture", bundleId: "example.fixture" };
 
 /** Evaluate only the shipped preload graph, with synthetic SDK/clipboard and an owned filesystem root. */
-export async function bootPreloadFixture({ packageRoot, directory, role = "primary", supported = true, recordConflicts = 0, seedLegacy = false, maskMigrationRead = false, imageScenario, historyTail = [], failFirstHistoryNotification = false, holdHistory = false }) {
+export async function bootPreloadFixture({ packageRoot, directory, role = "primary", supported = true, recordConflicts = 0, seedLegacy = false, maskMigrationRead = false, imageScenario, historyTail = [], failFirstHistoryNotification = false, holdHistory = false, sharedDocuments, fixedImageTimestamp, databaseFault, parentAvailable = true, emptyHistory = false, screenCaptureEnabled = false, onSendToParent }) {
   await mkdir(directory, { recursive: true });
   const packageReal = fs.realpathSync(packageRoot);
-  const docs = new Map();
-  const calls = { get: [], put: [], allDocs: [], remove: [], enter: [], clipboard: [], tools: [], events: [], ipc: [], clipboardReads: [], clipboardClears: [], historyAppends: [], historyNotifications: [], sequence: [] };
+  const docs = sharedDocuments ?? new Map();
+  assert.ok(docs instanceof Map, "synthetic shared documents must be a Map");
+  const calls = { get: [], put: [], allDocs: [], remove: [], enter: [], clipboard: [], tools: [], events: [], ipc: [], clipboardReads: [], clipboardClears: [], historyAppends: [], historyNotifications: [], parent: [], timerDelays: [], screenCaptures: [], screenshotWrites: [], sequence: [] };
   const denied = [];
   const ancestorMetadataProbes = [];
   const errors = [];
@@ -23,7 +24,7 @@ export async function bootPreloadFixture({ packageRoot, directory, role = "prima
   const timers = new Set();
   const modules = new Map();
   const loadedModuleHashes = {};
-  let revision = 0;
+  let revision = Math.max(0, ...[...docs.values()].map(doc => Number.parseInt(String(doc._rev ?? "0"), 10)).filter(Number.isSafeInteger));
   let failWrites = false;
   let remainingConflicts = recordConflicts;
   let migrationReadMasked = false;
@@ -66,7 +67,7 @@ export async function bootPreloadFixture({ packageRoot, directory, role = "prima
       const item = {
         id: retryRotation ? "fixture-rotation-image-" + String(index + 1).padStart(2, "0") : "fixture-host-image",
         type: "image",
-        timestamp: retryRotation ? baseTimestamp - index * 1_000 : Date.now(),
+        timestamp: fixedImageTimestamp ?? (retryRotation ? baseTimestamp - index * 1_000 : Date.now()),
         appName: "Fixture",
         bundleId: "example.fixture",
       };
@@ -96,6 +97,7 @@ export async function bootPreloadFixture({ packageRoot, directory, role = "prima
   }
   assert.ok(Array.isArray(historyTail));
   historyItems.push(...historyTail);
+  if (emptyHistory) historyItems.length = 0;
   if (seedLegacy) {
     const oldRoot = path.join(directory, "home/.pasteboard-pro/ztools/blobs");
     const oldPath = path.join(oldRoot, "public-fixture.png");
@@ -112,11 +114,15 @@ export async function bootPreloadFixture({ packageRoot, directory, role = "prima
     legacy = { oldPath, copyPath: path.join(directory, "pluginData/sync/blobs/public-fixture.png"), id, sha256: createHash("sha256").update(bytes).digest("hex") };
   }
   const raw = {
-    async get(id) { calls.get.push(id); return docs.has(id) ? structuredClone(docs.get(id)) : null; },
+    async get(id) {
+      calls.get.push(id);
+      if (databaseFault?.("get", id) === true) throw new Error("synthetic-sensitive-journal-read-error");
+      return docs.has(id) ? structuredClone(docs.get(id)) : null;
+    },
     async put(doc) {
       calls.put.push(doc._id);
       calls.sequence.push("db-put:" + doc._id);
-      if (failWrites) return { id: doc._id, error: true, name: "storage_error", message: "synthetic-sensitive-host-message" };
+      if (failWrites || databaseFault?.("put", doc._id, structuredClone(doc)) === true) return { id: doc._id, error: true, name: "storage_error", message: "synthetic-sensitive-host-message" };
       if (doc.type === "pasteboard-pro-record" && remainingConflicts > 0) {
         remainingConflicts--; return { id: doc._id, error: true, name: "conflict", message: "synthetic-sensitive-host-message" };
       }
@@ -161,7 +167,7 @@ export async function bootPreloadFixture({ packageRoot, directory, role = "prima
         onChange: callback => calls.clipboard.push(callback),
       },
       onPluginEnter: callback => calls.enter.push(callback), registerTool: (name, callback) => calls.tools.push([name, callback]),
-      sendToParent: () => undefined, setSubInput: () => undefined,
+      sendToParent: (...args) => { calls.parent.push(args); onSendToParent?.(...args); }, setSubInput: () => undefined,
       getCursorScreenPoint: () => ({ x: 0, y: 0 }), getDisplayNearestPoint: () => ({ id: 1, workArea: { x: 0, y: 0, width: 1200, height: 800 } }),
       hideMainWindow: () => undefined, outPlugin: () => undefined,
       createBrowserWindow: () => { throw new Error("fixture does not open application windows"); },
@@ -186,7 +192,13 @@ export async function bootPreloadFixture({ packageRoot, directory, role = "prima
       return true;
     },
   };
+  if (!parentAvailable) delete window.ztools.sendToParent;
+  if (screenCaptureEnabled) window.ztools.screenCapture = callback => {
+    calls.screenCaptures.push("synthetic-capture");
+    callback({ isEmpty: () => false });
+  };
   function setTimer(callback, delay, interval = false) {
+    calls.timerDelays.push(delay);
     const timer = (interval ? setInterval : setTimeout)(callback, delay);
     timers.add(timer); return timer;
   }
@@ -206,6 +218,7 @@ export async function bootPreloadFixture({ packageRoot, directory, role = "prima
     },
     nativeImage: { createFromPath: () => ({ isEmpty: () => true }), createFromBuffer: () => ({ isEmpty: () => true }) },
   };
+  if (screenCaptureEnabled) electron.clipboard.writeImage = () => { calls.screenshotWrites.push("synthetic-write"); };
   const owns = candidate => typeof candidate === "string" && (candidate === directory || candidate.startsWith(directory + path.sep));
   function safeFs(source) {
     return new Proxy(source, { get(target, property) {

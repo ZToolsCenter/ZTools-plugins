@@ -118,6 +118,13 @@ function normalizedSearchItem(item: PasteItem): PasteItem {
       ...(item.payload.html === undefined ? {} : { html: item.payload.html.toLowerCase() }),
       ...(item.payload.mediaType === undefined ? {} : { mediaType: item.payload.mediaType.toLowerCase() }),
       ...(item.payload.filePaths === undefined ? {} : { filePaths: item.payload.filePaths.map(value => value.toLowerCase()) }),
+      ...(item.payload.urlMeta === undefined ? {} : {
+        urlMeta: {
+          ...item.payload.urlMeta,
+          ...(item.payload.urlMeta.title === undefined ? {} : { title: item.payload.urlMeta.title.toLowerCase() }),
+          ...(item.payload.urlMeta.hostname === undefined ? {} : { hostname: item.payload.urlMeta.hostname.toLowerCase() }),
+        },
+      }),
     },
   };
 }

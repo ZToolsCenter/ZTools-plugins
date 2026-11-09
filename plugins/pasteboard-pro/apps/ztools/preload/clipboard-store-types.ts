@@ -1,3 +1,5 @@
+import type { HostImageCaptureV1 } from "./mirror-image-host-capture";
+import type { MirrorImageRetryJournal } from "./mirror-image-retry-journal";
 import type { PasteItem } from "@pasteboard-pro/core";
 
 export type HostCursor = Readonly<{
@@ -22,6 +24,7 @@ export type CanonicalClipboardOrigin =
   | Readonly<{
       host: "sync";
       remoteAvailable: boolean;
+      hostCapture?: HostImageCaptureV1;
       imagePath?: string;
       blobBytes?: number;
       pluginBlobId?: string;
@@ -32,7 +35,11 @@ export type CanonicalClipboardRecord = Readonly<{
   origin: CanonicalClipboardOrigin;
 }>;
 
+export type MirrorImageRetryJournalPort = Pick<MirrorImageRetryJournal,
+  "readSummary" | "observe" | "begin" | "fail" | "complete" | "listReconciliationCandidates" | "readClearBoundary" | "clear">;
+
 export interface CanonicalClipboardStore {
+  readonly imageRetries?: MirrorImageRetryJournalPort;
   findByFingerprint(fingerprint: string): Promise<PasteItem | undefined>;
   put(record: CanonicalClipboardRecord): Promise<void>;
   getCursor(): Promise<HostCursor | undefined>;
@@ -77,6 +84,8 @@ export type MirrorHostHistoryOptions = Readonly<{
     rawItem: unknown,
     record: CanonicalClipboardRecord | null,
   ) => boolean | Promise<boolean>;
+  /** Owner-only local record/blob verification; never reads the system clipboard. */
+  reconcilePersistedImage?: (cursor: HostCursor) => Promise<boolean>;
   prepareRecord?: (
     rawItem: unknown,
     record: CanonicalClipboardRecord,

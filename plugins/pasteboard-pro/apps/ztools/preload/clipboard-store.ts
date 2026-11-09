@@ -8,9 +8,11 @@ import {
   createTextItem as createTextItemCommand,
   updateImagePayload as updateImagePayloadCommand,
   updateItemTitle as updateItemTitleCommand,
+  updateItemUrlMetadata as updateItemUrlMetadataCommand,
   updateOcrText as updateOcrTextCommand,
   updateTextItem as updateTextItemCommand,
 } from "./clipboard-record-commands";
+import type { UrlMeta } from "@pasteboard-pro/core";
 import type {
   CanonicalClipboardRecord,
   CanonicalClipboardStore,
@@ -79,6 +81,13 @@ export class ZToolsCanonicalClipboardStore
     title: string,
   ): Promise<CanonicalClipboardRecord> {
     return updateItemTitleCommand(this.commandPort(), itemId, title);
+  }
+
+  async updateItemUrlMetadata(
+    itemId: string,
+    metadata: UrlMeta,
+  ): Promise<CanonicalClipboardRecord> {
+    return updateItemUrlMetadataCommand(this.commandPort(), itemId, metadata);
   }
 
   async deleteRecords(itemIds: readonly string[]): Promise<DeleteRecordsResult> {

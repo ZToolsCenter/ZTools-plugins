@@ -1,8 +1,10 @@
+import { bindLocalImageEdit } from "./mirror-image-host-capture";
 import {
   compareStableOrder,
   orderKeyBetween,
   PasteItemSchema,
   type HybridClock,
+  type UrlMeta,
 } from "@pasteboard-pro/core";
 import type {
   CanonicalClipboardRecord,
@@ -13,6 +15,7 @@ import {
   MAX_CLIPBOARD_TEXT_BYTES,
   textTitle,
 } from "./clipboard-record-codec";
+import { classifyTextKind } from "./text-kind-classifier";
 
 export async function createTextItem(
   port: ClipboardCommandPort,
@@ -57,7 +60,7 @@ export async function createTextItem(
   });
   const item = PasteItemSchema.parse({
     id,
-    kind: "text",
+    kind: classifyTextKind(normalizedText),
     ...(normalizedTitle === undefined ? {} : { title: normalizedTitle }),
     sourceApp: { name: "Paste剪切板" },
     sourceDeviceId: port.deviceId,
@@ -111,7 +114,7 @@ export async function updateTextItem(
   const { title: _oldTitle, ocrText: _oldOcrText, ...base } = record.item;
   const item = PasteItemSchema.parse({
     ...base,
-    kind: "text",
+    kind: classifyTextKind(normalizedText),
     ...(normalizedTitle === undefined ? {} : { title: normalizedTitle }),
     payload: {
       revision: fingerprint({ type: "edited-text-payload", itemId, text: normalizedText, timestamp }),
@@ -154,6 +157,40 @@ export async function updateItemTitle(
     fieldClocks: {
       ...record.item.fieldClocks,
       title: { wallMs: timestamp, counter: 0, deviceId: port.deviceId },
+    },
+  });
+  const updated = { item, origin: record.origin };
+  await port.put(updated);
+  return updated;
+}
+
+export async function updateItemUrlMetadata(
+  port: ClipboardCommandPort,
+  itemId: string,
+  metadata: UrlMeta,
+): Promise<CanonicalClipboardRecord> {
+  const record = await port.findRecordByItemId(itemId);
+  if (record === undefined) {
+    throw new RangeError("Clipboard item does not exist");
+  }
+  const timestamp = port.validTimestamp();
+  const normalizedTitle = metadata.title?.trim();
+  const item = PasteItemSchema.parse({
+    ...record.item,
+    ...(normalizedTitle ? { title: normalizedTitle.slice(0, 160) } : {}),
+    payload: {
+      ...record.item.payload,
+      urlMeta: {
+        ...(normalizedTitle ? { title: normalizedTitle.slice(0, 200) } : {}),
+        ...(metadata.favicon ? { favicon: metadata.favicon } : {}),
+        ...(metadata.hostname ? { hostname: metadata.hostname } : {}),
+      },
+    },
+    updatedAt: new Date(timestamp).toISOString(),
+    fieldClocks: {
+      ...record.item.fieldClocks,
+      ...(normalizedTitle ? { title: { wallMs: timestamp, counter: 0, deviceId: port.deviceId } } : {}),
+      payload: { wallMs: timestamp, counter: 1, deviceId: port.deviceId },
     },
   });
   const updated = { item, origin: record.origin };
@@ -224,11 +261,13 @@ export async function updateImagePayload(
       ocrText: { wallMs: timestamp, counter: 1, deviceId: port.deviceId },
     },
   });
+  const hostCapture = bindLocalImageEdit(record, port.deviceId, input.blobId, input.revision);
   const updated: CanonicalClipboardRecord = {
     item,
     origin: {
       host: "sync",
       remoteAvailable: true,
+      ...(hostCapture === undefined ? {} : { hostCapture }),
       imagePath: input.imagePath,
       blobBytes: input.blobBytes,
       pluginBlobId: input.blobId,

@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "implementationVersion": "v0.33",
+  "dateAsiaShanghai": "2026-11-02",
+  "objective": "推进 docs/clipboard-format-fidelity/TECHNICAL_PLAN.md 的完整 G0–G4 目标",
+  "goalComplete": false,
+  "gateComplete": false,
+  "scope": "Plugin-only V1 history image retry journal, bounded owner scheduling, durable recovery, clear coordination and settings status; original goals unchanged",
+  "canonical": {
+    "repository": "/Users/harris/Desktop/ZTools-plugins",
+    "branch": "plugin/pasteboard-pro",
+    "head": "db6fb73c32dbf4a977d658f8454051386c0dea52",
+    "implementationAndTestsInDevelopmentWorktree": true,
+    "sourceManifestSha256": "60eda5be280b94accb62279ee3f9b22b753443a92226b69b4c2f7730e74a7b16",
+    "sourceEntries": 797,
+    "committedThisIncrement": false,
+    "publishedThisIncrement": false
+  },
+  "runtime": {
+    "node": "24.15.0",
+    "electron": "41.4.0",
+    "electronNode": "24.15.0",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "validation": {
+    "finalSummary": {
+      "path": "artifacts/pasteboardpro/clipboard-format-g0/v033-validation-final/summary.json",
+      "sha256": "5b7f7807f26cbd6f8698eb52d8f517867f0906ff4c3bad93c1fb2ce476d56917"
+    },
+    "fullSuiteEachRuntime": {
+      "testFilesPassed": 158,
+      "testFilesSkipped": 5,
+      "testsPassed": 1439,
+      "testsSkipped": 6,
+      "skipReasons": "5 subprocess fixture entries and 1 opt-in real macOS app-catalog smoke"
+    },
+    "node20Focused": {
+      "nodeVersion": "20.19.3",
+      "filesPassed": 14,
+      "testsPassed": 113,
+      "platform": "darwin",
+      "logSha256": "2cafee7b50aa87ab9b881514b0a47aa7a89982b7bfc5d72204260deb176be4df"
+    },
+    "privateNativeFixture": {
+      "checks": 87,
+      "scope": "named/private pasteboard fixtures; not system general clipboard or full G0"
+    },
+    "packagedNewEachRuntime": {
+      "passed": 27,
+      "preloadSha256": "e1cb3a5a43617dbfcea600f0d950153f67d25d8ffba14e737d9cbe269d9c4ba6",
+      "scope": "actual assembled CJS plus synthetic SDK and owned filesystem"
+    },
+    "packagedOldEachRuntime": {
+      "passed": 11,
+      "expectedFailed": 9,
+      "preloadSha256": "e2449b46193cad68b113b48ce855a58fe91d465b4aa43333bdb4245e65b09f3e"
+    },
+    "typesAndContracts": "root, Vue, visual, workspace and visual contracts passed in final snapshot",
+    "build": "final ZTools renderer/preload/assemble/package and release archive passed; unchanged ATools/core/tokens/UI/dependencies inherited first-candidate build/Svelte/package evidence by hash",
+    "scannerInherited": {
+      "eachRuntimePassed": 17,
+      "workerSha256": "09228265c43277d62f89f233189e4cae5f8f4509529ed2478ab524e21303781f",
+      "sourceScriptUnchanged": true,
+      "firstCandidateSummarySha256": "7e375bd83d479735f686cc34800a134647658325252c1d7245258bea1dadc195"
+    }
+  },
+  "browser": {
+    "report": "artifacts/pasteboardpro/image-retry-status-ui/final-browser-evidence-20261101/final-report.json",
+    "sha256": "951e115326b1952d363ad76aa06f9464c117939956fd1220e5ca392c6e7e50ba",
+    "casesPassed": 2,
+    "casesSkipped": 0,
+    "playwright": "1.61.1",
+    "chrome": "156.0.8078.74",
+    "uiSourceFingerprint": "3a2740dfc63230bd7133f6c9dc2ea2fc3648bf49141ed9fd39e18ef7b5dd9d5d",
+    "scope": "modern/classic settings with public synthetic bridge values",
+    "playwrightExitCode": 0,
+    "helperInitialCleanupExitCode": 1,
+    "cleanupFinal": "owned wrapper exited and port5179 confirmed released; original initial/final cleanup records retained"
+  },
+  "review": {
+    "astra": "limited APPROVE after two backend P2 fixes; not full G0–G4 approval",
+    "narrowCapacityEvidence": "two real LMDB close/reopen capacity cases added; Node/Electron capacity suite6/6; source and logs retained",
+    "ordinary": "non-implementing Terra approved three scheduler/screenshot/late-clear P2 fixes; 45 case green receipt matched actual files",
+    "ui": "Terra independent diff review plus root rendered modern/classic screenshots; counter and panel notification findings resolved"
+  },
+  "promotion": {
+    "path": "artifacts/pasteboardpro/clipboard-format-g0/v033-promotion/promotion-final.json",
+    "sha256": "bb1e2c7b95dbf9a383f4d488af67272102bd858d62d9143c01fbd52dae631ebc",
+    "ztoolsTarget": "dist/ztools",
+    "ztoolsFiles": 15,
+    "atoolsTarget": "apps/atools/dist",
+    "atoolsFiles": 6,
+    "canonicalTargetSmokeEachRuntimePassed": 27,
+    "oldOutputsPreserved": true,
+    "firstStageGate": "unignored temporary ATools tree detected before replacing either target; moved into owned artifacts and revalidated before promotion"
+  },
+  "diagnosticsRetained": {
+    "firstCandidate": "1433/6 full suite and22 CJS checks are historical candidate receipts, not final counts",
+    "corruptReopenFixture": "same valid/invalid seed controls blocked before codec in native closeEnv; synchronous seed returned thenable without awaiting. Original corrupt-record+reopen case retained using awaited checked host-shaped put; runtime samples/control logs preserved",
+    "browserStartup": "managed Chromium missing; no UI assertion ran. Subsequent actual installed Chrome run passed"
+  },
+  "wholePlanOpen": {
+    "G0": "production owner/trusted current policy/general monitoring and real app matrices; Windows105 native cases NOT-RUN",
+    "G1": "production owner lease/host transport/target CAS, Windows15 storage probes and namespace durability, full retention/GC not accepted",
+    "G2": "actual unified V2 planner/publisher and P1 OS/app matrices not implemented/accepted",
+    "G3": "portable/V2 crypto/staging activation and six directions not completed",
+    "G4": "future official Windows versions/Linux remain independent unverified gates"
+  },
+  "knownLimitations": [
+    "Host may collapse internal get errors into null; plugin cannot reliably distinguish from a missing document. No full fail-closed/read-completeness claim.",
+    "Metadata journal cannot recover image bytes that were never saved and whose source is gone.",
+    "Current primary-window serialization is not a cross-process service-owner lease.",
+    "No installed host, general system clipboard, Windows client or target application acceptance.",
+    "Current default main workflow routes multi-platform Paste to Linux; Windows job needs an independently authorized root workflow or external Windows execution entry."
+  ],
+  "externalState": {
+    "receipt": "artifacts/pasteboardpro/v033-external-state.json",
+    "previousPR": 717,
+    "previousPRMerged": true,
+    "previousPRMergeCommit": "ed4df357c80a99fde6140cff66fa53e867029c0a",
+    "newChangesNotIncludedInPreviousPR": true
+  },
+  "scopePreservation": "All source/tests/docs/builds/temp evidence inside plugin; host and repository root workflow only read; no git add/commit/push or installation performed"
+}

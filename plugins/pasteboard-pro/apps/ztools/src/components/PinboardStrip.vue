@@ -2,6 +2,7 @@
 import { computed, inject, nextTick, onBeforeUnmount, ref, watch, type ComponentPublicInstance } from "vue";
 
 import type { Pinboard } from "@pasteboard-pro/core";
+import type { DockEdge } from "@pasteboard-pro/design-tokens";
 import type { ShelfUiVersion } from "../../preload/window-preferences";
 
 import { primaryModifierLabel, resolveShortcutPlatform } from "../platform-shortcuts";
@@ -10,22 +11,27 @@ import { useImeSubmitGuard } from "../use-ime-submit-guard";
 import { usePinboardReorder, type PinboardReorderRequest } from "../use-pinboard-reorder";
 import { shelfUiVersionKey } from "../shelf-presentation";
 import { placePopover, type PopupPlacement } from "./popup-position";
+import PinboardChip from "./PinboardChip.vue";
+import PinboardManageMenu from "./PinboardManageMenu.vue";
 import PinboardNameDialog from "./PinboardNameDialog.vue";
+import type { PopupRect } from "./popup-position";
 import "../styles/popover-theme.css";
 
-const props = defineProps<{
-  pinboards: readonly Pinboard[];
-  smartPinboards: readonly SmartPinboard[];
-  activeId: string | undefined;
-}>();
+const props = withDefaults(
+  defineProps<{
+    pinboards: readonly Pinboard[];
+    smartPinboards: readonly SmartPinboard[];
+    activeId: string | undefined;
+    edge?: DockEdge;
+  }>(),
+  { edge: "bottom" },
+);
+
+const isVertical = computed(() => props.edge === "left" || props.edge === "right");
 const emit = defineEmits<{
-  select: [id: string | undefined];
-  create: [name: string];
-  rename: [id: string, name: string];
-  updateColor: [value: { id: string; color: string }];
-  reorder: [value: PinboardReorderRequest];
-  delete: [id: string];
-  assign: [pinboardId: string | undefined, itemId: string];
+  select: [id: string | undefined]; create: [name: string]; rename: [id: string, name: string];
+  updateColor: [value: { id: string; color: string }]; reorder: [value: PinboardReorderRequest];
+  delete: [id: string]; assign: [pinboardId: string | undefined, itemId: string];
 }>();
 
 const quickPasteShortcutLabel = computed(() => {
@@ -45,11 +51,9 @@ const pinboardNav = ref<HTMLElement>();
 const addButton = ref<HTMLButtonElement>();
 const inlineNameInput = ref<HTMLInputElement>();
 const managementTrigger = ref<HTMLElement>();
-const managementAnchor = ref<DOMRect | { left: number; right: number; top: number; bottom: number }>();
+const managementAnchor = ref<PopupRect>();
 const managementAlign = ref<"start" | "end">("end");
-const managementPanel = ref<HTMLElement>();
-const managementMenu = ref<{ pinboardId: string }>();
-const managementPlacement = ref<PopupPlacement>({ left: 8, top: 8 });
+const managedPinboard = ref<Pinboard>();
 const imeSubmitGuard = useImeSubmitGuard();
 const pinboardIds = computed(() => props.pinboards.map((pinboard) => pinboard.id));
 const {
@@ -69,15 +73,6 @@ const classicRenameId = computed(() =>
     ? nameDialogPinboardId.value
     : undefined,
 );
-const managedPinboard = computed(() =>
-  managementMenu.value === undefined
-    ? undefined
-    : props.pinboards.find((pinboard) => pinboard.id === managementMenu.value?.pinboardId),
-);
-const managementMenuStyle = computed(() => ({
-  left: `${managementPlacement.value.left}px`,
-  top: `${managementPlacement.value.top}px`,
-}));
 
 // Moving keyed DOM nodes can blur the focused management button after the
 // asynchronous order reload. Restore only focus that the patch itself lost.
@@ -134,11 +129,7 @@ function activeElement(): HTMLElement | undefined {
 }
 
 function closeManagementMenu(restoreFocus = false): void {
-  document.removeEventListener("pointerdown", onDocumentPointerDown);
-  window.removeEventListener("keydown", closeManagementMenuOnEscape);
-  window.removeEventListener("resize", updateManagementPlacement);
-  window.removeEventListener("scroll", updateManagementPlacement, true);
-  managementMenu.value = undefined;
+  managedPinboard.value = undefined;
   managementAnchor.value = undefined;
   const trigger = managementTrigger.value;
   managementTrigger.value = undefined;
@@ -151,51 +142,10 @@ watch(reorderState, (active, previous) => {
   if (active !== undefined && previous === undefined) closeManagementMenu(false);
 }, { flush: "sync" });
 
-function onDocumentPointerDown(event: PointerEvent): void {
-  const target = event.target;
-  if (
-    target instanceof Node &&
-    !managementTrigger.value?.contains(target) &&
-    !managementPanel.value?.contains(target)
-  ) {
-    closeManagementMenu(false);
-  }
-}
-
-function closeManagementMenuOnEscape(event: KeyboardEvent): void {
-  if (event.key !== "Escape") return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  closeManagementMenu(true);
-}
-
-function handleManagementMenuKeydown(event: KeyboardEvent): void {
-  if (event.key === "Escape") {
-    event.preventDefault();
-    event.stopPropagation();
-    closeManagementMenu(true);
-    return;
-  }
-  if (!(["ArrowDown", "ArrowUp", "Home", "End"] as const).includes(event.key as "ArrowDown" | "ArrowUp" | "Home" | "End")) return;
-  event.preventDefault();
-  event.stopPropagation();
-  const items = [...(managementPanel.value?.querySelectorAll<HTMLElement>(
-    '[role="menuitem"]:not([aria-disabled="true"])',
-  ) ?? [])];
-  if (items.length === 0) return;
-  const current = items.indexOf(document.activeElement as HTMLElement);
-  const next = event.key === "Home"
-    ? 0
-    : event.key === "End"
-      ? items.length - 1
-      : (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
-  items[next]?.focus({ preventScroll: true });
-}
-
 function openManagementMenu(event: MouseEvent, pinboard: Pinboard): void {
   const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined;
   const fromContextMenu = event.type === "contextmenu";
-  if (!fromContextMenu && managementMenu.value?.pinboardId === pinboard.id) {
+  if (!fromContextMenu && managedPinboard.value?.id === pinboard.id) {
     closeManagementMenu(true);
     return;
   }
@@ -207,28 +157,14 @@ function openManagementMenu(event: MouseEvent, pinboard: Pinboard): void {
   managementAnchor.value = fromContextMenu
     ? { left: event.clientX, right: event.clientX, top: event.clientY, bottom: event.clientY }
     : trigger?.getBoundingClientRect();
-  managementMenu.value = { pinboardId: pinboard.id };
-  document.addEventListener("pointerdown", onDocumentPointerDown);
-  window.addEventListener("keydown", closeManagementMenuOnEscape);
-  window.addEventListener("resize", updateManagementPlacement);
-  window.addEventListener("scroll", updateManagementPlacement, true);
-  void nextTick(() => {
-    updateManagementPlacement();
-    managementPanel.value?.querySelector<HTMLElement>("[role='menuitem']")?.focus({ preventScroll: true });
-  });
+  managedPinboard.value = pinboard;
 }
 
-function updateManagementPlacement(): void {
-  const anchor = managementAnchor.value;
-  const panel = managementPanel.value;
-  if (!managementMenu.value || anchor === undefined || panel === undefined) return;
-  const bounds = panel.getBoundingClientRect();
-  managementPlacement.value = placePopover(
-    anchor,
-    { width: bounds.width, height: bounds.height },
-    { width: window.innerWidth, height: window.innerHeight },
-    { align: managementAlign.value, preferAbove: true, gap: 5, margin: 8 },
-  );
+function handleColorUpdate(color: string): void {
+  if (managedPinboard.value) {
+    emit("updateColor", { id: managedPinboard.value.id, color });
+    closeManagementMenu(true);
+  }
 }
 
 function closeNameDialog(): void {
@@ -272,13 +208,6 @@ function dropItem(event: DragEvent, pinboardId: string | undefined): void {
   if (itemId) emit("assign", pinboardId, itemId);
 }
 
-function changeColor(event: Event, id: string): void {
-  const target = event.target;
-  if (target instanceof HTMLInputElement) {
-    emit("updateColor", { id, color: target.value });
-    closeManagementMenu(true);
-  }
-}
 
 function deleteFromMenu(id: string): void {
   closeManagementMenu(false);
@@ -286,9 +215,58 @@ function deleteFromMenu(id: string): void {
   void nextTick(() => addButton.value?.focus({ preventScroll: true }));
 }
 
+const customExpanded = ref(false);
+const isCustomPinboardActive = computed(() =>
+  props.pinboards.some((pinboard) => pinboard.id === props.activeId),
+);
+const activeCustomPinboard = computed(() =>
+  props.pinboards.find((pinboard) => pinboard.id === props.activeId),
+);
+
+function toggleCustomExpanded(): void {
+  customExpanded.value = !customExpanded.value;
+}
+
+function selectPinboardChip(id: string): void {
+  if (props.activeId === id) {
+    emit("select", undefined);
+  } else {
+    emit("select", id);
+  }
+}
+
+function dropItemOnDot(event: DragEvent): void {
+  if (isCustomPinboardActive.value && activeCustomPinboard.value) {
+    dropItem(event, activeCustomPinboard.value.id);
+  } else {
+    customExpanded.value = true;
+  }
+}
+
+let hoverTimer: number | undefined;
+
+function onPinboardMouseEnter(): void {
+  if (hoverTimer !== undefined) {
+    clearTimeout(hoverTimer);
+    hoverTimer = undefined;
+  }
+  customExpanded.value = true;
+}
+
+function onPinboardMouseLeave(): void {
+  if (hoverTimer !== undefined) clearTimeout(hoverTimer);
+  hoverTimer = window.setTimeout(() => {
+    if (managedPinboard.value || nameDialogOpen.value || reorderState.value) return;
+    customExpanded.value = false;
+  }, 240);
+}
+
 defineExpose({ beginCreate });
 
-onBeforeUnmount(() => closeManagementMenu(false));
+onBeforeUnmount(() => {
+  if (hoverTimer !== undefined) clearTimeout(hoverTimer);
+  closeManagementMenu(false);
+});
 </script>
 
 <template>
@@ -298,75 +276,68 @@ onBeforeUnmount(() => closeManagementMenu(false));
     aria-label="分组"
     :data-pb-reorder-active="reorderState ? 'true' : undefined"
   >
-    <button
-      type="button"
-      :class="{ active: activeId === undefined }"
-      @dragover.prevent
-      @drop.prevent="dropItem($event, undefined)"
-      @click="emit('select', undefined)"
-    >
-      全部
-    </button>
-    <button
-      v-for="pinboard in smartPinboards"
-      :key="pinboard.id"
-      type="button"
-      class="smart-pinboard"
-      :class="{ active: activeId === pinboard.id }"
-      :title="`${pinboard.name}会根据全部历史中的内容类型自动同步`"
-      @click="emit('select', pinboard.id)"
-    >
-      <span class="smart-pinboard__icon" :style="{ color: pinboard.color }" aria-hidden="true">{{ pinboard.icon === "text" ? "T" : "▧" }}</span>
-      <span>{{ pinboard.name }}</span>
-    </button>
-    <div
-      v-for="pinboard in pinboards"
-      :key="pinboard.id"
-      class="pinboard-chip"
-      :class="{
-        'pinboard-chip--active': activeId === pinboard.id,
-        'pinboard-chip--dragging': reorderState?.id === pinboard.id,
-      }"
-      :data-pb-pinboard-id="pinboard.id"
-      :data-pb-reorder-target="reorderState?.target?.id === pinboard.id ? reorderState.target.position : undefined"
-      :style="{ transform: reorderOffsets[pinboard.id] ? `translateX(${reorderOffsets[pinboard.id]}px)` : undefined }"
-      @contextmenu.prevent.stop="openManagementMenu($event, pinboard)"
-      @dragover.prevent
-      @drop.prevent="dropItem($event, pinboard.id)"
-    >
+    <!-- Classic view: original full display -->
+    <template v-if="uiVersion === 'classic'">
       <button
         type="button"
-        v-show="classicRenameId !== pinboard.id"
-        @click="emit('select', pinboard.id)"
-        @dblclick.stop="beginRename(pinboard, $event.currentTarget)"
+        :class="{ active: activeId === undefined }"
+        @dragover.prevent
+        @drop.prevent="dropItem($event, undefined)"
+        @click="emit('select', undefined)"
       >
-        <span class="dot" :style="{ background: pinboard.color }"></span>
+        全部
+      </button>
+      <button
+        v-for="pinboard in smartPinboards"
+        :key="pinboard.id"
+        type="button"
+        class="smart-pinboard"
+        :class="{ active: activeId === pinboard.id }"
+        :title="`${pinboard.name}会根据全部历史中的内容类型自动同步`"
+        @click="emit('select', pinboard.id)"
+      >
+        <span class="smart-pinboard__icon" :style="{ color: pinboard.color }" aria-hidden="true">{{ pinboard.icon === "text" ? "T" : "▧" }}</span>
         <span>{{ pinboard.name }}</span>
       </button>
-      <button
-        type="button"
-        class="manage-button"
-        v-show="classicRenameId !== pinboard.id"
-        :aria-label="`管理 ${pinboard.name}`"
-        aria-haspopup="menu"
-        :aria-expanded="managementMenu?.pinboardId === pinboard.id"
-        data-pb-reorder-handle
-        title="拖动调整顺序；点击打开分组菜单"
-        @pointerdown.stop="startPinboardReorder($event, pinboard.id)"
-        @click.stop="openManagementMenu($event, pinboard)"
+      <PinboardChip
+        v-for="pinboard in pinboards"
+        :key="pinboard.id"
+        :pinboard="pinboard"
+        :active="activeId === pinboard.id"
+        :dragging="reorderState?.id === pinboard.id"
+        :reorder-target="reorderState?.target?.id === pinboard.id ? reorderState.target.position : undefined"
+        :reorder-offset="reorderOffsets[pinboard.id]"
+        :is-managed="managedPinboard?.id === pinboard.id"
+        :is-renaming="classicRenameId === pinboard.id"
+        @select="emit('select', $event)"
+        @begin-rename="beginRename"
+        @open-menu="openManagementMenu"
+        @start-reorder="startPinboardReorder"
+        @drop="dropItem"
       >
-        <svg
-          class="manage-button-icon"
-          viewBox="0 0 16 16"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path d="M3 4h10M3 8h10M3 12h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-        </svg>
-      </button>
+        <template #inline-rename>
+          <form
+            v-if="classicRenameId === pinboard.id"
+            class="pinboard-inline-name"
+            @submit.prevent="submitInlineName"
+          >
+            <input
+              :ref="setInlineNameInput"
+              v-model="nameDialogInitialName"
+              type="text"
+              autocomplete="off"
+              aria-label="重命名分组"
+              @click.stop
+              @keydown="imeSubmitGuard.noteKeydown"
+              @keydown.esc.stop.prevent="closeNameDialog"
+              @blur="submitInlineName"
+            />
+          </form>
+        </template>
+      </PinboardChip>
       <form
-        v-if="classicRenameId === pinboard.id"
-        class="pinboard-inline-name"
+        v-if="classicCreateOpen"
+        class="pinboard-inline-name pinboard-inline-name--new"
         @submit.prevent="submitInlineName"
       >
         <input
@@ -374,74 +345,133 @@ onBeforeUnmount(() => closeManagementMenu(false));
           v-model="nameDialogInitialName"
           type="text"
           autocomplete="off"
-          aria-label="重命名分组"
-          @click.stop
+          aria-label="新建分组"
+          placeholder="分组名称"
           @keydown="imeSubmitGuard.noteKeydown"
           @keydown.esc.stop.prevent="closeNameDialog"
           @blur="submitInlineName"
         />
       </form>
-    </div>
-    <form
-      v-if="classicCreateOpen"
-      class="pinboard-inline-name pinboard-inline-name--new"
-      @submit.prevent="submitInlineName"
-    >
-      <input
-        :ref="setInlineNameInput"
-        v-model="nameDialogInitialName"
-        type="text"
-        autocomplete="off"
+      <button
+        ref="addButton"
+        v-show="!classicCreateOpen"
+        type="button"
+        class="add-button"
         aria-label="新建分组"
-        placeholder="分组名称"
-        @keydown="imeSubmitGuard.noteKeydown"
-        @keydown.esc.stop.prevent="closeNameDialog"
-        @blur="submitInlineName"
-      />
-    </form>
-    <button
-      ref="addButton"
-      v-show="!classicCreateOpen"
-      type="button"
-      class="add-button"
-      aria-label="新建分组"
-      @click="beginCreate"
-    >+</button>
+        @click="beginCreate"
+      >+</button>
+    </template>
+
+    <!-- Modern view: smart pinboards hidden, custom pinboards collapsed into a dot -->
+    <template v-else>
+      <div
+        class="pinboards__modern-group"
+        @mouseenter="onPinboardMouseEnter"
+        @mouseleave="onPinboardMouseLeave"
+      >
+        <button
+          v-if="pinboards.length > 0"
+          type="button"
+          class="pinboard-dot-toggle"
+          :class="{
+            'pinboard-dot-toggle--expanded': customExpanded,
+            'pinboard-dot-toggle--active': isCustomPinboardActive,
+          }"
+          :title="customExpanded ? '收起收藏夹列表' : (isCustomPinboardActive ? '当前分组：' + activeCustomPinboard?.name + '（点击或悬停展开）' : '展开收藏夹列表 (' + pinboards.length + ')')"
+          :aria-label="customExpanded ? '收起收藏夹列表' : '展开收藏夹列表'"
+          :aria-expanded="customExpanded"
+          @click="toggleCustomExpanded"
+          @dragover.prevent
+          @drop.prevent="dropItemOnDot"
+        >
+          <span
+            class="dot"
+            :style="{ background: activeCustomPinboard?.color ?? 'var(--pb-violet, #7a68e8)' }"
+            aria-hidden="true"
+          ></span>
+          <span v-if="!customExpanded && isCustomPinboardActive" class="pinboard-dot-toggle__name">
+            {{ activeCustomPinboard?.name }}
+          </span>
+          <svg
+            class="pinboard-dot-toggle__chevron"
+            :class="{
+              'pinboard-dot-toggle__chevron--open': customExpanded,
+              'pinboard-dot-toggle__chevron--vertical': isVertical,
+            }"
+            viewBox="0 0 12 12"
+            width="10"
+            height="10"
+            aria-hidden="true"
+          >
+            <path d="M4.5 3l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+
+        <div
+          class="pinboards__collapsible"
+          :class="{
+            'pinboards__collapsible--expanded': customExpanded,
+            'pinboards__collapsible--vertical': isVertical,
+          }"
+        >
+          <button
+            type="button"
+            class="pinboard-chip-all"
+            :class="{ 'pinboard-chip-all--active': activeId === undefined }"
+            @dragover.prevent
+            @drop.prevent="dropItem($event, undefined)"
+            @click="emit('select', undefined)"
+          >
+            全部
+          </button>
+        <PinboardChip
+          v-for="pinboard in pinboards"
+          :key="pinboard.id"
+          :pinboard="pinboard"
+          :active="activeId === pinboard.id"
+          :dragging="reorderState?.id === pinboard.id"
+          :reorder-target="reorderState?.target?.id === pinboard.id ? reorderState.target.position : undefined"
+          :reorder-offset="reorderOffsets[pinboard.id]"
+          :is-managed="managedPinboard?.id === pinboard.id"
+          @select="selectPinboardChip"
+          @begin-rename="beginRename"
+          @open-menu="openManagementMenu"
+          @start-reorder="startPinboardReorder"
+          @drop="dropItem"
+        />
+
+        <button
+          ref="addButton"
+          type="button"
+          class="add-button"
+          title="新建分组"
+          aria-label="新建分组"
+          @click="beginCreate"
+        >+</button>
+        </div>
+      </div>
+
+      <button
+        v-if="pinboards.length === 0"
+        ref="addButton"
+        type="button"
+        class="add-button"
+        title="新建分组"
+        aria-label="新建分组"
+        @click="beginCreate"
+      >+</button>
+    </template>
     <span class="pinboards__hint">{{ quickPasteShortcutLabel }}</span>
   </nav>
-  <Teleport to="body">
-    <div
-      v-if="managementMenu && managedPinboard"
-      ref="managementPanel"
-      class="pinboard-manage-menu popover-surface"
-      role="menu"
-      :aria-label="`${managedPinboard.name} 管理选项`"
-      :style="managementMenuStyle"
-      @pointerdown.stop
-      @contextmenu.prevent
-      @keydown="handleManagementMenuKeydown"
-    >
-      <strong class="popover-caption">{{ managedPinboard.name }}</strong>
-      <button type="button" class="popover-item" role="menuitem" @click="beginRenameFromMenu(managedPinboard)">重命名</button>
-      <label class="color-action popover-item">
-        <input
-          class="color-input"
-          type="color"
-          role="menuitem"
-          :value="managedPinboard.color"
-          aria-label="分组颜色"
-          @change="changeColor($event, managedPinboard.id)"
-        />
-        <span>更换颜色</span>
-      </label>
-      <button
-        type="button"
-        class="popover-item popover-danger"
-        role="menuitem"
-        @click="deleteFromMenu(managedPinboard.id)"
-      >删除分组</button>
-    </div>
-  </Teleport>
+  <PinboardManageMenu
+    :pinboard="managedPinboard"
+    :anchor="managementAnchor"
+    :align="managementAlign"
+    @close="closeManagementMenu"
+    @rename="beginRenameFromMenu"
+    @update-color="handleColorUpdate"
+    @delete="deleteFromMenu"
+  />
   <PinboardNameDialog
     :open="nameDialogOpen && uiVersion === 'modern'"
     :mode="nameDialogMode"

@@ -8,6 +8,13 @@ export type ImageCrop = Readonly<{ x: number; y: number; width: number; height: 
 export type ImageRotation = 0 | 90 | 180 | 270;
 export type ImageCropHandle = "nw" | "ne" | "sw" | "se";
 
+export type ImageEditState = Readonly<{
+  rotation: ImageRotation;
+  ratioOption: string;
+  crop: ImageCrop;
+  outputWidth?: number;
+}>;
+
 const MAX_IMAGE_DIMENSION = 16_384;
 const MAX_IMAGE_PIXELS = 64_000_000;
 const MAX_OUTPUT_DIMENSION = 4_096;
@@ -254,11 +261,16 @@ export async function exportEditedImage(
     throw new RangeError("输出宽高比例必须与裁切区域一致");
   }
 
-  const canvas = canvasFor(edit.width, edit.height);
+  const maxSafeDim = 1920;
+  const downscale = Math.min(1, maxSafeDim / Math.max(edit.width, edit.height));
+  const renderWidth = Math.max(1, Math.round(edit.width * downscale));
+  const renderHeight = Math.max(1, Math.round(edit.height * downscale));
+
+  const canvas = canvasFor(renderWidth, renderHeight);
   const context = contextFor(canvas);
   context.scale(
-    edit.width / (rotated.width * crop.width),
-    edit.height / (rotated.height * crop.height),
+    renderWidth / (rotated.width * crop.width),
+    renderHeight / (rotated.height * crop.height),
   );
   context.translate(-rotated.width * crop.x, -rotated.height * crop.y);
   context.translate(rotated.width / 2, rotated.height / 2);
@@ -266,26 +278,72 @@ export async function exportEditedImage(
   context.drawImage(image, -source.width / 2, -source.height / 2);
 
   const isJpeg = /^data:image\/jpe?g;/i.test(image.src);
-  const qualities: readonly (number | undefined)[] = isJpeg
-    ? JPEG_EXPORT_QUALITIES
-    : [undefined];
-  let lastResult: string | undefined;
-  try {
-    for (const quality of qualities) {
-      lastResult = quality === undefined
-        ? canvas.toDataURL("image/png")
-        : canvas.toDataURL("image/jpeg", quality);
-      const headerEnd = lastResult.indexOf(",");
-      const payload = lastResult.slice(headerEnd + 1);
-      const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
-      const byteLength = headerEnd < 0
-        ? Number.POSITIVE_INFINITY
-        : Math.floor(payload.length * 3 / 4) - padding;
-      if (byteLength <= MAX_THEME_BACKGROUND_BYTES) return lastResult;
+  const POUCH_SAFE_BYTES = 250_000;
+  let bestCandidate: { dataUrl: string; byteLength: number } | undefined;
+
+  function evaluate(dataUrl: string | undefined): boolean {
+    if (!dataUrl || typeof dataUrl !== "string") return false;
+    const headerEnd = dataUrl.indexOf(",");
+    if (headerEnd < 0) return false;
+    const payload = dataUrl.slice(headerEnd + 1);
+    const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+    const byteLength = Math.floor(payload.length * 3 / 4) - padding;
+    if (byteLength <= MAX_THEME_BACKGROUND_BYTES) {
+      if (!bestCandidate || byteLength < bestCandidate.byteLength) {
+        bestCandidate = { dataUrl, byteLength };
+      }
     }
+    return byteLength <= POUCH_SAFE_BYTES;
+  }
+
+  try {
+    if (isJpeg) {
+      for (const quality of JPEG_EXPORT_QUALITIES) {
+        if (evaluate(canvas.toDataURL("image/jpeg", quality))) return bestCandidate!.dataUrl;
+      }
+      for (const q of [0.65, 0.55]) {
+        try { if (evaluate(canvas.toDataURL("image/jpeg", q))) return bestCandidate!.dataUrl; } catch {}
+      }
+    } else {
+      // Small PNGs keep lossless format
+      if (evaluate(canvas.toDataURL("image/png"))) return bestCandidate!.dataUrl;
+
+      // High-res images use WebP / JPEG compression to keep document safely under PouchDB quota (<600KB)
+      for (const webpQuality of [0.86, 0.78, 0.70]) {
+        try {
+          const webp = canvas.toDataURL("image/webp", webpQuality);
+          if (webp.startsWith("data:image/webp") && evaluate(webp)) return bestCandidate!.dataUrl;
+        } catch {}
+      }
+      for (const jpegQuality of [0.85, 0.76, 0.65]) {
+        try {
+          const jpeg = canvas.toDataURL("image/jpeg", jpegQuality);
+          if (jpeg.startsWith("data:image/jpeg") && evaluate(jpeg)) return bestCandidate!.dataUrl;
+        } catch {}
+      }
+    }
+    if (bestCandidate !== undefined) return bestCandidate.dataUrl;
   } catch {
     throw new Error("图片导出失败，请尝试缩小输出尺寸");
   }
-  if (lastResult === undefined) throw new Error("图片导出失败，请尝试缩小输出尺寸");
   throw new RangeError("裁切后的图片仍超过 8 MB，请缩小输出尺寸");
+}
+
+export async function ensureSafeImageDataUrl(dataUrl: string): Promise<string> {
+  if (dataUrl.length < 350_000) return dataUrl;
+  try {
+    const img = await loadEditableImage(dataUrl);
+    const maxDim = 1920;
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+    const width = Math.max(1, Math.round(img.naturalWidth * scale));
+    const height = Math.max(1, Math.round(img.naturalHeight * scale));
+    return await exportEditedImage(img, {
+      rotation: 0,
+      crop: { x: 0, y: 0, width: 1, height: 1 },
+      width,
+      height,
+    });
+  } catch {
+    return dataUrl;
+  }
 }

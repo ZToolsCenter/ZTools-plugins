@@ -15,6 +15,7 @@ import {
   MAX_CLIPBOARD_TEXT_BYTES,
   textTitle,
 } from "./clipboard-record-codec";
+import { classifyTextKind } from "./text-kind-classifier";
 
 type HostClipboardFile = Readonly<{
   name?: string;
@@ -184,7 +185,7 @@ export function normalizeHostClipboardItem(
       return null;
     }
     const contentFingerprint = fingerprint({ type: hostType, text });
-    kind = "text";
+    kind = classifyTextKind(text);
     payload = { revision: contentFingerprint, text };
     title = textTitle(text);
     origin = { host: "ztools", hostItemId: cursor.id, hostType };

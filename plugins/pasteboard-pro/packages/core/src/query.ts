@@ -1,4 +1,4 @@
-import type { PasteItem } from "./types";
+import type { PasteItem } from "./types.js";
 
 export type PasteQuery = {
   text: string[];
@@ -256,12 +256,12 @@ function scoreItem(item: PasteItem, terms: readonly string[]): number | null {
 
 function highestFieldScore(item: PasteItem, term: string): number {
   const weightedFields: ReadonlyArray<readonly [number, readonly string[]]> = [
-    [8, presentFields(item.title)],
+    [8, presentFields(item.title, item.payload.urlMeta?.title)],
     [6, presentFields(item.payload.text, item.payload.html)],
     [5, presentFields(item.ocrText)],
     [4, presentFields(item.sourceApp?.name, item.sourceApp?.bundleId)],
     [3, item.payload.filePaths ?? []],
-    [2, presentFields(item.sourceDeviceId, item.payload.mediaType)],
+    [2, presentFields(item.sourceDeviceId, item.payload.mediaType, item.payload.urlMeta?.hostname)],
   ];
 
   for (const [score, fields] of weightedFields) {

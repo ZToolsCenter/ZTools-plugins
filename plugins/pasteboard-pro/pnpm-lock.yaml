@@ -131,6 +131,9 @@ importers:
       '@pasteboard-pro/core':
         specifier: workspace:*
         version: link:../core
+      '@pasteboard-pro/sync-protocol':
+        specifier: workspace:*
+        version: link:../sync-protocol
       lmdb:
         specifier: 3.4.4
         version: 3.4.4

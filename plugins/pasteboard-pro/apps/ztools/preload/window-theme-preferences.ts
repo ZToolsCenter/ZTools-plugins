@@ -9,6 +9,7 @@ export type ThemeBackground =
       type: "image";
       imageDataUrl: string;
       frosted?: boolean;
+      frostedIntensity?: number;
       layout?: ThemeImageLayout;
       tilesPerRow?: number;
     }>;
@@ -62,10 +63,14 @@ export function parseThemeBackground(value: unknown): ThemeBackground | undefine
       type: "image";
       imageDataUrl: string;
       frosted?: boolean;
+      frostedIntensity?: number;
       layout?: ThemeImageLayout;
       tilesPerRow?: number;
     } = { type: "image", imageDataUrl: value.imageDataUrl };
     if (typeof value.frosted === "boolean") background.frosted = value.frosted;
+    if (typeof value.frostedIntensity === "number" && Number.isFinite(value.frostedIntensity)) {
+      background.frostedIntensity = Math.max(1, Math.min(100, Math.round(value.frostedIntensity)));
+    }
     if (isThemeImageLayout(value.layout)) background.layout = value.layout;
     if (isThemeImageTilesPerRow(value.tilesPerRow)) background.tilesPerRow = value.tilesPerRow;
     return background;
@@ -139,6 +144,17 @@ export function validateThemePreferences(value: unknown): asserts value is Theme
     typeof value.background.frosted !== "boolean"
   ) {
     throw new TypeError("Image background frosted preference must be a boolean");
+  }
+  if (
+    isRecord(value.background) &&
+    value.background.type === "image" &&
+    "frostedIntensity" in value.background &&
+    value.background.frostedIntensity !== undefined
+  ) {
+    const fi = value.background.frostedIntensity;
+    if (typeof fi !== "number" || !Number.isFinite(fi) || fi < 0 || fi > 100) {
+      throw new TypeError("Image background frosted intensity must be a number between 0 and 100");
+    }
   }
   if (isRecord(value.background) && value.background.type === "image") {
     if ("layout" in value.background && !isThemeImageLayout(value.background.layout)) {

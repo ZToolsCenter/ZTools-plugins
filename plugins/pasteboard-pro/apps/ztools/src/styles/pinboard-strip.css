@@ -250,3 +250,158 @@
     transition: none;
   }
 }
+
+/* Modern collapsed dot toggle */
+.pinboard-dot-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--pb-line);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--pb-glass-strong) 65%, transparent);
+  color: var(--pb-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  flex: 0 0 auto;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.pinboard-dot-toggle:hover {
+  border-color: color-mix(in srgb, var(--pb-violet) 40%, var(--pb-line));
+  color: var(--pb-ink);
+}
+
+.pinboard-dot-toggle--active {
+  border-color: color-mix(in srgb, var(--pb-violet) 50%, transparent);
+  background: color-mix(in srgb, var(--pb-violet) 14%, var(--pb-glass-strong));
+  color: var(--pb-violet);
+}
+
+.pinboard-dot-toggle .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.pinboard-dot-toggle__name {
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinboard-dot-toggle__chevron {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--pb-muted);
+  flex: 0 0 auto;
+  transform-origin: center;
+}
+
+.pinboard-dot-toggle__chevron--open {
+  transform: rotate(180deg);
+}
+
+.pinboard-dot-toggle__chevron--vertical {
+  transform: rotate(90deg);
+}
+
+.pinboard-dot-toggle__chevron--vertical.pinboard-dot-toggle__chevron--open {
+  transform: rotate(270deg);
+}
+
+/* Follows timeline direction: horizontal expands to the right via clip-path and translateX */
+.pinboards__collapsible {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: left center;
+  transform: translateX(-12px) scaleX(0.96);
+  clip-path: inset(0 100% 0 0);
+  transition:
+    max-width 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    clip-path 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
+}
+
+.pinboards__collapsible--expanded {
+  max-width: 600px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0) scaleX(1);
+  clip-path: inset(0 0 0 0);
+}
+
+.pinboards__collapsible .pinboard-chip,
+.pinboards__collapsible .add-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Vertical shelf expansion: downwards */
+.pinboards__collapsible--vertical {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: none;
+  max-height: 0;
+  transform-origin: center top;
+  transform: translateY(-8px) scaleY(0.96);
+  clip-path: inset(0 0 100% 0);
+  transition:
+    max-height 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    clip-path 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
+}
+
+.pinboards__collapsible--vertical.pinboards__collapsible--expanded {
+  max-height: 400px;
+  transform: translateY(0) scaleY(1);
+  clip-path: inset(0 0 0 0);
+}
+
+.pinboards__modern-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.pinboard-chip-all {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--pb-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 130ms ease;
+}
+
+.pinboard-chip-all:hover {
+  background: color-mix(in srgb, var(--pb-ink) 5%, transparent);
+  color: var(--pb-ink);
+}
+
+.pinboard-chip-all--active {
+  border-color: color-mix(in srgb, var(--pb-violet) 60%, transparent);
+  background: color-mix(in srgb, var(--pb-violet) 14%, transparent);
+  color: var(--pb-violet);
+}

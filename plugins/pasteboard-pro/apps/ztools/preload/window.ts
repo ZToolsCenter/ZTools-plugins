@@ -205,6 +205,8 @@ export class ShelfWindowManager {
   private readonly readyHandles = new WeakSet<BrowserWindowHandle>();
   private current: BrowserWindowHandle | undefined;
   private currentEdge: DockEdge | undefined;
+  private currentDisplay: ShelfDisplay | undefined;
+  private currentOptions: OpenShelfOptions | undefined;
 
   constructor(
     private readonly host: ShelfWindowHost,
@@ -241,6 +243,8 @@ export class ShelfWindowManager {
     ) {
       setWindowBounds(this.current, windowOptions);
       scheduleBoundsCorrection(this.current, windowOptions);
+      this.currentDisplay = display;
+      this.currentOptions = options;
       this.current.setContentProtection(options.contentProtection);
       if (this.readyHandles.has(this.current)) {
         revealWindow(this.current);
@@ -262,6 +266,8 @@ export class ShelfWindowManager {
     );
     this.current = handle;
     this.currentEdge = options.edge;
+    this.currentDisplay = display;
+    this.currentOptions = options;
     setWindowBounds(handle, windowOptions);
     scheduleBoundsCorrection(handle, windowOptions);
     handle.setContentProtection(options.contentProtection);
@@ -275,6 +281,25 @@ export class ShelfWindowManager {
     }
     this.current = undefined;
     this.currentEdge = undefined;
+    this.currentDisplay = undefined;
+    this.currentOptions = undefined;
+  }
+
+  setExpandedHeight(extraHeight: number): void {
+    if (
+      this.current === undefined ||
+      this.current.isDestroyed() ||
+      this.currentDisplay === undefined ||
+      this.currentOptions === undefined
+    ) return;
+    const windowOptions = buildShelfWindowOptions(
+      this.currentDisplay,
+      this.currentOptions.edge,
+      this.preloadPath,
+      this.currentOptions.uiVersion ?? "classic",
+      extraHeight,
+    );
+    setWindowBounds(this.current, windowOptions);
   }
 
   setContentProtection(enabled: boolean): void {
@@ -378,6 +403,13 @@ export class PanelWindowManager {
 
     return handle;
   }
+  notifyHistoryChanged(): void {
+    if (this.current === undefined || this.current.handle.isDestroyed()) return;
+    void this.current.handle.webContents.executeJavaScript(
+      "window.dispatchEvent(new CustomEvent('pasteboard-pro:history-changed'))",
+    ).catch(() => undefined);
+  }
+
   notifyClearHistoryResult(result: HistoryClearReply): void {
     if (this.current === undefined || this.current.handle.isDestroyed()) return;
     const detail = JSON.stringify(result).replaceAll("<", "\\u003c");

@@ -10,7 +10,7 @@ export type ShelfFilterOption = Readonly<{
 
 export const SHELF_TYPE_FILTERS: readonly ShelfFilterOption[] = [
   { label: "文本", values: ["text", "rich_text", "html"] },
-  { label: "图片", values: ["image"] },
+  { label: "图像", values: ["image"], matchValues: ["image", "图像", "图片"] },
   { label: "链接", values: ["url"] },
   { label: "文件", values: ["files", "pdf"] },
   { label: "颜色", values: ["color"] },

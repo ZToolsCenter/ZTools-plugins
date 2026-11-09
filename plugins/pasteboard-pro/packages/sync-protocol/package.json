@@ -4,7 +4,16 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./node-crypto": "./src/node-crypto.ts"
+    "./node-crypto": "./src/node-crypto.ts",
+    "./v2": "./src/v2.ts",
+    "./v2-node": "./src/v2-node.ts"
+  },
+  "typesVersions": {
+    "*": {
+      "node-crypto": ["./src/node-crypto.ts"],
+      "v2": ["./src/v2.ts"],
+      "v2-node": ["./src/v2-node.ts"]
+    }
   },
   "dependencies": {
     "@pasteboard-pro/core": "workspace:*"

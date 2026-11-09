@@ -14,6 +14,7 @@ import type { SyncSettings } from "../preload/sync-store";
 import type { WindowPreferences } from "../preload/window-preferences";
 import type { ListOrders } from "../preload/list-order-store";
 import type { ClearClipboardHistoryResult } from "../preload/clear-history";
+import type { MirrorImageRetrySummary } from "../preload/mirror-image-retry-types";
 import type { PasteStackState } from "@pasteboard-pro/core";
 
 declare global {
@@ -104,10 +105,13 @@ declare global {
       saveWindowPreferences(settings: WindowPreferences): Promise<WindowPreferences>;
       selectThemeBackgroundImage(): Promise<string | undefined>;
       clearClipboardHistory(): Promise<ClearClipboardHistoryResult>;
+      getImageRetryStatus?(): Promise<MirrorImageRetrySummary>;
+      requestImageRetry?(): void;
       getListOrders(): Promise<ListOrders>;
       saveListOrder(scope: string, itemIds: readonly string[]): Promise<ListOrders>;
       getPasteStack(): Promise<PasteStackState>;
       savePasteStack(state: PasteStackState): Promise<PasteStackState>;
+      setShelfExpanded?(expanded: boolean, extraHeight?: number): void;
       openPanel(
         panel: "privacy" | "sync" | "preview" | "editor" | "whatsnew",
         params?: Readonly<Record<string, string>>,

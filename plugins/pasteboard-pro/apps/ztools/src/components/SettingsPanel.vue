@@ -31,8 +31,12 @@ import {
   resolveShortcutPlatform,
 } from "../platform-shortcuts";
 import { openPasteShortcutSettings, type ZToolsShortcutSettingsApi } from "../hotkey-settings";
+import ImageRetryStatus from "./ImageRetryStatus.vue";
+import GeneralSettingsSection from "./GeneralSettingsSection.vue";
 import SettingsNavigation from "./SettingsNavigation.vue";
 import UiVersionPreference from "./UiVersionPreference.vue";
+import ThemePreview from "./ThemePreview.vue";
+import { applicationThemeVariables } from "../use-application-presentation";
 import BlockedApplicationsSelect from "./BlockedApplicationsSelect.vue";
 import ThemeImageBackdrop from "./ThemeImageBackdrop.vue";
 import ImageBackgroundOptions from "./ImageBackgroundOptions.vue";
@@ -40,6 +44,7 @@ import type { ThemeImageLayout } from "../../preload/window-theme-preferences";
 import ThemeSurfaceControls from "./ThemeSurfaceControls.vue";
 import ColorPickerField from "./ColorPickerField.vue";
 import BackgroundImageControl from "./BackgroundImageControl.vue";
+import { ensureSafeImageDataUrl } from "../theme-image-edit";
 import { settingsTabs, type SettingsTab } from "./settings-tabs";
 import { useSettingsDialogFocus } from "../use-settings-dialog-focus";
 import { useImeSubmitGuard } from "../use-ime-submit-guard";
@@ -66,18 +71,8 @@ const emit = defineEmits<{
     windowPreferences: WindowPreferences,
     syncInput: SaveSyncConfigurationInput,
   ];
+  previewUiVersion: [version: ShelfUiVersion];
 }>();
-
-const dockOptions: readonly (readonly [ShelfDockEdge, string])[] = [
-  ["bottom", "下方"],
-  ["top", "上方"],
-  ["left", "左侧"],
-  ["right", "右侧"],
-];
-const multiPasteOptions: readonly (readonly [MultiPasteMode, string])[] = [
-  ["batch", "一次性多条"],
-  ["queue", "逐一粘贴队列"],
-];
 
 const activeTab = ref<SettingsTab>(props.initialTab);
 const imeSubmitGuard = useImeSubmitGuard();
@@ -95,6 +90,7 @@ const form = reactive({
   dockEdge: props.windowPreferences.dockEdge as ShelfDockEdge,
   uiVersion: props.windowPreferences.uiVersion as ShelfUiVersion,
   multiPasteMode: props.windowPreferences.multiPasteMode as MultiPasteMode,
+  fetchUrlMetadata: props.windowPreferences.fetchUrlMetadata !== false,
   accentColor: props.windowPreferences.theme.accentColor,
   cardBackground: props.windowPreferences.theme.cardBackground,
   backgroundBaseColor: props.windowPreferences.theme.backgroundBaseColor,
@@ -111,9 +107,8 @@ const form = reactive({
     ? props.windowPreferences.theme.background.layout ?? "cover" : "cover") as ThemeImageLayout,
   backgroundImageTilesPerRow: props.windowPreferences.theme.background.type === "image"
     ? props.windowPreferences.theme.background.tilesPerRow ?? 3 : 3,
-  backgroundImageFrosted:
-    props.windowPreferences.theme.background.type === "image" &&
-    props.windowPreferences.theme.background.frosted === true,
+  backgroundImageFrosted: props.windowPreferences.theme.background.type === "image" && props.windowPreferences.theme.background.frosted === true,
+  backgroundImageFrostedIntensity: props.windowPreferences.theme.background.type === "image" ? (props.windowPreferences.theme.background.frostedIntensity ?? 50) : 50,
   ignoredBundleIds: [...props.privacySettings.rules.ignoredBundleIds],
   contentRules: serializeContentRules(props.privacySettings.rules.contentRules),
   blockLikelySecrets: props.privacySettings.rules.blockLikelySecrets,
@@ -163,26 +158,33 @@ const hotkeySettingsHint = computed(() => {
 
 const previewDarkMode = computed(() => props.darkMode ?? window.matchMedia("(prefers-color-scheme: dark)").matches);
 const themePreviewStyle = computed<Record<string, string>>(() => {
-  const variables = themeCssVariables(
-    selectedTheme(),
+  const currentPreferences: WindowPreferences = {
+    ...props.windowPreferences,
+    uiVersion: form.uiVersion,
+    theme: selectedTheme(),
+  };
+  const variables = applicationThemeVariables(
+    currentPreferences,
     previewDarkMode.value,
   );
   return {
     ...variables,
-    "--preview-accent": variables["--pb-violet"]!,
-    "--preview-on-accent": variables["--pb-on-accent"]!,
-    backgroundColor: variables["--pb-theme-background-color"]!,
-    "--pb-theme-background-color": variables["--pb-theme-background-color"]!,
+    "--preview-accent": variables["--pb-violet"] || form.accentColor,
+    "--preview-on-accent": variables["--pb-on-accent"] || "#ffffff",
+    backgroundColor: variables["--pb-theme-background-color"] || "transparent",
+    "--pb-theme-background-color": variables["--pb-theme-background-color"] || "transparent",
   };
 });
 
 watch(() => props.initialTab, (tab) => { activeTab.value = tab; });
+watch(() => form.uiVersion, (version) => { emit("previewUiVersion", version); }, { immediate: true });
 watch(
   () => props.windowPreferences,
   (settings) => {
     form.dockEdge = settings.dockEdge;
     form.uiVersion = settings.uiVersion;
     form.multiPasteMode = settings.multiPasteMode;
+    form.fetchUrlMetadata = settings.fetchUrlMetadata !== false;
     form.accentColor = settings.theme.accentColor;
     form.cardBackground = settings.theme.cardBackground;
     form.backgroundBaseColor = settings.theme.backgroundBaseColor;
@@ -198,8 +200,8 @@ watch(
       ? settings.theme.background.layout ?? "cover" : "cover";
     form.backgroundImageTilesPerRow = settings.theme.background.type === "image"
       ? settings.theme.background.tilesPerRow ?? 3 : 3;
-    form.backgroundImageFrosted = settings.theme.background.type === "image" &&
-      settings.theme.background.frosted === true;
+    form.backgroundImageFrosted = settings.theme.background.type === "image" && settings.theme.background.frosted === true;
+    form.backgroundImageFrostedIntensity = settings.theme.background.type === "image" ? (settings.theme.background.frostedIntensity ?? 50) : 50;
   },
 );
 watch(
@@ -238,7 +240,6 @@ function updateBlobBudgetUnit(event: Event): void {
   form.maxBlobUnit = nextUnit;
   form.maxBlobValue = blobBudgetValue(bytes, nextUnit);
 }
-
 
 async function clearHistory(): Promise<void> {
   if (
@@ -286,6 +287,7 @@ function selectedThemeBackground(): ThemeBackground {
       type: "image",
       imageDataUrl: form.backgroundImageDataUrl,
       frosted: form.backgroundImageFrosted,
+      frostedIntensity: form.backgroundImageFrostedIntensity,
       layout: form.backgroundImageLayout,
       tilesPerRow: form.backgroundImageTilesPerRow,
     };
@@ -302,8 +304,16 @@ function selectedTheme(): ThemePreferences {
   };
 }
 
-function save(): void {
+async function save(): Promise<void> {
   if (imeSubmitGuard.shouldSuppressSubmit()) return;
+  let theme = selectedTheme();
+  if (theme.background.type === "image" && theme.background.imageDataUrl.length > 300_000) {
+    try {
+      const safeData = await ensureSafeImageDataUrl(theme.background.imageDataUrl);
+      theme = { ...theme, background: { ...theme.background, imageDataUrl: safeData } };
+      form.backgroundImageDataUrl = safeData;
+    } catch {}
+  }
   emit(
     "save",
     {
@@ -323,7 +333,8 @@ function save(): void {
       dockEdge: form.dockEdge,
       uiVersion: form.uiVersion,
       multiPasteMode: form.multiPasteMode,
-      theme: selectedTheme(),
+      theme,
+      fetchUrlMetadata: form.fetchUrlMetadata,
     },
     {
       enabled: form.syncEnabled,
@@ -343,7 +354,7 @@ function save(): void {
 
 <template>
   <div class="settings-backdrop" :class="{ 'settings-backdrop--standalone': standalone }" @click.self="!saving && emit('close')">
-    <section ref="dialogElement" :inert="imageEditorOpen" :aria-hidden="imageEditorOpen || undefined" class="settings-panel glass-surface" :data-ui-version="props.windowPreferences.uiVersion" role="dialog" :aria-modal="!imageEditorOpen" :aria-busy="saving" aria-labelledby="settings-title" tabindex="-1" @keydown.esc.stop.prevent="!saving && !imageEditorOpen && emit('close')" @keydown.tab="trapDialogFocus">
+    <section ref="dialogElement" :inert="imageEditorOpen" :aria-hidden="imageEditorOpen || undefined" class="settings-panel glass-surface" :data-ui-version="form.uiVersion" role="dialog" :aria-modal="!imageEditorOpen" :aria-busy="saving" aria-labelledby="settings-title" tabindex="-1" @keydown.esc.stop.prevent="!saving && !imageEditorOpen && emit('close')" @keydown.tab="trapDialogFocus">
       <form class="settings-shell" @keydown.capture="imeSubmitGuard.noteKeydown" @submit.prevent="save">
         <header class="settings-titlebar">
           <div class="settings-brand">
@@ -364,47 +375,26 @@ function save(): void {
           />
           <div class="settings-scroll">
             <section id="general-panel" v-show="activeTab === 'general'" class="settings-page" role="tabpanel" aria-labelledby="general-tab" tabindex="0">
-              <div class="settings-page__intro"><strong>窗口与粘贴</strong><span>决定列表出现在哪里，以及多选后如何执行。</span></div>
-              <fieldset class="option-field">
-                <legend>显示位置</legend>
-                <div class="option-grid option-grid--four">
-                  <label v-for="option in dockOptions" :key="option[0]">
-                    <input v-model="form.dockEdge" type="radio" name="dock-edge" :value="option[0]" />
-                    <span>{{ option[1] }}</span>
-                  </label>
-                </div>
-                <small>每次唤起都会贴在当前鼠标所在屏幕的对应边缘。</small>
-              </fieldset>
-              <fieldset class="option-field">
-                <legend>多选粘贴</legend>
-                <div class="option-grid option-grid--two">
-                  <label v-for="option in multiPasteOptions" :key="option[0]">
-                    <input v-model="form.multiPasteMode" type="radio" name="multi-paste-mode" :value="option[0]" />
-                    <span>{{ option[1] }}</span>
-                  </label>
-                </div>
-                <small>{{ multiPasteHint }}</small>
-              </fieldset>
-              <div class="shortcut-settings">
-                <span><strong>全局唤起快捷键</strong><small>{{ hotkeySettingsHint }}</small></span>
-                <button type="button" @click="openHotkeySettings">设置 ZTools 快捷键</button>
-              </div>
-              <div class="shortcut-settings">
-                <span><strong>版本新特性</strong><small>探索当前版本 (v1.3.0) 带来的全新功能与体验提升。</small></span>
-                <button type="button" @click="emit('showWhatsNew')">查看新特性</button>
-              </div>
-              <p v-if="hotkeySettingsMessage" class="settings-result" role="status">{{ hotkeySettingsMessage }}</p>
+              <GeneralSettingsSection
+                v-model:dock-edge="form.dockEdge"
+                v-model:multi-paste-mode="form.multiPasteMode"
+                v-model:fetch-url-metadata="form.fetchUrlMetadata"
+                :multi-paste-hint="multiPasteHint"
+                :hotkey-settings-hint="hotkeySettingsHint"
+                :hotkey-settings-message="hotkeySettingsMessage"
+                @open-hotkey-settings="openHotkeySettings"
+                @show-whats-new="emit('showWhatsNew')"
+              />
             </section>
 
           <section id="appearance-panel" v-show="activeTab === 'appearance'" class="settings-page" role="tabpanel" aria-labelledby="appearance-tab" tabindex="0">
             <div class="settings-page__intro"><strong>主题与背景</strong><span>自定义主题色，并用纯色或本地图片装饰插件窗口。</span></div>
             <UiVersionPreference v-model="form.uiVersion" />
-            <div class="theme-preview" :style="themePreviewStyle" aria-label="主题预览">
-              <ThemeImageBackdrop :background="selectedThemeBackground()" />
-              <span class="theme-preview__brand">Paste</span>
-              <div><i data-pb-theme-preview-card>文本</i><i data-pb-theme-preview-card>链接</i><i data-pb-theme-preview-card>图片</i></div>
-              <span class="theme-preview__button">主题预览</span>
-            </div>
+            <ThemePreview
+              :ui-version="form.uiVersion"
+              :background="selectedThemeBackground()"
+              :style="themePreviewStyle"
+            />
             <div class="color-field">
               <span><strong>主题色</strong><small>按钮、选中态和强调信息将使用此颜色。</small></span>
               <ColorPickerField v-model="form.accentColor" label="选择主题色" :disabled="saving" />
@@ -433,6 +423,7 @@ function save(): void {
               v-model:layout="form.backgroundImageLayout"
               v-model:tiles-per-row="form.backgroundImageTilesPerRow"
               v-model:frosted="form.backgroundImageFrosted"
+              v-model:frosted-intensity="form.backgroundImageFrostedIntensity"
             />
           </section>
 
@@ -447,6 +438,7 @@ function save(): void {
             <div class="settings-field"><span>屏蔽应用</span><BlockedApplicationsSelect v-model="form.ignoredBundleIds" :disabled="saving" /></div>
             <label class="settings-field"><span>内容规则（literal: / wildcard: / regex:）</span><textarea v-model="form.contentRules" rows="4" spellcheck="false" placeholder="literal:PRIVATE NOTE&#10;wildcard:otp-*&#10;regex:^internal-[0-9]+$/i" /></label>
             <p class="settings-note">分组与固定内容不会被普通保留策略静默删除。</p>
+            <ImageRetryStatus />
             <div class="danger-zone">
               <span><strong>清空剪贴板</strong><small>删除全部历史、固定内容、分组关联和插件自管附件，同时清空当前系统剪贴板。</small></span>
               <button type="button" :disabled="clearingHistory" @click="clearHistory">{{ clearingHistory ? "正在清空…" : "清空剪贴板" }}</button>

@@ -1,3 +1,5 @@
+import { readHostImageIdentity } from "./mirror-image-host-capture";
+import { MirrorImageRetryJournal } from "./mirror-image-retry-journal";
 import {
   PasteItemSchema,
   searchPasteItems,
@@ -46,6 +48,7 @@ type StoredCursorDocument = Readonly<{
 }>;
 
 export class ClipboardRecordStore implements CanonicalClipboardStore {
+  readonly imageRetries: MirrorImageRetryJournal;
   protected readonly deviceId: string;
   protected readonly now: () => number;
   protected readonly ready: Promise<void>;
@@ -57,6 +60,7 @@ export class ClipboardRecordStore implements CanonicalClipboardStore {
     this.deviceId = options.deviceId?.trim() || "ztools-local";
     this.now = options.now ?? Date.now;
     this.ready = options.ready ?? Promise.resolve();
+    this.imageRetries = new MirrorImageRetryJournal(database, this.deviceId, this.ready);
   }
 
   async findByFingerprint(fingerprint: string): Promise<PasteItem | undefined> {
@@ -115,6 +119,8 @@ export class ClipboardRecordStore implements CanonicalClipboardStore {
           : {
               host: "sync",
               remoteAvailable: true,
+              ...(current.origin.hostCapture?.editedBlobId === blobId && readHostImageIdentity(current) !== undefined
+                ? { hostCapture: current.origin.hostCapture } : {}),
               imagePath,
               blobBytes,
               pluginBlobId: blobId,

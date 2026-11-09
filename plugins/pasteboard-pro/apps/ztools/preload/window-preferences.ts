@@ -27,6 +27,7 @@ export type WindowPreferences = Readonly<{
   uiVersion: ShelfUiVersion;
   multiPasteMode: MultiPasteMode;
   theme: ThemePreferences;
+  fetchUrlMetadata?: boolean;
 }>;
 
 export const defaultWindowPreferences: WindowPreferences = {
@@ -73,6 +74,9 @@ function parseWindowPreferences(value: unknown): WindowPreferences | undefined {
           ? value.settings.multiPasteMode
           : defaultWindowPreferences.multiPasteMode,
         theme: parseThemePreferences(value.settings.theme),
+        ...(typeof value.settings.fetchUrlMetadata === "boolean"
+          ? { fetchUrlMetadata: value.settings.fetchUrlMetadata }
+          : {}),
       }
     : undefined;
 }
@@ -123,6 +127,9 @@ export class ZToolsWindowPreferencesStore {
       throw new TypeError("Multi-paste mode must be batch or queue");
     }
     validateThemePreferences(settings.theme);
+    if ("fetchUrlMetadata" in settings && typeof settings.fetchUrlMetadata !== "boolean" && settings.fetchUrlMetadata !== undefined) {
+      throw new TypeError("Fetch URL metadata preference must be a boolean");
+    }
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       let current: unknown;

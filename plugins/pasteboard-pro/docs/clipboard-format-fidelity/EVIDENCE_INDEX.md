@@ -187,6 +187,74 @@ Each hash below is SHA256 of the exact local root-evidence JSON named in the adj
 - Local-only source path: `artifacts/pasteboardpro/clipboard-format-g0/v032-root-evidence.json`
 - Root JSON copied with this PR: [validation/v032/v032-root-evidence.json](validation/v032/v032-root-evidence.json)
 
+### v0.33
+
+- Original scope: plugin-only V1 per-image retry journal/recovery, bounded owner scheduler, clear coordination and settings status; original full G0-G4 objective unchanged
+- gateComplete: False
+- Local root JSON SHA256: `7d4edc02a4c6c9aa4f76ea79a46b5a63fffc1d0778d6e6611df52d7dd929469a`
+- Local-only source path: `artifacts/pasteboardpro/clipboard-format-g0/v033-root-evidence.json`
+- Root JSON copied with implementation: [validation/v033/v033-root-evidence.json](validation/v033/v033-root-evidence.json)
+- Final source: 797 entries, `60eda5be280b94accb62279ee3f9b22b753443a92226b69b4c2f7730e74a7b16`; Node24/Electron each1439 PASS/6 skips; Node20 focused113 PASS; actual development-package CJS each27/27; browser2/2.
+- Implementation scope: [HISTORY_IMAGE_RETRY_JOURNAL.md](HISTORY_IMAGE_RETRY_JOURNAL.md)
+
+### v0.34
+
+- Original scope: documentation-only implementation ADR/design gate, pinned ten-file host source audit and pending independent A/B scope approvals; full G0–G4 objective unchanged
+- goalStatus: active; goalComplete: False; gateComplete: False
+- Local root JSON SHA256: `37494a37bc48e5035d9a1b0e2a9e123a117d97211319a10f8c87af37c9f60bae`
+- Local-only source path: `artifacts/pasteboardpro/clipboard-format-g0/v034-root-evidence.json`
+- Public root JSON: [validation/v034/v034-root-evidence.json](validation/v034/v034-root-evidence.json)
+- Accepted design, not implemented: [IMPLEMENTATION_ADR.md](IMPLEMENTATION_ADR.md); separate pending permissions: [MAINLINE_SCOPE_APPROVAL.md](MAINLINE_SCOPE_APPROVAL.md)
+- Source-only pinned audit: [validation/v034/host-source-audit.json](validation/v034/host-source-audit.json);10 archived originals/blob/excerpts; comparison raw/time and StorageManager factory gaps explicit
+- Source797 entries/original selection and executable bits unchanged, digest `60eda5be280b94accb62279ee3f9b22b753443a92226b69b4c2f7730e74a7b16`; v0.33 root/results inherited, no tests/build/native rerun
+
+### v0.35
+
+- Scope: independent G3 crypto ADR/security design review and public primitive KATs only; original G0–G4 unchanged
+- goalStatus: active; goalComplete: False; gateComplete: False; G3Complete: False
+- Root JSON SHA256: `d6492065f1ad357bdd490bb6eeafd0459fc49cd1193d4447bfdec3b2ecdef203`
+- Public root JSON: [validation/v035/v035-root-evidence.json](validation/v035/v035-root-evidence.json); local identical original: `artifacts/pasteboardpro/clipboard-format-g0/v035-root-evidence.json`
+- [G3 crypto ADR](G3_CRYPTO_ADR.md): ACCEPTED DESIGN / NOT IMPLEMENTED; three reviewed text hashes/current metadata-bound ADR in root JSON
+- Node24.15.0 / Node20.19.3 / Electron41.4.0 as Node, darwin/arm64 only: each24 standard primitive KATs +1 candidate KDF API/time observation; all exit0; raw scripts/sources/logs local-only, hash manifests and bounded summary public in root JSON
+- No composed protocol vectors/runtime implementation/Windows/six-direction acceptance; no production KDF or hard-RSS claim; no implementation tests/build/native rerun
+- Exact original source797 bytes/executable bits, original§1–11 and priorv034 root preserved; A/Bscope permissions pending, nohost/CIwrite, no stage/commit/push/publish
+
+### v0.36
+
+- Component-only: [pure wire](G3_WIRE_IMPLEMENTATION.md), [Node crypto](G3_CRYPTO_COMPONENT.md); actual affected-code review LIMITED APPROVE, later than frozen runtime-summary pending label.
+- goalStatus: active; goalComplete: False; gateComplete: False; G3Complete: False
+- Root SHA256: e0d656ddf15dcf6fd9824565c5f72a84b26cc76c37b80db388306e067579c850; [public capsule](validation/v036/v036-root-evidence.json), identical local original artifacts/pasteboardpro/clipboard-format-g0/v036-root-evidence.json
+- Security-fixed source823 aggregate 76b856c8d175a02827c90846d1d6b9294d01c593589d1eba04167db22b90aaae; Node20/24/Electron each19 files/189 PASS, fail/skip/timeout0, sorted(path,count) sets equal; root tsc/workspace contract/Python oracle PASS.
+- Nine-file fix explicitly approved/applied via original mechanism; prior two refusals and original4 RED to4 GREEN preserved. HostA/rootCIB remain PENDING.
+- Canonical/copy source verification, original797 delta(+26,-0,only package.json two exports), original sections1-11, ADR and v033-v035 roots preserved. Full G0-G4/G3, host/durable adapters/activation/Windows/apps/six directions incomplete. Flags unchanged; no host/CI write or stage/commit/push/publish. Raw evidence local-only.
+
+### v0.37
+
+- [Verification budget finite implementation](G3_VERIFICATION_BUDGET.md); design snapshot remains historical NOTIMPLEMENTED/NOTRUN. Actual limited review approved, full G3/G0-G4 incomplete.
+- Root SHA256: a9553f45388168f298c6bbd44f96dac09523d1cd52e8db9767001ff02bc2ceae; [public capsule](validation/v037/v037-root-evidence.json), identical local artifacts/pasteboardpro/clipboard-format-g0/v037-root-evidence.json.
+- Final candidate003:845 source aggregate cbfee85bd51cf63d3b5e75a9ef5a3ba40cfc3ecc8cc17dd10257cd3c0d289329;11checks exit0/no timeout; Node20/24/Electron each73files568cases=562PASS6precise fixtureSKIP,14parent cases actually PASS.
+- Manifest file bytes SHA38c07b96dc8641f2f96af053cb8b1fa405eff42461656c9408d6d932b8781157 differs from internal metadataDigest7abffc6e9aa585095f65c630c1a672de8ac70aa66b23fcc906e06ccd0c0cc8fb.
+- Four log paths original state UNKNOWN and possible old log loss explicitly recorded;80 protected receipts unchanged does not prove all artifacts unchanged. No restore/cleanup.
+- Original sections1-11/accepted crypto ADR/budget design snapshot and prior roots preserved; A/B pending, production flags off, no host/CI/Git publication. Raw receipts local-only; capsule hash-binds finite summary.
+
+### v0.38
+
+- [Startup budget / transaction / resource validation](G3_BUDGET_RESOURCE_VALIDATION.md); bounded source review LIMITED APPROVE, no remaining same-scope P1/P2. Full G0-G4/G3 incomplete.
+- [Public root capsule](validation/v038/v038-root-evidence-002.json), identical local artifacts/pasteboardpro/clipboard-format-g0/v038-root-evidence-002.json; SHA256 b7a25ad85aee573760882c77b2804190f276e3cdf2d5bb63d3456c28726b31df. Predecessor capsule remains byte-for-byte available. Raw test/process/source records are local-only.
+- Current 860-source aggregate 3595a5e874516b67c3327276f9fa372f777ec84954c572952db6717317db92a2; vs845: 15 new, 3 changed, 0 removed. Source and copy match. Root types/contract/build/public imports/strict NodeNext and three runtime suites: 11 checks exit0/no timeout.
+- Node24/20/Electron-as-Node each 15 files, 73 cases = 71 PASS / 0 FAIL / 2 exact child-only fixture SKIP, actual parent cases pass; same file/case/status sets. This is budget regression, not product-wide or Windows acceptance.
+- Resource 10 unique cases are separate evidence. Epoch4096 seed does not prove max128-step trusted history; private seams/math-only512MiB/2^32 and cooperative native/RSS limits remain explicit. Both cache-isolation UNKNOWN and historical four-log UNKNOWN incidents retained.
+- Original sections1-11, both frozen ADRs, v033-v037 dual roots and80 protected receipts match; A/B pending, flags off, no host/CI/Git publication.
+
+### v0.39
+
+- [Portable Unicode codec / projection candidate](PORTABLE_TEXT_PROJECTION.md): bounded plugin component only; no production paste/sync activation or full P1/G2/G3/G0-G4 completion.
+- [Public root capsule](validation/v039/v039-root-evidence.json), identical local artifacts/pasteboardpro/clipboard-format-g0/v039-root-evidence.json; SHA256 a33b61567fae2ebbdabb6d13eb0dc4a10058c665d93dee01ec412f542ef5e72d. Raw reports, command logs and source records remain local-only.
+- 867-source aggregate 7bde45c013afe7af4a3ea6e01c27c6b1d102ea62c79b0ea23bb5e5441d5fca96; vs860: 7 added, only v2.ts two exports changed, 0 removed. Both candidate/current source and dependency fingerprints match; prior80 receipts, v038 roots, frozen ADRs and original sections1-11 preserved.
+- Nine named commands exit0/no timeout/reaped: root project types, contract, strict public NodeNext and version/suite per Node24/20/Electron-as-Node. Each runtime4files/87PASS/0FAIL/0skip (68new+19wire), same file/case/status sets; independent Sol LIMITED APPROVE is limited to these component gates.
+- Both outer runners exited1: candidate001 order-only selection assertion after five successful commands; candidate002 persisted summary before json.dumps(flush=True) print failure after remaining four. Original failure receipts/runners remain; this is not whole-pipeline PASS.
+- Effective6+2 RED→GREEN and fixture-only failures stay distinct; generic metadata bounds are not legal store E2E. Historical four-log/shared-cache UNKNOWN incidents retained. A/B pending, flags off, Windows/host/six directions/full gates incomplete, no Git publication.
+
 ## local-raw-artifact-archive
 
 For a link whose exact file was not copied, the original label is retained and its destination points here or to the matching phase row above. The original target remains in the generated local audit map at `artifacts/pasteboardpro/pr-preparation/doc-audit/doc-link-map.json`; that audit output is ignored and does not ship with the PR.

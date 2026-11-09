@@ -1,3 +1,5 @@
+import { parseHostImageCapture } from "./mirror-image-host-capture";
+import { refinePasteItemKind } from "./text-kind-classifier";
 import { PasteItemSchema } from "@pasteboard-pro/core";
 import type { CanonicalClipboardOrigin, CanonicalClipboardRecord } from "./clipboard-store-types";
 
@@ -28,13 +30,17 @@ export function storedRecord(value: unknown): CanonicalClipboardRecord | undefin
   const item = PasteItemSchema.safeParse(value.record.item);
   const origin = value.record.origin;
   if (!item.success) return undefined;
+  const itemData = refinePasteItemKind(item.data);
   if (origin.host === "sync") {
     if (typeof origin.remoteAvailable !== "boolean") return undefined;
+    const hostCapture = Object.hasOwn(origin, "hostCapture") ? parseHostImageCapture(origin.hostCapture) : undefined;
+    if (Object.hasOwn(origin, "hostCapture") && !hostCapture) return undefined;
     return {
-      item: item.data,
+      item: itemData,
       origin: {
         host: "sync",
         remoteAvailable: origin.remoteAvailable,
+        ...(hostCapture === undefined ? {} : { hostCapture }),
         ...(typeof origin.imagePath === "string"
           ? { imagePath: origin.imagePath }
           : {}),
@@ -71,7 +77,7 @@ export function storedRecord(value: unknown): CanonicalClipboardRecord | undefin
       ? { pluginBlobId: origin.pluginBlobId }
       : {}),
   };
-  return { item: item.data, origin: normalizedOrigin };
+  return { item: itemData, origin: normalizedOrigin };
 }
 
 export function fingerprint(value: unknown): string {

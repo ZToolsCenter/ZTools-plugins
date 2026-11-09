@@ -1,4 +1,4 @@
-import type { PasteStackState } from "@pasteboard-pro/core";
+import type { PasteStackState, UrlMeta } from "@pasteboard-pro/core";
 import type { ListReorderRequest } from "../src/list-order";
 import type { HistoryPage, HistoryRequest } from "./history-page";
 import type { RawZToolsDocumentDatabase } from "./clipboard-document-database";
@@ -29,6 +29,7 @@ import type {
 import type { SafeStorageLike } from "./keychain";
 import type { ApplicationCatalogResult } from "./application-catalog";
 import type { SourceAppIdentity } from "./source-app-icons";
+import type { MirrorImageRetrySummary } from "./mirror-image-retry-types";
 
 export type IpcRendererLike = Readonly<{
   on(
@@ -110,6 +111,8 @@ export type PasteboardProBridge = Readonly<{
   getSourceAppIcon(sourceApp: SourceAppIdentity): Promise<string | undefined>;
   listApplications(refresh?: boolean): Promise<ApplicationCatalogResult>;
   captureScreenshot(): Promise<ScreenCaptureImportResult>;
+  getImageRetryStatus(): Promise<MirrorImageRetrySummary>;
+  requestImageRetry(): void;
   searchHistory(query?: string, limit?: number): Promise<Readonly<{ items: unknown[]; total: number }>>;
   searchHistoryPage(request: HistoryRequest): Promise<HistoryPage>;
   getHistoryItem(itemId: string, fingerprint?: string): Promise<unknown>;
@@ -124,6 +127,8 @@ export type PasteboardProBridge = Readonly<{
   createTextItem(text: string, title?: string, pinboardId?: string): Promise<unknown>;
   updateTextItem(itemId: string, text: string, title?: string): Promise<unknown>;
   updateItemTitle(itemId: string, title: string): Promise<unknown>;
+  updateItemUrlMetadata?(itemId: string, metadata: UrlMeta): Promise<unknown>;
+  fetchUrlMetadata?(url: string): Promise<UrlMeta | undefined>;
   listPinboards(): Promise<unknown[]>;
   createPinboard(name: string, color: string): Promise<unknown>;
   renamePinboard(id: string, name: string): Promise<unknown>;
@@ -149,6 +154,7 @@ export type PasteboardProBridge = Readonly<{
   saveListOrder(scope: string, itemIds: readonly string[]): Promise<ListOrders>;
   getPasteStack(): Promise<PasteStackState>;
   savePasteStack(state: PasteStackState): Promise<PasteStackState>;
+  setShelfExpanded?(expanded: boolean, extraHeight?: number): void;
   openPanel(panel: AuxiliaryPanel, params?: Readonly<Record<string, string>>): void;
 }>;
 
