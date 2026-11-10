@@ -43,17 +43,17 @@ const color = computed(() => {
     :title="dragTitle"
   >
     <svg class="modern-preview__document" viewBox="0 0 64 76" fill="none" aria-hidden="true"><path d="M10 2h29l15 15v55H10z" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-opacity=".35"/><path d="M39 2v16h15M20 31h24M20 39h24M20 47h16" stroke="currentColor" stroke-opacity=".4" stroke-width="2"/><rect x="5" y="52" width="34" height="17" rx="4" fill="var(--pb-violet)"/><text x="22" y="64" text-anchor="middle" fill="var(--pb-on-accent)" font-size="10" font-family="sans-serif">{{ item.kind === 'pdf' ? 'PDF' : 'FILE' }}</text></svg>
-    <strong>{{ files[0] ?? title ?? 'PDF 文档' }}</strong>
+    <strong :title="files[0] ?? title ?? 'PDF 文档'" :alt="files[0] ?? title ?? 'PDF 文档'">{{ files[0] ?? title ?? 'PDF 文档' }}</strong>
     <span v-if="files.length > 1">另有 {{ files.length - 1 }} 个文件</span>
   </div>
   <div v-else class="modern-preview modern-preview--text">
-    <strong v-if="title">{{ title }}</strong>
+    <strong v-if="title" :title="title" :alt="title">{{ title }}</strong>
     <p>{{ fallbackText }}</p>
   </div>
 </template>
 <style scoped>
 .modern-preview{min-width:0;min-height:0;overflow:hidden;color:var(--pb-ink)}
-.modern-preview strong{display:-webkit-box;overflow:hidden;font-size:15px;font-weight:600;line-height:1.5;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.modern-preview strong{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:600;line-height:1.5}
 .modern-preview p{margin:0;font-size:13px;line-height:1.65;overflow-wrap:anywhere;white-space:pre-wrap}
 .modern-preview--text{display:flex;flex-direction:column;gap:10px}
 .modern-preview--text>p{overflow:hidden;display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical}

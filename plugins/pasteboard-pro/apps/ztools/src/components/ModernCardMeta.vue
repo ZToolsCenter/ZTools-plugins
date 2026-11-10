@@ -67,7 +67,7 @@ const footerTitle = computed(() => {
         @error="onFaviconError"
       />
       <SourceAppIcon v-else :source-app="item.sourceApp" :fallback="initial" />
-      <span>{{ headerTitle }}</span>
+      <span :title="headerTitle" :alt="headerTitle">{{ headerTitle }}</span>
     </span>
     <time :datetime="item.copiedAt" :title="new Date(item.copiedAt).toLocaleString()">{{ copiedTimeLabel(item.copiedAt) }}</time>
     <button
