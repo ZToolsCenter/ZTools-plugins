@@ -1,0 +1,11 @@
+{
+  "type": "commonjs",
+  "dependencies": {
+    "font-list": "^2.1.0",
+    "iconv-lite": "^0.7.3",
+    "jschardet": "^3.1.4",
+    "music-metadata": "^11.15.0",
+    "needle": "^3.3.1",
+    "tunnel": "^0.0.6"
+  }
+}

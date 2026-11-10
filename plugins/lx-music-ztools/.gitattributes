@@ -1,0 +1,2 @@
+# Preserve upstream source bytes, including historical whitespace, for diffing.
+vendor/lx/** -whitespace

@@ -1,0 +1,18 @@
+const { test } = require('node:test')
+const assert = require('node:assert/strict')
+const { mkdtempSync, writeFileSync, mkdirSync } = require('node:fs')
+const { tmpdir } = require('node:os')
+const { join } = require('node:path')
+const { createFileScope } = require('../../src-ztools/preload/runtime/files.cjs')
+
+test('local file capabilities allow chosen paths and reject traversal outside roots', () => {
+  const root = mkdtempSync(join(tmpdir(), 'lx-files-'))
+  const inside = join(root, 'chosen'); mkdirSync(inside)
+  const secret = join(root, 'other.txt'); writeFileSync(secret, 'outside')
+  const scope = createFileScope([inside])
+  assert.equal(scope.authorize(join(inside, 'new.txt')), join(inside, 'new.txt'))
+  assert.throws(() => scope.authorize(join(inside, '..', 'other.txt')), { code: 'PATH_NOT_GRANTED' })
+  scope.grant(secret, false)
+  assert.equal(scope.authorize(secret), secret)
+  assert.throws(() => scope.authorize(join(root, 'unselected.txt')), { code: 'PATH_NOT_GRANTED' })
+})
