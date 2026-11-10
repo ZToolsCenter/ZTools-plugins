@@ -1,0 +1,32 @@
+/* ZTools owns the outer window; LX fills its content view without desktop chrome. */
+html.lx-ztools-shell,
+html.lx-ztools-shell body,
+html.lx-ztools-shell #root,
+html.lx-ztools-shell #container {
+  width: 100%;
+  height: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+html.lx-ztools-shell #right {
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Collapse the complete toolbar/aside control group, including its reserved space. */
+html.lx-ztools-shell :is(#toolbar, #left) > :has(> button use[*|href^="#icon-window-close"]) {
+  display: none !important;
+}
+
+/* Also cover playback details and either control-button position/language. */
+html.lx-ztools-shell button:has(use[*|href^="#icon-window-minimize"]),
+html.lx-ztools-shell button:has(use[*|href^="#icon-window-close"]) {
+  display: none !important;
+}

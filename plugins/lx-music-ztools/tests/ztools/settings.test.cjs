@@ -1,0 +1,16 @@
+const { test } = require('node:test')
+const assert = require('node:assert/strict')
+const { openDatabase } = require('../../src-ztools/preload/runtime/database.cjs')
+const { createSettings } = require('../../src-ztools/preload/runtime/settings.cjs')
+
+test('settings persist atomically and do not accept unknown or mismatched keys', () => {
+  const db = openDatabase(':memory:')
+  db.exec('CREATE TABLE plugin_kv(namespace TEXT,key TEXT,value TEXT,PRIMARY KEY(namespace,key))')
+  const settings = createSettings(db)
+  settings.update({ 'player.volume': 0.25 })
+  assert.equal(createSettings(db).get()['player.volume'], 0.25)
+  assert.throws(() => settings.update({ 'player.volume': 'bad' }))
+  assert.equal(settings.get()['player.volume'], 0.25)
+  assert.throws(() => settings.update({ arbitrary: 'bad' }))
+  db.close()
+})

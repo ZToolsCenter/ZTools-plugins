@@ -1,0 +1,13 @@
+ :root { font: 14px/1.6 "Microsoft YaHei", system-ui, sans-serif; color: #24374a; color-scheme: light dark; --line: #8091a433; --muted: #728192; --accent: #157a74; }
+* { box-sizing: border-box; } html, body, #app { margin: 0; background: transparent; min-width: 320px; }
+main { max-width: 820px; margin: auto; padding: 32px; } header { display: flex; align-items: center; gap: 16px; }
+header img { width: 54px; height: 54px; border-radius: 12px; } h1 { font-size: 26px; margin: 0; font-weight: 600; }
+.eyebrow { font-size: 10px; letter-spacing: .12em; color: var(--muted); margin: 0; }
+.tag { margin-left: auto; font-size: 12px; border: 1px solid var(--line); padding: 3px 10px; border-radius: 20px; }
+.intro { color: var(--muted); margin: 22px 0; } dl { border-top: 1px solid var(--line); margin: 0 0 24px; }
+dl div { display: flex; padding: 12px 0; border-bottom: 1px solid var(--line); gap: 18px; }
+dt { width: 90px; flex-shrink: 0; color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
+.actions { display: flex; gap: 12px; } button { font: inherit; cursor: pointer; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 6px; padding: 8px 14px; }
+button:disabled { opacity: .4; cursor: default; } button:hover:enabled { background: #157a7410; }
+[role=status] { min-height: 24px; color: var(--accent); } footer { color: var(--muted); font-size: 12px; }
+@media (prefers-color-scheme: dark) { :root { color: #d9e4ee; --muted: #9aabba; --accent: #63c6b6; } }
