@@ -1,0 +1,10 @@
+﻿node_modules/
+dist/
+src-ztools/dist/
+src-ztools/preload/services.js
+batch-start-plugin.zip
+.DS_Store
+*.local
+.env*
+.worktrees/
+
