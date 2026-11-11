@@ -1,0 +1,16 @@
+/* Browser stand-in for the ZTools panel. Imported only while `npm run dev` is running. */
+
+html.dev-host {
+  background: #ececec;
+}
+
+html.dev-host.dev-dark {
+  background: #2b2b2b;
+}
+
+html.dev-host body {
+  box-sizing: border-box;
+  width: min(980px, 100%);
+  min-height: 720px;
+  margin: 0 auto;
+}
