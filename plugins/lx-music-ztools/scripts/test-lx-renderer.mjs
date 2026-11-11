@@ -1,6 +1,6 @@
 import { startHost } from './host-fixture.mjs'
 import { expect } from '@playwright/test'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 mkdirSync('artifacts/renderer', { recursive: true })
 let host
@@ -28,12 +28,25 @@ try {
   assert.ok(Math.abs(layout.width - layout.viewport.width) < 0.5)
   assert.ok(Math.abs(layout.height - layout.viewport.height) < 0.5)
   assert.equal(layout.rootShadow, 'none'); assert.equal(layout.rightRadius, '0px')
+  const themes = JSON.parse(readFileSync('vendor/lx/src/common/theme/index.json', 'utf8'))
+  const colors = id => { const theme = themes.find(item => item.id === id); return { ...theme.config.themeColors, ...theme.config.extInfo } }
+  const dark = colors('black'), light = colors('green')
+  const property = Object.keys(dark).find(key => dark[key] !== light[key] && !key.includes('image'))
+  assert.ok(property)
+  const color = () => host.evaluate(`getComputedStyle(document.documentElement).getPropertyValue(${JSON.stringify(property)}).trim()`)
+  await host.evaluate(`lxHost.invoke('common_set_app_setting',{'theme.id':'black'})`)
+  await expect.poll(color).toBe(dark[property].trim())
+  await host.evaluate(`lxHost.invoke('common_set_app_setting',{'theme.id':'auto','theme.lightId':'green','theme.darkId':'black'})`)
+  const themeEvent = isDark => host.app.evaluate(({ webContents }, isDark) => webContents.getAllWebContents().find(wc => wc.getURL().includes('/dist/lx.html')).send('update-theme-info', { isDark, primaryColor: 'green', windowMaterial: 'acrylic' }), isDark)
+  await themeEvent(true); await expect.poll(color).toBe(dark[property].trim())
+  await themeEvent(false); await expect.poll(color).toBe(light[property].trim())
+  assert.equal(await host.evaluate('window.dom_style.isConnected'), true)
   const screenshot = await host.app.evaluate(async ({ webContents }) => {
     const wc = webContents.getAllWebContents().find(x => x.getURL().includes('/dist/lx.html'))
     return (await wc.capturePage()).toPNG().toString('base64')
   })
   writeFileSync('artifacts/renderer/settings.png', Buffer.from(screenshot, 'base64'))
-  writeFileSync('artifacts/renderer/report.json', JSON.stringify({ status: 'PASS', data: host.data, layout, text: await host.evaluate('document.body.innerText'), logs: await host.logs() }, null, 2))
+  writeFileSync('artifacts/renderer/report.json', JSON.stringify({ status: 'PASS', data: host.data, layout, theme: 'Manual dark and auto light/dark via public host theme event, opaque styles connected', text: await host.evaluate('document.body.innerText'), logs: await host.logs() }, null, 2))
   console.log('PASS original LX renderer navigation and source settings')
-} catch (error) { writeFileSync('artifacts/renderer/report.json', JSON.stringify({ status: 'FAIL', error: String(error.stack || error), logs: await host?.logs() }, null, 2)); throw error }
+} catch (error) { writeFileSync('artifacts/renderer/report.json', JSON.stringify({ status: 'FAIL', error: String(error.stack || error), theme: await host?.evaluate(`({setting:window.lxData?.appSetting?.['theme.id'],style:window.dom_style?.innerText,connected:window.dom_style?.isConnected,rootStyle:document.documentElement.getAttribute('style'),styles:[...document.querySelectorAll('style')].map(style=>style.textContent.slice(0,180))})`).catch(() => null), logs: await host?.logs() }, null, 2)); throw error }
 finally { await host?.close() }

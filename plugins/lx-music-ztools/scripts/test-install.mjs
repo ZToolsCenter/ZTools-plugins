@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 
 // Exercise the same ZIP users import, without a development server or project registration.
 const manifest = JSON.parse(readFileSync('src-ztools/plugin.json', 'utf8'))
-const zip = resolve(process.env.ZTOOLS_PLUGIN_ZIP || resolve('../output/lx-music-ztools', `${manifest.name}-${manifest.version}.zip`))
+const zip = resolve(process.env.ZTOOLS_PLUGIN_ZIP || resolve('dist-ztools', `${manifest.name}-${manifest.version}.zip`))
 mkdirSync('artifacts/install', { recursive: true })
 let host
 const report = { zip, status: 'FAIL', isolated: true }

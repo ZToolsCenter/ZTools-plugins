@@ -1,16 +1,19 @@
 {
   "name": "lx-music-ztools",
   "title": "LX Music",
-  "description": "LX Music 原生播放器开发版：支持导入和使用自定义音源，完整功能正在移植",
+  "description": "LX Music 原生音乐播放器：自定义音源、搜索播放、歌单榜单、下载、LX 同步和开放 API",
   "author": "jiang66-so",
-  "version": "0.0.2",
+  "version": "0.1.2",
   "main": "dist/lx.html",
   "preload": "preload/services.js",
   "logo": "logo.png",
   "platform": [
     "win32"
   ],
-  "pluginSetting": { "backgroundRunning": true, "single": true },
+  "pluginSetting": {
+    "backgroundRunning": true,
+    "single": true
+  },
   "features": [
     {
       "code": "music",
@@ -19,6 +22,47 @@
         "LX Music",
         "洛雪音乐",
         "lxmusic"
+      ]
+    },
+    {
+      "code": "play-pause",
+      "explain": "LX 播放/暂停",
+      "cmds": [
+        "LX 播放/暂停"
+      ]
+    },
+    {
+      "code": "prev",
+      "explain": "LX 上一首",
+      "cmds": [
+        "LX 上一首"
+      ]
+    },
+    {
+      "code": "next",
+      "explain": "LX 下一首",
+      "cmds": [
+        "LX 下一首"
+      ]
+    },
+    {
+      "code": "lyrics",
+      "explain": "LX 桌面歌词",
+      "cmds": [
+        "LX 桌面歌词"
+      ]
+    },
+    {
+      "code": "search",
+      "explain": "LX 搜索",
+      "cmds": [
+        "LX 搜索",
+        {
+          "type": "regex",
+          "label": "LX 搜索",
+          "match": "/^lx(?:搜索|\\s+search|\\s+搜索)\\s+.+$/i",
+          "minLength": 5
+        }
       ]
     }
   ]

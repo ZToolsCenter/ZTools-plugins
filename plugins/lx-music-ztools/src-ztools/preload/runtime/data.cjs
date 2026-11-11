@@ -15,7 +15,11 @@ function createDataService(directory) {
       let module = modules.get(namespace)
       if (!module) { module = require(file(namespace)); modules.set(namespace, module) }
       if (!Object.hasOwn(module, method) || typeof module[method] !== 'function') throw new Error(`Unknown data method: ${namespace}.${method}`)
-      try { return structuredClone(module[method](...structuredClone(args))) }
+      try {
+        const result = module[method](...structuredClone(args))
+        if (result && typeof result.then === 'function') return Promise.resolve(result).then(value => structuredClone(value)).catch(error => { invalidate(); throw error })
+        return structuredClone(result)
+      }
       catch (error) { invalidate(); throw error }
     },
     transaction(fn) { try { return backend.getDB().transaction(fn)() } catch (error) { invalidate(); throw error } },

@@ -10,6 +10,7 @@ const evidence = resolve('artifacts/p0')
 mkdirSync(join(data, 'legacy'))
 mkdirSync(evidence, { recursive: true })
 const plugin = join(data, 'plugin')
+const zip = process.env.ZTOOLS_PLUGIN_ZIP ? resolve(process.env.ZTOOLS_PLUGIN_ZIP) : null
 function copyDirectory(source, target) {
   mkdirSync(target, { recursive: true })
   for (const entry of readdirSync(source, { withFileTypes: true })) {
@@ -17,13 +18,13 @@ function copyDirectory(source, target) {
     else copyFileSync(join(source, entry.name), join(target, entry.name))
   }
 }
-copyDirectory(resolve('src-ztools'), plugin)
-const manifest = JSON.parse(readFileSync(join(plugin, 'plugin.json'), 'utf8'))
+if (!zip) copyDirectory(resolve('src-ztools'), plugin)
+const manifest = JSON.parse(readFileSync(zip ? 'src-ztools/plugin.json' : join(plugin, 'plugin.json'), 'utf8'))
 const suffix = '/' + manifest.main
 delete manifest.development
-writeFileSync(join(plugin, 'plugin.json'), JSON.stringify(manifest, null, 2))
+if (!zip) writeFileSync(join(plugin, 'plugin.json'), JSON.stringify(manifest, null, 2))
 let app
-const result = { data, entry: manifest.main, time: new Date().toISOString(), checks: {} }
+const result = { data, entry: manifest.main, zip, time: new Date().toISOString(), checks: {} }
 try {
   app = await electron.launch({
     executablePath: process.env.ZTOOLS_EXECUTABLE || resolve('../tmp/lx-electron-42/electron.exe'),
@@ -33,12 +34,13 @@ try {
   })
   const page = await app.firstWindow()
   await page.waitForSelector('.search-input', { timeout: 30000 })
-  const registration = await app.evaluate(async ({ ipcMain, BrowserWindow }, file) => {
+  const registration = await app.evaluate(async ({ ipcMain, BrowserWindow }, { file, zip }) => {
     const sender = BrowserWindow.getAllWindows().find(x => x.getTitle() === 'ZTools').webContents
+    if (zip) return ipcMain._invokeHandlers.get('install-plugin-from-path')({ sender }, zip)
     const registered = await ipcMain._invokeHandlers.get('upsert-dev-project-by-config-path')({ sender }, file)
     if (!registered.success) throw new Error(JSON.stringify(registered))
     return ipcMain._invokeHandlers.get('install-dev-plugin')({ sender }, registered.pluginName)
-  }, join(plugin, 'plugin.json'))
+  }, { file: join(plugin, 'plugin.json'), zip })
   assert.equal(registration.success, true)
   // Production entry without a development server: the page must be installed locally.
   await page.locator('.search-input').fill('洛雪音乐')

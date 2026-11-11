@@ -47,6 +47,7 @@ function createSources({ database, network, onStatus, onAlert }) {
         // LX resolves its initialization promise on false+apiInfo; emit only terminal results.
         publish({ status: false, message: 'initing', apiInfo }, false)
         const next = session = new SourceSession({ info: { ...apiInfo, script }, network,
+          onFatal: error => { if (current === generation) { activation = null; publish({ status: false, message: error.message, apiInfo }) } },
           onAlert: alert => { if (current === generation && entries.find(item => item.id === id)?.allowShowUpdateAlert) onAlert?.({ name: entry.name, ...alert }) } })
         try {
           const sources = await next.start()
@@ -60,6 +61,8 @@ function createSources({ database, network, onStatus, onAlert }) {
       return activation
     },
     getStatus: () => structuredClone(status),
+    getGeneration: () => generation,
+    inspect: () => ({ generation, sessions: session && !session.closed ? 1 : 0, pending: session?.pending.size || 0, http: session?.http.size || 0 }),
     request: input => session ? session.request(input) : Promise.reject(new Error('没有可用的音源')),
     cancel: key => session?.cancel(key),
     async remove(ids) {

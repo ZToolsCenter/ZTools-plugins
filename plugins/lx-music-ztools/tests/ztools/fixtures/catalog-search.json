@@ -1,0 +1,162 @@
+{
+  "kw": {
+    "TOTAL": "1",
+    "SHOW": "1",
+    "abslist": [
+      {
+        "MUSICRID": "MUSIC_101",
+        "SONGNAME": "fixture kw",
+        "ARTIST": "歌手A&歌手B",
+        "ALBUMID": "201",
+        "ALBUM": "专辑kw",
+        "DURATION": "180",
+        "N_MINFO": "level:a,bitrate:320,format:mp3,size:8m;level:b,bitrate:128,format:mp3,size:3m"
+      }
+    ]
+  },
+  "kg": {
+    "error_code": 0,
+    "data": {
+      "total": 1,
+      "lists": [
+        {
+          "Audioid": 102,
+          "MixSongID": 302,
+          "AlbumID": "202",
+          "AlbumName": "专辑kg",
+          "OriSongName": "fixture kg",
+          "Suffix": "",
+          "Singers": [
+            {
+              "name": "歌手kg"
+            }
+          ],
+          "Duration": 180,
+          "FileHash": "HASH_KG_128",
+          "FileSize": 1048576,
+          "HQFileHash": "HASH_KG_320",
+          "HQFileSize": 2097152,
+          "SQFileHash": "",
+          "SQFileSize": 0,
+          "ResFileHash": "",
+          "ResFileSize": 0,
+          "Grp": []
+        }
+      ]
+    }
+  },
+  "tx": {
+    "code": 0,
+    "music.search.SearchCgiService": {
+      "code": 0,
+      "data": {
+        "meta": {
+          "sum": 1
+        },
+        "body": {
+          "song": {
+            "list": [
+              {
+                "id": 103,
+                "mid": "MID_TX_103",
+                "title": "fixture tx",
+                "interval": 180,
+                "singer": [
+                  {
+                    "name": "歌手tx",
+                    "mid": "SINGER_TX"
+                  }
+                ],
+                "album": {
+                  "name": "专辑tx",
+                  "mid": "ALBUM_TX_203"
+                },
+                "file": {
+                  "media_mid": "MEDIA_TX_303",
+                  "size_128mp3": 1048576,
+                  "size_320mp3": 2097152,
+                  "size_flac": 0,
+                  "size_hires": 0
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "wy": {
+    "code": 200,
+    "data": {
+      "totalCount": 1,
+      "resources": [
+        {
+          "baseInfo": {
+            "simpleSongData": {
+              "id": 104,
+              "name": "fixture wy",
+              "dt": 180000,
+              "ar": [
+                {
+                  "name": "歌手wy"
+                }
+              ],
+              "al": {
+                "id": 204,
+                "name": "专辑wy",
+                "picUrl": "https://fixture.invalid/wy.jpg"
+              },
+              "privilege": {
+                "maxbr": 320000,
+                "maxBrLevel": "exhigh"
+              },
+              "h": {
+                "size": 2097152
+              },
+              "l": {
+                "size": 1048576
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "mg": {
+    "code": "000000",
+    "songResultData": {
+      "totalCount": "1",
+      "resultList": [
+        [
+          {
+            "songId": "105",
+            "copyrightId": "COPYRIGHT_MG_305",
+            "name": "fixture mg",
+            "album": "专辑mg",
+            "albumId": "205",
+            "duration": 180,
+            "singerList": [
+              {
+                "name": "歌手mg"
+              }
+            ],
+            "img3": "https://fixture.invalid/mg.jpg",
+            "lrcUrl": "https://fixture.invalid/mg.lrc",
+            "mrcurl": "https://fixture.invalid/mg.mrc",
+            "trcUrl": "https://fixture.invalid/mg.trc",
+            "audioFormats": [
+              {
+                "formatType": "PQ",
+                "asize": 1048576
+              },
+              {
+                "formatType": "HQ",
+                "asize": 2097152
+              }
+            ]
+          }
+        ]
+      ]
+    }
+  }
+}

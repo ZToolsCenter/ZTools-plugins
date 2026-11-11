@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve, relative, isAbsolute } from 'node:path'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
+import packaging from '../build-config/ztools/package.cjs'
 
 /** 检查最终安装目录内的入口、元信息与可读 preload。 */
 export function check(root = resolve('src-ztools')) {
@@ -19,6 +20,7 @@ export function check(root = resolve('src-ztools')) {
   assert.equal(JSON.parse(readFileSync(resolve(root, 'preload/package.json'), 'utf8')).type, 'commonjs')
   new vm.Script(readFileSync(resolve(root, manifest.preload), 'utf8'))
   assert.equal(new Set(manifest.features.map(x => x.code)).size, manifest.features.length)
+  if (manifest.main === 'dist/lx.html') packaging.verifyPackage(root, { receipt: false })
   console.log(`PASS 安装目录完整：${manifest.name} v${manifest.version}`)
   return manifest
 }

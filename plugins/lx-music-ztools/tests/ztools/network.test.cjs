@@ -26,3 +26,27 @@ test('LX transport preserves JSON/form/headers and cancels pending requests', as
     await assert.rejects(network.request({ url: 'file:///C:/Windows/win.ini' }).result, /HTTP/)
   } finally { network.dispose(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }
 })
+
+test('standard source HTTP retains the configured trusted proxy without inheriting catalogue JSON headers', async t => {
+  const net = require('node:net'), context = require('../../src-ztools/preload/runtime/context.cjs')
+  const previous = context.lx, sockets = new Set()
+  const target = http.createServer((req, res) => res.end(JSON.stringify({ accept: req.headers.accept })))
+  const proxy = http.createServer()
+  let tunnels = 0
+  proxy.on('connect', (req, socket, head) => {
+    tunnels++
+    const upstream = net.connect(target.address().port, '127.0.0.1', () => {
+      socket.write('HTTP/1.1 200 Connection Established\r\n\r\n'); if (head.length) upstream.write(head)
+      socket.pipe(upstream); upstream.pipe(socket)
+    })
+    for (const stream of [socket, upstream]) { sockets.add(stream); stream.on('close', () => sockets.delete(stream)); stream.on('error', () => stream.destroy()) }
+  })
+  await new Promise(resolve => target.listen(0, '127.0.0.1', resolve))
+  await new Promise(resolve => proxy.listen(0, '127.0.0.1', resolve))
+  context.lx = { appSetting: { 'network.proxy.enable': true, 'network.proxy.host': '127.0.0.1', 'network.proxy.port': proxy.address().port } }
+  const network = createNetwork()
+  t.after(async () => { context.lx = previous; network.dispose(); for (const socket of sockets) socket.destroy(); proxy.closeAllConnections(); target.closeAllConnections(); await Promise.all([new Promise(resolve => proxy.close(resolve)), new Promise(resolve => target.close(resolve))]) })
+  const response = await network.requestSource({ url: `http://127.0.0.1:${target.address().port}` }).result
+  assert.equal(tunnels, 1)
+  assert.equal(response.body.accept, '*/*')
+})

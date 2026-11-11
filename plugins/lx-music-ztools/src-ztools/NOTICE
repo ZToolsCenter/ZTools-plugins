@@ -1,6 +1,10 @@
-LX Music for ZTools — 第三方原生移植开发版
+LX Music for ZTools — 第三方原生移植版（目标版本 0.1.0）
 源码与图标来源：lyswhut/lx-music-desktop (https://github.com/lyswhut/lx-music-desktop)
+上游源码基线：323e4bac，LX Music Desktop 2.12.6。
 上游许可：Apache License 2.0，见同目录 LICENSE。
-上游源码基线：323e4bac，LX Music 2.12.6。
-宿主桥接、存储、构建及隔离音源适配由本项目实现；修改后的运行模块带有来源与改动标注。
-本版本支持已验证的音源导入与播放流程，下载、同步等完整功能仍在移植；不是 LX 官方发行版。
+本项目从 ZTools 官方 Vue 模板起步；不是 LX 官方发行版。
+修改包括宿主IPC/窗口/指令桥接、设备本地SQLite、网络与隔离音源执行、下载与标签、备份、同步生命周期、构建及独立打包适配。
+原界面与所需上游业务模块保留；生成的运行模块按文件保留来源/改动标注，不装载完整LX桌面主进程。
+生产JavaScript依赖的版本与完整许可文本见 THIRD-PARTY-NOTICES.txt，依赖自身许可文件亦保留。
+不预置或分发第三方用户音源脚本、私有URL、凭据或私有测试证据。
+功能和实际验证范围见项目 docs/ztools/compatibility.md；不保证任意第三方源或外部平台持续可用。

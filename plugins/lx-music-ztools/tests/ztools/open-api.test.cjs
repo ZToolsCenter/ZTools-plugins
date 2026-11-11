@@ -1,0 +1,68 @@
+const { test } = require('node:test')
+const assert = require('node:assert/strict')
+const http = require('node:http')
+const { once } = require('node:events')
+const { mkdtempSync } = require('node:fs')
+const { tmpdir } = require('node:os')
+const { join } = require('node:path')
+const { createBridge } = require('../../src-ztools/preload/runtime/bridge.cjs')
+const { initializeRuntime } = require('../../src-ztools/preload/runtime/index.cjs')
+const { WIN_MAIN_RENDERER_EVENT_NAME: names } = require('../../src-ztools/preload/upstream/common/ipcNames.cjs')
+
+test('LX open API preserves status/lyrics/SSE/control, handles collisions and closes on dispose', { timeout: 15000 }, async t => {
+  const bridge = createBridge()
+  const runtime = initializeRuntime({ bridge, directory: mkdtempSync(join(tmpdir(), 'lx-open-api-')) })
+  t.after(() => runtime.dispose())
+  const action = data => bridge.invoke(names.open_api_action, data)
+  assert.deepEqual(await action({ action: 'status' }), { status: false, message: '', address: '' })
+  const reservation = http.createServer()
+  reservation.listen(0, '127.0.0.1'); await once(reservation, 'listening')
+  const port = reservation.address().port
+  await new Promise(resolve => reservation.close(resolve))
+  const base = `http://127.0.0.1:${port}`
+  const config = { action: 'enable', data: { enable: true, port: String(port), bindLan: false } }
+  assert.equal((await action(config)).status, true)
+  const context = require('../../src-ztools/preload/runtime/context.cjs')
+  assert.equal(context.lx.event_app.listenerCount('player_status'), 1)
+  assert.equal((await action(config)).status, true)
+  assert.equal(context.lx.event_app.listenerCount('player_status'), 1, 're-enter must not duplicate subscriptions')
+  await bridge.invoke(names.player_status, { name: '测试', progress: 8, duration: 60, lyric: '[00:01]原文', tlyric: '译文' })
+  assert.deepEqual(await (await fetch(base + '/status?filter=name,progress')).json(), { name: '测试', progress: 8 })
+  assert.equal(await (await fetch(base + '/lyric')).text(), '[00:01]原文')
+  assert.equal((await (await fetch(base + '/lyric-all')).json()).tlyric, '译文')
+  const commands = []
+  bridge.subscribe(names.player_action_on_button_click, value => commands.push(value))
+  for (const path of ['/play', '/pause', '/skip-next', '/skip-prev', '/collect', '/uncollect', '/seek?offset=9.1255', '/volume?volume=40']) assert.equal((await fetch(base + path)).status, 200)
+  assert.deepEqual(commands.map(x => x.action), ['play', 'pause', 'next', 'prev', 'collect', 'unCollect', 'seek', 'volume'])
+  assert.equal(commands.at(-1).data, 0.4)
+  assert.equal(commands.at(-2).data, 9.126)
+  assert.equal((await fetch(base + '/seek?offset=99')).status, 400)
+  assert.equal((await fetch(base + '/unknown')).status, 401)
+  const request = http.get(base + '/subscribe-player-status?filter=progress')
+  t.after(() => request.destroy())
+  const [response] = await once(request, 'response')
+  let buffer = ''
+  const listeners = new Set()
+  response.on('data', chunk => { buffer += chunk; for (const notify of listeners) notify() })
+  const waitFor = text => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { listeners.delete(check); reject(new Error('SSE update deadline exceeded')) }, 3000)
+    const check = () => { if (buffer.includes(text)) { clearTimeout(timer); listeners.delete(check); resolve() } }
+    listeners.add(check); check()
+  })
+  await waitFor('data: 8\n\n')
+  const update = waitFor('data: 9.5\n\n')
+  await bridge.invoke(names.player_status, { progress: 9.5 })
+  await update
+  const closed = new Promise(resolve => response.once('close', resolve))
+  response.on('error', () => {}) // Server disposal intentionally destroys the SSE socket.
+  assert.equal((await action({ action: 'enable', data: { enable: false } })).status, false)
+  await closed
+  assert.equal(context.lx.event_app.listenerCount('player_status'), 0)
+  reservation.listen(port, '127.0.0.1'); await once(reservation, 'listening')
+  t.after(() => new Promise(resolve => reservation.close(resolve)))
+  const conflict = await action(config)
+  assert.equal(conflict.status, false); assert.match(conflict.message, /EADDRINUSE|in use/i)
+  assert.equal(context.lx.event_app.listenerCount('player_status'), 0)
+  const invalid = await action({ action: 'enable', data: { enable: true, port: 'NaN' } })
+  assert.equal(invalid.status, false); assert.match(invalid.message, /端口|port/i)
+})

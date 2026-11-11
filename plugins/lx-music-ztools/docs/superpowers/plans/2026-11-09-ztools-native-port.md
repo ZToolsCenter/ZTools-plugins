@@ -10,7 +10,7 @@
 
 **Spec:** [设计方案](../specs/2026-11-09-ztools-native-port-design.md)。执行前同时阅读两份文档。
 
-状态：2026-11-09 规划稿，所有任务尚未执行。以下新路径、脚本和测试是待实现内容，不能当作已经存在或通过的验证记录。LX 基线 `323e4bac`；本机参考宿主 `76addc6` / package `3.2.0`，最低支持版本须由实际能力验证确定。
+状态：已归档。2026-11-10 已完成P0至P5本地实施、自动验收和独立代码复核；下面历史清单保留方案原文，不再作为未完成待办。具体路径/P0技术决定/验收证据及人工未验边界以 [验证回执](../../ztools/verification-report.md)、[兼容矩阵](../../ztools/compatibility.md) 和 [实施取舍](../../ztools/implementation-decisions.md) 为准。LX基线 `323e4bac`；实际首验为已安装ZTools3.3.0-beta.2 app.asar + 匹配的独立Electron41.4.0 / Node24.15.0，不以最初3.2.0源码参考或其他运行时结果冒充当前验收。
 
 ## Global Constraints
 

@@ -1,6 +1,6 @@
 import * as actions from '@renderer/core/player'
 import * as audio from '@renderer/plugins/player'
-import { getListMusics } from '@renderer/store/list/action'
+import { getListMusics, addListMusics } from '@renderer/store/list/action'
 import { musicInfo, isPlay } from '@renderer/store/player/state'
 import { watch } from '@common/utils/vueTools'
 
@@ -21,6 +21,15 @@ export async function dispatch(command) {
       if (!(await getListMusics(command.listId))[command.index]) throw new Error('Playlist track does not exist')
       actions.playList(command.listId, command.index); break
     case 'play': actions.play(); break
+    case 'search': {
+      const result = await window.lxCatalog.search(command)
+      const track = result.list[command.index ?? 0]
+      if (!track) throw new Error('No search result to play')
+      await addListMusics('default', [track])
+      const tracks = await getListMusics('default')
+      actions.playList('default', tracks.findIndex(item => item.id === track.id))
+      break
+    }
     case 'pause': actions.pause(); break
     case 'playPause': actions.togglePlay(); break
     case 'prev': await actions.playPrev(); break

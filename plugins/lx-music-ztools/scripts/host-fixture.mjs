@@ -17,19 +17,30 @@ export async function startHost(entry, { zip = process.env.ZTOOLS_PLUGIN_ZIP } =
   const data = mkdtempSync(join(tmpdir(), 'lx-ztools-host-'))
   mkdirSync(join(data, 'legacy'))
   const plugin = join(data, 'plugin')
-  copyDirectory(resolve('src-ztools'), plugin)
-  const manifest = JSON.parse(readFileSync(join(plugin, 'plugin.json'), 'utf8'))
-  delete manifest.development
-  if (entry) manifest.main = entry
-  entry = manifest.main
-  writeFileSync(join(plugin, 'plugin.json'), JSON.stringify(manifest))
+  if (zip) entry ||= 'dist/lx.html'
+  else {
+    copyDirectory(resolve('src-ztools'), plugin)
+    const manifest = JSON.parse(readFileSync(join(plugin, 'plugin.json'), 'utf8'))
+    delete manifest.development
+    if (entry) manifest.main = entry
+    entry = manifest.main
+    writeFileSync(join(plugin, 'plugin.json'), JSON.stringify(manifest))
+  }
   const app = await electron.launch({ executablePath: process.env.ZTOOLS_EXECUTABLE || resolve('../tmp/lx-electron-42/electron.exe'),
     args: [process.env.ZTOOLS_APP || 'D:/Program Files/ZTools/resources/app.asar'],
     env: { ...process.env, ZTOOLS_DATA_ROOT: data, ZTOOLS_LEGACY_USER_DATA_PATH: join(data, 'legacy'), ZTOOLS_E2E: '1' }, timeout: 45000 })
+  const processOutput = []
+  const capture = bytes => { processOutput.push(String(bytes)); if (processOutput.length > 200) processOutput.shift() }
+  app.process()?.stdout?.on('data', capture); app.process()?.stderr?.on('data', capture)
   try {
     await app.evaluate(({ app, webContents }) => {
       globalThis.__lxTestConsole = []
-      const attach = wc => wc.on('console-message', (_event, details, message) => globalThis.__lxTestConsole.push(typeof details === 'object' ? details.message : String(message)))
+      const attach = wc => {
+        wc.on('console-message', (_event, details, message) => globalThis.__lxTestConsole.push(typeof details === 'object' ? details.message : String(message)))
+        const url = () => wc.isDestroyed() ? 'destroyed' : wc.getURL()
+        wc.on('render-process-gone', (_event, details) => globalThis.__lxTestConsole.push(JSON.stringify({ event: 'render-process-gone', url: url(), ...details })))
+        wc.once('destroyed', () => globalThis.__lxTestConsole.push(JSON.stringify({ event: 'webcontents-destroyed', id: wc.id })))
+      }
       webContents.getAllWebContents().forEach(attach)
       app.on('web-contents-created', (_event, wc) => attach(wc))
     })
@@ -62,7 +73,7 @@ export async function startHost(entry, { zip = process.env.ZTOOLS_PLUGIN_ZIP } =
       const timer = setTimeout(() => app.process()?.kill(), 5000)
       try { await app.close() } finally { clearTimeout(timer) }
     }
-    return { app, page, data, plugin, evaluate, logs: () => app.evaluate(() => globalThis.__lxTestConsole), close }
+    return { app, page, data, plugin, evaluate, logs: async () => [...await app.evaluate(() => globalThis.__lxTestConsole).catch(() => []), ...processOutput], close }
   } catch (error) {
     mkdirSync('artifacts', { recursive: true })
     const logs = await app.evaluate(() => globalThis.__lxTestConsole).catch(() => [])
