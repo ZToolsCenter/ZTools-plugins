@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 - 2026-11-11
+
+### 修复
+
+- 修复编辑 nssm 服务时 `Invalid parameter "AppApplication"` 报错（参数名应为 `Application`）
+
 ## 1.0.1 - 2026-10-26
 
 ### 修复
