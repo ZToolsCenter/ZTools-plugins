@@ -4,5 +4,6 @@ src-ztools/preload/upstream/
 src-ztools/dist/
 artifacts/
 test-results/
+dist-ztools/
 .env*
 *.log

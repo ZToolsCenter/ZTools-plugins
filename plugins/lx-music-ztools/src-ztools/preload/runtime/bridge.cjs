@@ -29,6 +29,7 @@ function createBridge(handlers = {}) {
     offAll(channel) { events.removeAllListeners(channel) },
     subscribe(channel, listener) { events.on(channel, listener); return () => events.off(channel, listener) },
     emit(channel, params) { if (!disposed) events.emit(channel, params) },
+    inspect() { return { handlers: table.size, snapshots: snapshots.size, listeners: events.eventNames().reduce((count, name) => count + events.listenerCount(name), 0) } },
     async dispose() { disposed = true; events.removeAllListeners(); table.clear(); snapshots.clear() },
   }
   return bridge

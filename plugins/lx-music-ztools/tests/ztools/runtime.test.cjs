@@ -35,3 +35,12 @@ test('original LX IPC handlers persist settings and publish committed list opera
   assert.equal((await bridge.invoke(names.WIN_MAIN_RENDERER_EVENT_NAME.get_themes)).userThemes.length, 0)
   await runtime.dispose()
 })
+test('runtime shutdown still closes the database and every service when sync flush fails', async () => {
+  const bridge = createBridge()
+  const runtime = initializeRuntime({ bridge, directory: mkdtempSync(join(tmpdir(), 'lx-runtime-failure-')) })
+  const original = runtime.sync.dispose
+  runtime.sync.dispose = async () => { await original(); throw new Error('injected sync flush failure') }
+  await assert.rejects(runtime.dispose(), /flush|清理/)
+  assert.throws(() => runtime.data.getDatabase(), /not initialized/)
+  assert.equal(require('../../src-ztools/preload/runtime/context.cjs').lx, null)
+})

@@ -1,5 +1,18 @@
 const SOURCE_IDS = ['kw', 'kg', 'tx', 'wy', 'mg', 'local']
 const QUALITYS = ['128k', '320k', 'flac', 'flac24bit']
+// Structured clone does not preserve Buffer identity. Describe only existing
+// in-memory Buffer locations; typed arrays and user field names stay untouched.
+function collectRequestBuffers(options, isBuffer) {
+  const paths = [], seen = new WeakSet()
+  const visit = (value, path) => {
+    if (isBuffer(value)) { paths.push(path); return }
+    if (!value || typeof value !== 'object' || ArrayBuffer.isView(value) || value instanceof ArrayBuffer || seen.has(value)) return
+    seen.add(value)
+    for (const key of Object.keys(value)) visit(value[key], [...path, key])
+  }
+  for (const key of ['body', 'form', 'formData']) visit(options[key], [key])
+  return paths
+}
 function normalizeSources(input) {
   if (!input || typeof input !== 'object') throw new Error('Missing required parameter init info')
   const result = {}
@@ -33,4 +46,4 @@ function normalizeResult(input, response) {
   } else throw new Error('音源返回未知操作')
   return { source: input.source, action: input.action, data }
 }
-module.exports = { normalizeSources, validateRequest, normalizeResult, validateURL }
+module.exports = { normalizeSources, validateRequest, normalizeResult, validateURL, collectRequestBuffers }

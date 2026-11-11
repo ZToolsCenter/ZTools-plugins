@@ -1,12 +1,8 @@
-import path from 'path-browserify'
 import crypto from 'crypto-browserify'
 import { Buffer } from 'buffer'
 import './contracts'
 const invoke = (method: string, args: unknown[]) => window.lxHost.invoke<any>('files:call', { method, args })
-export const joinPath = (...args: string[]) => path.join(...args)
-export const extname = path.extname
-export const basename = path.basename
-export const dirname = path.dirname
+export { joinPath, extname, basename, dirname } from './paths'
 export const toMD5 = (text: string) => crypto.createHash('md5').update(text).digest('hex')
 export const b64DecodeUnicode = (text: string) => Buffer.from(text, 'base64').toString('utf8')
 export const checkPath = (...args: any[]) => invoke('checkPath', args)

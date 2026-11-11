@@ -1,29 +1,39 @@
-# P0 宿主可行性验证
+# 宿主能力与边界
 
-2026-11-09。运行命令：`npm run build`、`npm run test:p0`。
+0.1.0 原生移植通过 ZTools 公开 API 与插件 preload 实现服务，不启动完整 LX 主进程。当前支持承诺以 Windows x64 首验及 [验证矩阵](compatibility.md) 为界。
 
-验证宿主为本机已安装 `ZTools 3.3.0-beta.2` 的 app.asar，使用独立 Electron 42.3.3 / Chromium 148 / Node 24.15.0 启动，全部配置写入随机临时目录。本轮不是本机 3.2.0 源码宿主验证，也不证明其他版本兼容。结果与完整运行时信息保存在 `artifacts/p0/report.json`，不提交临时目录和可执行文件。
+| 能力 | 映射与行为 | 边界 |
+| --- | --- | --- |
+| 音乐窗口 | 单实例插件视图，保留原 LX UI；窗口大小/全屏/分离/关闭由宿主管理 | 不复制原 LX 独立应用窗口、托盘和更新器；主页面桌面窗口按钮隐藏 |
+| 生命周期 | 进入/重入复用实例；隐藏保持播放器和已启用服务；终止清理 | 核心服务已通过41.4.0下30分钟/50次往返；宿主退出/终止不继续播放 |
+| 设备本地存储 | `getPath('pluginData')` + 内置 `node:sqlite`，复用原 SQL 模型 | 不附带 better-sqlite3 原生二进制，不依赖 ZTools 账号云数据库；旧宿主需实际能力检测 |
+| 文件操作 | 公开文件/目录对话框授予 canonical 路径能力，可信 preload 操作 | 不把全部硬盘读写权交给音源；导入备份的路径需重新授权 |
+| 音源 | 可信 loopback frame 创建 CSP 浏览器 Worker，HTTP/取消走消息桥 | 无 Node/宿主 API/DOM；禁止把原始用户音源放进仓库、产品包或第三方许可文件 |
+| 下载与元数据 | 本地 hard link/rename 与身份校验；隐藏、宿主拥有的临时窗口运行 metadata job | 所有新下载需 hard link；临时元数据窗口不执行用户音源，不能把附加 renderer 算另一个播放器 |
+| 桌面歌词 | `createBrowserWindow` 加载原 renderer-lyric，公开窗口代理负责 bounds/top/lock/taskbar | 独立歌词进程、无 audio；系统全屏自动隐藏未实现，详见设置表 |
+| 指令与全局快捷键 | manifest 指令、onPluginEnter、redirectHotKeySetting；五项LX指令 | 无独立系统媒体键注册；物理按键实际触发待验 |
+| 系统媒体会话 | 仅使用运行时实际公开的 MediaSession 能力 | 不保证每个平台显示/媒体键行为，不调用不存在的宿主 API |
+| 电源锁/任务栏 | 原入口明确返回不支持；设置项禁用 | 不支持独立 powerSaveBlocker、Windows任务栏进度/缩略图按钮或状态栏歌词 |
+| 输出设备 | 原媒体设备逻辑带能力检测 | mediaDevices 缺失时只支持系统默认输出，设备切换/移除检测不承诺有效 |
+| 开放 API / 同步 | 原业务模块在同一插件存储与播放器上运行，默认关闭 | 显式启用后隐藏仍监听；终止释放，ZTools账号不会自动迁移音乐数据 |
+| 更新与缓存 | 插件更新、浏览器资源缓存由宿主管理 | 保留原歌曲地址/歌词/换源缓存与不喜欢列表操作；原LX桌面自动更新不可用 |
 
-| 检查 | 结果与证据 |
-|---|---|
-| 生产资源 | 无开发服务器，从复制后的完整插件目录加载；原 LX Btn.vue 和 Less 正常渲染 |
-| 源 guest | 不采用；实际 webPreferences 有 webviewTag，但所创建元素缺少 webview 方法，8 秒内没有生成 guest WebContents |
-| 源 Worker 备选 | PASS；可信 loopback frame 创建同源浏览器 Worker；HTTP 响应 CSP 阻止直接网络/文件访问和子 Worker，不在插件页面执行音源代码 |
-| 同步工具 | MD5 固定向量、AES-128-CBC 固定向量、1024 位 RSA_NO_PADDING 与 Node 独立结果相同；中文 inflate/deflate 往返正常 |
-| 权限边界 | Worker 中无 require/ztools；file:///C:/Windows/win.ini 读取失败，直接 HTTP 请求失败，服务端只收到三个启动资源请求 |
-| 失控终止 | Worker 进入死循环后，可信 frame 仍能调用 terminate 并回执停止 |
-| 后台 | outPlugin(false) 后计时继续，重进实例 ID 不变 |
-| 分离窗口 | 宿主 detachPlugin 成功，原实例 ID 不变 |
-| 强制退出 | outPlugin(true) 后插件 WebContents 消失 |
-| 宿主 db | 读写正常；陈旧 _rev 返回 conflict；超过 1 MiB 返回错误对象；bulkDocs 的第一条成功、第二条失败会留下第一条 |
-| 本地持久化 | getPath('pluginData') 指向隔离实例的插件专属目录；内置 node:sqlite 已验证事务失败回滚、关闭后重新打开数据不变 |
+## 当前宿主验证
 
-P0 判定：上述目标宿主与运行时的可行性通过。P1/P2 将实现完整 API 契约及音源导入，不把当前探针视为已能使用第三方音源。
+已安装 ZTools **3.3.0-beta.2 app.asar**，SHA256 `676ed28025792e7e0492967e794ad693d65b264b572d97d754de645579529bc7`，由匹配安装 EXE 的独立官方 Electron **41.4.0 / Node 24.15.0 / Chromium 146.0.7680.216** 启动，使用随机临时数据目录。最终ZIP通过14个串行宿主场景：本地格式/DSP、搜索/榜单/歌单/备份、下载/强杀恢复、同步双向38项、原歌词和指令等。系统字体枚举216种，歌词独立PID且无audio。开放API通过实际HTTP控制同一原播放器。核心30分钟长测及最终ZIP50次短回归独立记录；真实物理快捷键、人工听音、日常EXE全流程仍未验。
 
-## 实施取舍
+## 历史 P0：2026-11-09
 
-1. 固定采用浏览器 Worker；loopback 服务只返回三个固定启动资源，不提供文件/API代理端点。音源 HTTP 走受控消息桥。可信 iframe 只启动/转发/终止 Worker，音源代码不进入 iframe。第三方脚本依赖 DOM 的行为不兼容标准 Worker，须明确报告。
-2. 结构化数据选用已实测的设备本地 `pluginData` + 内置 SQLite，不依赖宿主账号切换时的云端数据库路由。复用 LX 数据模型与 SQL 事务，避免附带 better-sqlite3 原生二进制；账户云同步由显式 LX 同步处理。启动必须检查 node:sqlite 可用性，不对旧宿主假报支持。
-3. 当前框架继续保留 Vite 作为 P0 诊断入口，原 LX 产品界面后续由独立 Webpack 入口接入。
+以下保留最初可行性结论；环境为 ZTools 3.3.0-beta.2 app.asar + 独立 Electron **42.3.3 / Chromium 148 / Node 24.15.0**，不是41.4.0后续验收，也不是源码3.2.0宿主结果。证据为 `artifacts/p0/report.json`。
 
-所有验证均在隔离数据实例中完成；尚未把插件安装到用户日常 ZTools。完整稳定性、音频播放、真实音源、完整下载及 LX 对端同步另属后续阶段。
+| 检查 | 当时结果 |
+| --- | --- |
+| 生产资源与原 Vue/Less | PASS：从复制后的插件目录加载，无开发服务器 |
+| webview guest | 不采用：元素缺少方法，8秒内未生成guest WebContents |
+| CSP Worker | PASS：loopback只返回三个固定启动资源，音源不能直连网络/文件或创建子Worker；失控Worker可终止 |
+| 同步工具 | PASS：MD5、AES-128-CBC、RSA_NO_PADDING与独立Node结果相同；中文压缩往返 |
+| 宿主生命周期 | PASS：隐藏计时持续、重入/分离保持实例、强制终止后WebContents消失 |
+| 宿主云db | 读写正常；陈旧rev冲突、超过1MiB报错；bulkDocs可部分成功 |
+| 本地SQLite | PASS：事务失败回滚、关闭重开持久化；因此采用设备本地结构化存储 |
+
+当时P0 PASS只解决宿主/隔离/存储可行性，没有证明完整音乐业务。随后42.3.3长测约695秒出现WebContents消失并记FAIL；冷启动也曾出现宿主window.ztools未注入。41.4.0核心检查点已通过30分钟/50次往返，后续主题/歌词修正另行回归；这些结果不抹去其他运行时的失败。

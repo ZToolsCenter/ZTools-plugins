@@ -1,3 +1,4 @@
+try {
 const PREFIX = 'lx-music:framework:'
 const probes = require('./probes.cjs')
 const { randomUUID } = require('node:crypto')
@@ -5,10 +6,10 @@ const { createBridge } = require('./runtime/bridge.cjs')
 const { createLifecycle } = require('./runtime/lifecycle.cjs')
 const { initializeRuntime } = require('./runtime/index.cjs')
 const os = require('node:os')
-const { clipboard } = require('electron')
+const { clipboard, ipcRenderer } = require('electron')
 const bridge = createBridge()
 bridge.setSnapshot('host:env', { platform: process.platform, release: os.release(), homedir: os.homedir(), tmpdir: os.tmpdir(), arch: os.arch(), cpus: os.cpus().map(({ model }) => ({ model })) })
-const runtime = initializeRuntime({ bridge, directory: window.ztools.getPath('pluginData'), ztools: window.ztools, clipboard })
+const runtime = initializeRuntime({ bridge, directory: window.ztools.getPath('pluginData'), ztools: window.ztools, clipboard, ipcRenderer })
 window.lxHost = Object.fromEntries(['invoke', 'send', 'readSnapshot', 'on', 'once', 'off', 'offAll', 'subscribe'].map(key => [key, bridge[key]]))
 let lifecycleProbe
 window.services = {
@@ -26,7 +27,7 @@ window.services = {
   probeSourceIsolation() { return probes.probeSourceIsolation() },
   probeWorkerIsolation(publicKey) { return probes.probeWorkerIsolation(publicKey) },
   /** 返回当前宿主与 Node 运行环境。 */
-  diagnose() { return { app: window.ztools.getAppName(), version: window.ztools.getAppVersion(), node: process.versions.node } },
+  diagnose() { return { app: window.ztools.getAppName(), version: window.ztools.getAppVersion(), node: process.versions.node, runtime: runtime.diagnostics() } },
   /** 读取插件进入计数。 */
   getLaunchCount() { return Number(window.ztools.dbStorage.getItem(PREFIX + 'launches')) || 0 },
   /** 记录进入事件并返回累计次数。 */
@@ -45,12 +46,16 @@ window.services = {
 }
 const lifecycle = createLifecycle({
   initialize: async () => {},
-  onEnter: action => { window.services.recordLaunch(); bridge.emit('lifecycle:enter', action) },
+  onEnter: action => { window.services.recordLaunch(); runtime.enter(action); bridge.emit('lifecycle:enter', action) },
   onHide: () => bridge.emit('lifecycle:hide'),
   onDetach: () => bridge.emit('lifecycle:detach'),
-  dispose: async () => { await runtime.dispose(); await bridge.dispose() },
+  dispose: async () => { try { await runtime.dispose() } finally { await bridge.dispose() } },
 })
 const report = error => bridge.emit('bridge:error', { code: error.code, message: error.message })
 window.ztools.onPluginEnter(action => { void lifecycle.enter(action).catch(report) })
 window.ztools.onPluginOut(isKill => { void lifecycle.out(isKill).catch(report) })
 window.ztools.onPluginDetach(() => { void lifecycle.detach().catch(report) })
+} catch (error) {
+  window.lxBootstrapError = String(error.message || error)
+  console.error('LX Music preload initialization failed', error)
+}

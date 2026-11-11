@@ -26,3 +26,13 @@ test('original LX list methods preserve deduplication, move order and SQL rollba
   assert.deepEqual(reopened.call('list', 'getListMusics', ['b']).map(x => x.id), ['kw_1'])
   reopened.close()
 })
+test('original async dislike methods resolve before cloning and propagate rejected operations', async t => {
+  const data = createDataService(mkdtempSync(join(tmpdir(), 'lx-dislike-test-')))
+  t.after(() => data.close())
+  await data.call('dislike_list', 'dislikeInfoOverwrite', ['歌曲甲\n歌曲乙'])
+  assert.equal(data.call('dislike_list', 'getDislikeListInfo').rules, '歌曲甲\n歌曲乙')
+  await data.call('dislike_list', 'dislikeInfoAdd', [[{ name: '歌曲丙', singer: '' }]])
+  assert.ok(data.call('dislike_list', 'getDislikeListInfo').musicNames.has('歌曲丙'))
+  await assert.rejects(data.call('dislike_list', 'dislikeInfoOverwrite', [{}]), /split/)
+  assert.ok(data.call('dislike_list', 'getDislikeListInfo').musicNames.has('歌曲丙'))
+})
