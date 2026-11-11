@@ -358,7 +358,7 @@ onBeforeUnmount(() => {
     >{{ bodyText }}</p>
     <ModernCardMeta v-if="uiVersion === 'modern'" :item="item" :index="index" :image-dimensions="imageDimensions" placement="footer" />
     <footer v-else>
-      <strong>{{ item.title ?? item.sourceApp?.name ?? "Untitled" }}</strong>
+      <strong :title="item.title ?? item.sourceApp?.name ?? 'Untitled'" :alt="item.title ?? item.sourceApp?.name ?? 'Untitled'">{{ item.title ?? item.sourceApp?.name ?? "Untitled" }}</strong>
       <span>{{ item.sourceApp?.name ?? "Unknown app" }}</span>
     </footer>
   </article>

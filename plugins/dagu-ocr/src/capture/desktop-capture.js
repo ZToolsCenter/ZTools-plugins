@@ -84,6 +84,29 @@ export function pickSourceForDisplay(sources, display) {
   return list.find((source) => /^screen/i.test(String(source.id || ''))) || list[0];
 }
 
+async function isSolidWhiteFrame(dataUrl, win = globalThis.window) {
+  if (!dataUrl.startsWith('data:image/') || !win?.Image || !win?.document?.createElement) return false;
+  const image = new win.Image();
+  const loaded = new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = () => reject(new Error('截图帧解码失败'));
+  });
+  image.src = dataUrl;
+  await loaded;
+
+  const canvas = win.document.createElement('canvas');
+  canvas.width = 16;
+  canvas.height = 16;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return false;
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let index = 0; index < pixels.length; index += 4) {
+    if (pixels[index] !== 255 || pixels[index + 1] !== 255 || pixels[index + 2] !== 255) return false;
+  }
+  return true;
+}
+
 // 返回原始分辨率截图（image 像素与显示器物理像素一致）。
 export async function captureDisplay(win, display) {
   const host = hostApi(win);
@@ -96,6 +119,9 @@ export async function captureDisplay(win, display) {
   const thumbnail = source?.thumbnail;
   const dataUrl = typeof thumbnail?.toDataURL === 'function' ? thumbnail.toDataURL() : '';
   if (!dataUrl) throw new Error('未获取到屏幕截图');
+  if (await isSolidWhiteFrame(dataUrl, win)) {
+    throw new Error('HDR 环境截图输出全白，已回退系统截图');
+  }
   const size = typeof thumbnail?.getSize === 'function' ? thumbnail.getSize() : requested;
   return {
     dataUrl,
