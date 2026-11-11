@@ -1,6 +1,6 @@
 {
   "name": "easynssm",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "nssm 的友好图形界面 + Windows 系统服务管理",
   "type": "module",
   "scripts": {

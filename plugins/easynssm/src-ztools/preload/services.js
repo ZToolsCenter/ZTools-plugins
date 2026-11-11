@@ -302,7 +302,7 @@ function buildNssmOps(payload) {
     ops.push('& ' + nssm + ' ' + installArgs.map(psq).join(' '))
   } else {
     // 编辑模式：install 时已写入的项改走 set 覆盖
-    if (payload.application) set('AppApplication', payload.application)
+    if (payload.application) set('Application', payload.application)
     if (payload.parameters) set('AppParameters', payload.parameters)
   }
   if (payload.appDirectory) set('AppDirectory', payload.appDirectory)
