@@ -17,7 +17,7 @@
 
 ## 算法与 Payload
 
-编解码、哈希、JWT 解析实现依据公开标准：
+编解码、哈希、JWT 解析与签名实现依据公开标准：
 
 - RFC 4648 Base64 / Base32
 - RFC 3986 URL encoding
@@ -26,6 +26,7 @@
 - Bitcoin Base58 字母表（公开约定）
 - Morse ITU 国际电码表
 - MD5 / SHA 系列（通过 Node.js `crypto` 或 Web Crypto）
+- RFC 7519 JWT、RFC 7515 JWS（HMAC / RSA / `alg=none`）
 
 Payload 速查内容来自长期公开的 CTF / Web 安全资料（PHP 手册包装器、OWASP、PortSwigger 公开 Cheat Sheet 中的常见探针写法），由本项目重新整理与注释。它们是**知识点速查**，不是针对具体系统的利用程序。
 

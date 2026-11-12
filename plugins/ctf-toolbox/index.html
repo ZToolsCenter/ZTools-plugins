@@ -71,19 +71,46 @@
 
       <section class="panel" id="panel-jwt">
         <div class="toolbar">
+          <select id="jwt-alg" aria-label="伪造算法">
+            <option value="none">none</option>
+            <option value="None">None</option>
+            <option value="NONE">NONE</option>
+            <option value="HS256" selected>HS256</option>
+            <option value="HS384">HS384</option>
+            <option value="HS512">HS512</option>
+            <option value="RS256">RS256</option>
+            <option value="RS384">RS384</option>
+            <option value="RS512">RS512</option>
+          </select>
           <button class="btn primary" id="jwt-copy-payload" type="button">复制 Payload</button>
-          <span class="label">只解析，不尝试伪造签名</span>
+          <button class="btn" id="jwt-copy-forged" type="button">复制伪造 Token</button>
+          <span class="label" id="jwt-status"></span>
         </div>
         <div class="jwt-stack">
-          <div>
-            <div class="label">JWT</div>
-            <textarea id="jwt-in" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...." spellcheck="false"></textarea>
+          <div class="split">
+            <div>
+              <div class="label">JWT</div>
+              <textarea id="jwt-in" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...." spellcheck="false"></textarea>
+            </div>
+            <div>
+              <div class="label">密钥（HS* 密钥 / RS* PEM 私钥或公钥）</div>
+              <textarea id="jwt-secret" placeholder="secret / -----BEGIN PUBLIC KEY-----" spellcheck="false"></textarea>
+            </div>
           </div>
           <div class="jwt-grid">
-            <div class="card hash-item"><b>Header</b><pre id="jwt-header"></pre></div>
-            <div class="card hash-item"><b>Payload</b><pre id="jwt-payload"></pre></div>
+            <div class="card hash-item">
+              <b>Header</b>
+              <textarea id="jwt-header" placeholder='{"alg":"HS256","typ":"JWT"}' spellcheck="false"></textarea>
+            </div>
+            <div class="card hash-item">
+              <b>Payload</b>
+              <textarea id="jwt-payload" placeholder='{"sub":"admin"}' spellcheck="false"></textarea>
+            </div>
           </div>
-          <div class="card hash-item"><b>Signature</b><pre id="jwt-sig"></pre></div>
+          <div class="jwt-grid">
+            <div class="card hash-item"><b>原 Signature</b><pre id="jwt-sig"></pre></div>
+            <div class="card hash-item"><b>伪造 Token</b><pre id="jwt-forged"></pre></div>
+          </div>
         </div>
       </section>
 

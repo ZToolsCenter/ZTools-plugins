@@ -265,6 +265,95 @@
     };
   }
 
+  function jwtCompactJson(text) {
+    var raw = String(text == null ? "" : text).trim();
+    if (!raw) return "{}";
+    try { return JSON.stringify(JSON.parse(raw)); }
+    catch (e) { return raw; }
+  }
+
+  function jwtPartEncode(text) {
+    return toBase64Url(bytesToBase64(textToBytes(jwtCompactJson(text))));
+  }
+
+  function jwtMergeAlg(headerText, alg) {
+    var raw = String(headerText == null ? "" : headerText).trim();
+    var obj;
+    try { obj = raw ? JSON.parse(raw) : {}; }
+    catch (e) { return raw; }
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) obj = {};
+    obj.alg = alg;
+    if (!obj.typ) obj.typ = "JWT";
+    return JSON.stringify(obj);
+  }
+
+  function bytesFromUnknown(bytes) {
+    if (bytes instanceof Uint8Array) return bytes;
+    if (bytes && typeof bytes.length === "number") return new Uint8Array(bytes);
+    throw new Error("签名结果无效");
+  }
+
+  async function jwtHmacSign(data, alg, secret) {
+    var nodeAlg = String(alg || "").replace(/^HS/i, "sha").toLowerCase();
+    if (root.ctfToolbox && typeof root.ctfToolbox.hmacDigest === "function") {
+      return toBase64Url(bytesToBase64(bytesFromUnknown(
+        root.ctfToolbox.hmacDigest(nodeAlg, data, secret)
+      )));
+    }
+    if (root.crypto && root.crypto.subtle) {
+      var hashName = { HS256: "SHA-256", HS384: "SHA-384", HS512: "SHA-512" }[alg];
+      if (!hashName) throw new Error("不支持的算法 " + alg);
+      var key = await root.crypto.subtle.importKey(
+        "raw",
+        textToBytes(secret),
+        { name: "HMAC", hash: hashName },
+        false,
+        ["sign"]
+      );
+      var buf = await root.crypto.subtle.sign("HMAC", key, textToBytes(data));
+      return toBase64Url(bytesToBase64(new Uint8Array(buf)));
+    }
+    throw new Error("当前环境无法计算 HMAC");
+  }
+
+  function jwtRsaSign(data, alg, pem) {
+    if (root.ctfToolbox && typeof root.ctfToolbox.rsaSign === "function") {
+      return toBase64Url(bytesToBase64(bytesFromUnknown(
+        root.ctfToolbox.rsaSign(alg, data, pem)
+      )));
+    }
+    throw new Error("RS* 签名需要 ZTools 插件环境（Node crypto）");
+  }
+
+  async function jwtForge(headerText, payloadText, extra) {
+    extra = extra || {};
+    var alg = extra.alg || "none";
+    var secret = extra.secret == null ? "" : String(extra.secret);
+    var headerJson = jwtMergeAlg(headerText, alg);
+    var h = jwtPartEncode(headerJson);
+    var p = jwtPartEncode(payloadText);
+    if (/^none$/i.test(alg)) {
+      return { token: h + "." + p + ".", alg: alg };
+    }
+    if (/^HS(256|384|512)$/.test(alg)) {
+      var hs = await jwtHmacSign(h + "." + p, alg, secret);
+      return { token: h + "." + p + "." + hs, alg: alg };
+    }
+    if (/^RS(256|384|512)$/.test(alg)) {
+      var rs = jwtRsaSign(h + "." + p, alg, secret);
+      return { token: h + "." + p + "." + rs, alg: alg };
+    }
+    throw new Error("不支持的算法: " + alg);
+  }
+
+  async function jwtVerify(token, secret) {
+    var parsed = jwtSplit(token);
+    var alg = parsed.header.json && parsed.header.json.alg;
+    if (!alg || !/^HS(256|384|512)$/.test(alg)) return false;
+    var expected = await jwtHmacSign(parsed.parts[0] + "." + parsed.parts[1], alg, secret);
+    return expected === parsed.signature;
+  }
+
   function detect(text) {
     var s = String(text || "").trim();
     var hits = [];
@@ -403,6 +492,8 @@
     run: run,
     detect: detect,
     jwtSplit: jwtSplit,
+    jwtForge: jwtForge,
+    jwtVerify: jwtVerify,
     digest: digest,
     rotN: rotN,
     bytesToHex: bytesToHex,
