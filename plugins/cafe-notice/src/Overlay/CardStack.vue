@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { nextTick, onUnmounted, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps<{ cfg: Record<string, string> }>()
-const emit = defineEmits<{ (e: 'height', h: number): void }>()
+const emit = defineEmits<{
+  (e: 'height', h: number): void
+  (e: 'clickable', on: boolean): void
+}>()
 
 interface Card {
   key: number
@@ -44,6 +47,11 @@ function hhmm(ms: number) {
 
 function reportHeight() {
   nextTick(() => {
+    // 空列表上报 0：主窗据此销毁卡片窗，避免留一条透明窗挡住角落的点击
+    if (!cards.value.length) {
+      emit('height', 0)
+      return
+    }
     emit('height', stack.value ? stack.value.offsetHeight : 0)
   })
 }
@@ -90,7 +98,53 @@ const timer = setInterval(() => {
   if (cards.value.length !== before) reportHeight()
 }, 200)
 
-onUnmounted(() => clearInterval(timer))
+// 卡片窗整窗默认穿透，只有指针位于卡片上时才让窗口接收鼠标：
+// 卡片间隙(10px)、内边距(4px)、圆角与阴影外都属于窗口矩形，不能挡住下方内容
+let overCard = false
+let moveRaf = 0
+let lastX = 0
+let lastY = 0
+
+function hitCard(x: number, y: number) {
+  const el = document.elementFromPoint(x, y) as HTMLElement | null
+  return !!(el && el.closest('.card'))
+}
+
+function setClickable(on: boolean) {
+  if (on === overCard) return
+  overCard = on
+  emit('clickable', on)
+}
+
+function onMove(e: MouseEvent) {
+  lastX = e.clientX
+  lastY = e.clientY
+  if (moveRaf) return
+  moveRaf = requestAnimationFrame(() => {
+    moveRaf = 0
+    setClickable(hitCard(lastX, lastY))
+  })
+}
+
+// 穿透状态下 mousemove 依赖宿主转发，未必每次都送达；用真实光标位置定时兜底，
+// 这样卡片恰好出现在静止的指针下方时也能变成可点
+const watchdog = setInterval(() => {
+  try {
+    const p = window.ztools.getCursorScreenPoint()
+    setClickable(hitCard(p.x - window.screenX, p.y - window.screenY))
+  } catch (e) {
+    /* 宿主不支持光标查询时只依赖 mousemove */
+  }
+}, 500)
+
+onMounted(() => window.addEventListener('mousemove', onMove, { passive: true }))
+
+onUnmounted(() => {
+  clearInterval(timer)
+  clearInterval(watchdog)
+  window.removeEventListener('mousemove', onMove)
+  if (moveRaf) cancelAnimationFrame(moveRaf)
+})
 
 defineExpose({ push })
 </script>

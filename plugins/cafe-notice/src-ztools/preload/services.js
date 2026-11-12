@@ -355,6 +355,8 @@ const overlayIds = new Set()
 const messageListeners = []
 let hostId = null
 let lastPong = Date.now()
+// 卡片窗是否处于「可点」状态（指针在卡片上）；默认整窗穿透，避免透明区域挡住下方内容
+let listHit = false
 
 if (ipcRenderer) {
   ipcRenderer.on(CHANNEL, (event, msg) => {
@@ -399,6 +401,7 @@ if (ipcRenderer) {
       return
     }
     if (msg && msg.t === 'listHeight') applyListHeight(msg.h)
+    if (msg && msg.t === 'listHit') applyListHit(!!msg.on)
   })
 }
 
@@ -512,8 +515,15 @@ function createOverlay(mode) {
   bornAt[mode] = Date.now()
   pingAt[mode] = Date.now()
   overlayIds.add(win.webContents.id)
-  if (mode === 'danmaku') win.setIgnoreMouseEvents(true)
-  if (mode === 'list') listReady = false
+  if (mode === 'danmaku') {
+    win.setIgnoreMouseEvents(true)
+  } else {
+    // 卡片窗整窗默认穿透，只有指针位于卡片上时才接收鼠标：
+    // 卡片间隙、内边距、圆角与阴影外都属于窗口矩形，不能挡住下方内容
+    listHit = false
+    win.setIgnoreMouseEvents(true, { forward: true })
+    listReady = false
+  }
   return win
 }
 
@@ -532,6 +542,7 @@ function destroyListWindow() {
   overlayIdByMode.list = null
   overlays.list = null
   listReady = false
+  listHit = false
 }
 
 // 卡片窗按需创建、空闲销毁：省一个常驻渲染进程（约 60MB）
@@ -602,6 +613,28 @@ function applyListHeight(h) {
   }
 }
 
+/**
+ * 开关卡片窗的点击接收：on=true 时整窗可点（指针在卡片上）；
+ * on=false 时整窗穿透，且 forward:true 让窗口继续收到 mousemove，渲染器才能判断指针何时移回卡片。
+ */
+function applyListHit(on) {
+  const win = overlays.list
+  if (!win) return
+  try {
+    if (win.isDestroyed()) return
+  } catch (e) {
+    return
+  }
+  if (on === listHit) return
+  listHit = on
+  try {
+    if (on) win.setIgnoreMouseEvents(false)
+    else win.setIgnoreMouseEvents(true, { forward: true })
+  } catch (e) {
+    /* 窗已销毁 */
+  }
+}
+
 /** 同应用 mergeWindowMs 内第 mergeAfter+1 条起合并成「+N 条」；mergeAfter=0 关闭 */
 const recentByApp = new Map()
 function throttled(entry) {
@@ -631,6 +664,8 @@ function broadcast(entry) {
     ensureListWindow()
   }
   for (const id of Array.from(overlayIds)) {
+    // 卡片窗还没 hello 时不再直发：该条已在 backlog 里，由 hello 补发，避免直发与补发各一次
+    if (modeById.get(id) === 'list' && !listReady) continue
     try {
       ipcRenderer.sendTo(id, CHANNEL, { t: 'notice', entry: payload })
     } catch (e) {
@@ -865,6 +900,19 @@ window.services = {
         return
       }
       applyListHeight(h)
+    },
+    setListClickable(on) {
+      // 同上：窗口句柄只在主窗的 preload 实例里
+      if (window.ztools.getWindowType() !== 'main') {
+        try {
+          if (hostId && ipcRenderer) ipcRenderer.sendTo(hostId, CHANNEL, { t: 'listHit', on: !!on })
+          else window.ztools.sendToParent(CHANNEL, { t: 'listHit', on: !!on })
+        } catch (e) {
+          /* 主窗缺席时保持整窗穿透，不挡下方内容 */
+        }
+        return
+      }
+      applyListHit(!!on)
     },
     setSuppressBanner,
     ensureOverlays,

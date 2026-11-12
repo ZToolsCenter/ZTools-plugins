@@ -18,6 +18,10 @@ function onHeight(h: number) {
   notice().reportListHeight(h)
 }
 
+function onClickable(on: boolean) {
+  notice().setListClickable(on)
+}
+
 onMounted(() => {
   notice().helloOverlay(mode)
   setInterval(() => notice().pingOverlay(mode), 2000)
@@ -30,5 +34,5 @@ onMounted(() => {
 
 <template>
   <Danmaku v-if="mode === 'danmaku'" ref="danmaku" :cfg="cfg" />
-  <CardStack v-else ref="stack" :cfg="cfg" @height="onHeight" />
+  <CardStack v-else ref="stack" :cfg="cfg" @height="onHeight" @clickable="onClickable" />
 </template>
