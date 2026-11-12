@@ -38,9 +38,3 @@ EPL-2.0 是**文件级**弱传染许可：只要不修改 elkjs 自身的源文�
 |---|---|
 | `public/export-file/github-markdown.css` | GitHub 官方 Markdown 样式（sindresorhus/github-markdown-css，MIT） |
 | `public/katex.min.css`、`public/fonts/*` | KaTeX 发行包（MIT） |
-
-## 关于 `public/export-file/index.html`
-
-该文件是导出 PDF / 长图时使用的隐藏渲染窗口模板，全部内容为标准 HTML 骨架加几条
-基础样式，不含任何第三方专有代码。若你在分发时希望更彻底，可直接替换为自己的模板，
-接口只需保留 `<article class="markdown-body">` 与 `window.waitAllImageLoaded()` 两个约定。

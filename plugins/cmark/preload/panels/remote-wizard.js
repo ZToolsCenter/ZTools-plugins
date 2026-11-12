@@ -280,6 +280,8 @@ module.exports = function attachRemoteWizard (win) {
             provider: state.provider,
             url: c.url,
             token: state.token,
+            // Gitee 的 HTTPS 用户名必须等于令牌所有者（state.login 来自 /api/v5/user）
+            username: state.login,
             dir: ws,
             existing: !isNew
           }).then(function (b) {
