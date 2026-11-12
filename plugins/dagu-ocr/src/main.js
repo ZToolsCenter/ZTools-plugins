@@ -24,6 +24,7 @@ let controller;
 // ── 覆盖层窗口：截图与图片编辑共用同一套窗口生命周期 ──
 let activeOverlay = null;
 const pinWindows = new Map();
+let pinMainWindowRestored = false;
 
 function editorWindowSize(imageUrl) {
   const clamp = (width, height) => ({
@@ -213,7 +214,8 @@ function openPinWindow({ imageUrl, bounds }) {
       fullscreenable: false,
       skipTaskbar: true,
       hasShadow: false,
-      alwaysOnTop: true,
+      // Windows/Electron 从构造参数进入置顶态可能不落 native z-order，先显式关闭再打开。
+      alwaysOnTop: false,
       title: '固定截图',
       webPreferences: {
         preload: 'preload.js',
@@ -224,9 +226,18 @@ function openPinWindow({ imageUrl, bounds }) {
     console.warn('创建固定窗口失败:', error);
   }
   if (!child) return false;
+  try {
+    // ZTools 插件子窗口会弱化创建参数里的置顶状态，创建后需重新声明。
+    child.setAlwaysOnTop?.(false);
+    child.setAlwaysOnTop?.(true);
+    child.moveTop?.();
+  } catch (error) {
+    console.warn('固定窗口置顶失败:', error);
+  }
 
   pinWindows.set(pinId, {
     child,
+    imageUrl,
     base: { width, height },
     zoom: 1,
     bounds: { ...position, width, height }
@@ -241,6 +252,17 @@ function applyPinBounds(entry, nextBounds) {
   } catch (error) {
     console.warn('调整固定窗口失败:', error);
   }
+}
+
+function closePinWindow(pinId) {
+  const entry = pinWindows.get(pinId);
+  if (!entry) return;
+  try {
+    entry.child?.close?.();
+  } catch {
+    // 窗口已关闭时忽略。
+  }
+  pinWindows.delete(pinId);
 }
 
 function handlePinMessage(message) {
@@ -273,17 +295,39 @@ function handlePinMessage(message) {
     return;
   }
   if (message.event === 'pinClose') {
-    try {
-      entry.child?.close?.();
-    } catch {
-      // 窗口已关闭时忽略。
+    closePinWindow(message.pinId);
+    if (pinWindows.size === 0 && !pinMainWindowRestored) controller.exitPlugin();
+    return;
+  }
+  if (message.event === 'pinAction') {
+    const action = message.action;
+    if (action === 'edit') {
+      void openEditorWindow(entry.imageUrl).finally(() => closePinWindow(message.pinId));
+      return;
     }
-    pinWindows.delete(message.pinId);
+    if (action === 'ocr' || action === 'translate') {
+      // OCR / 翻译会异步调用 Provider；固定子窗口必须等主页面处理完成后再关闭，
+      // 否则最后一个子窗口销毁后宿主可能回收插件进程，让识别请求静默中断。
+      void (async () => {
+        const restore = win?.ztools?.showMainWindow || win?.utools?.showMainWindow;
+        if (typeof restore === 'function') {
+          try {
+            await restore();
+            pinMainWindowRestored = true;
+          } catch (error) {
+            console.warn('恢复主窗口失败:', error);
+          }
+        }
+        await controller.handleEditedImage(entry.imageUrl, action);
+      })().finally(() => closePinWindow(message.pinId));
+      return;
+    }
   }
 }
 
 // ── 截图：沉浸式覆盖层直接在全屏冻结画面上框选、标注 ──
 function startScreenshotFlow() {
+  pinMainWindowRestored = false;
   hideMainWindow();
   controller.showStatus('正在准备截图...');
   closeOverlayWindow();
@@ -418,7 +462,7 @@ function handleEditorMessage(message) {
   if (message.event === 'closed') {
     closeOverlayWindow();
     if (message.returnInput || message.returnToInput) showMainWindow();
-    else controller.exitPlugin();
+    else if (pinWindows.size === 0) controller.exitPlugin();
     return true;
   }
   return false;

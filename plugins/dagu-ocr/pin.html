@@ -12,7 +12,10 @@
       cursor: move;
       user-select: none;
     }
-    #pin-image { width: 100%; height: 100%; display: block; object-fit: fill; }
+    #pin-image {
+      width: 100%; height: 100%; display: block; object-fit: fill;
+      touch-action: none; -webkit-user-drag: none;
+    }
     #pin-close {
       position: fixed; top: 6px; right: 6px;
       width: 26px; height: 26px;
@@ -32,12 +35,35 @@
       opacity: 0; transition: opacity .18s ease; pointer-events: none;
     }
     #pin-hint.visible { opacity: 1; }
+    #pin-menu {
+      position: fixed; z-index: 20; min-width: 108px; padding: 4px;
+      max-height: calc(100% - 8px); overflow-y: auto;
+      display: flex; flex-direction: column; gap: 2px;
+      border: 1px solid rgba(148, 163, 184, .32); border-radius: 10px;
+      background: rgba(17, 20, 24, .94); box-shadow: 0 12px 30px rgba(15, 23, 42, .32);
+      backdrop-filter: blur(8px);
+    }
+    #pin-menu[hidden] { display: none; }
+    #pin-menu button {
+      display: flex; align-items: center; min-height: 26px; padding: 0 10px;
+      border: none; border-radius: 7px; background: transparent; color: #e5e7eb;
+      font: 400 12px/1 Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+      cursor: pointer; text-align: left;
+    }
+    #pin-menu button:hover, #pin-menu button:focus-visible { background: #0ea5e9; color: #fff; outline: none; }
   </style>
 </head>
 <body>
   <img id="pin-image" alt="固定截图">
   <button id="pin-close" title="关闭 (Esc)">✕</button>
   <div id="pin-hint">滚轮缩放 · 拖动移动 · 双击或 Esc 关闭</div>
+  <div id="pin-menu" role="menu" aria-label="固定截图操作" hidden>
+    <button type="button" role="menuitem" data-action="copy">复制</button>
+    <button type="button" role="menuitem" data-action="delete">删除</button>
+    <button type="button" role="menuitem" data-action="edit">编辑</button>
+    <button type="button" role="menuitem" data-action="ocr">OCR</button>
+    <button type="button" role="menuitem" data-action="translate">翻译</button>
+  </div>
   <script type="module" src="/src/capture/pin.js"></script>
 </body>
 </html>
