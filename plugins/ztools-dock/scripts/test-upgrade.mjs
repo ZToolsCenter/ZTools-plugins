@@ -9,7 +9,7 @@ if (!process.env.ZTOOLS_EXECUTABLE) throw new Error('Set ZTOOLS_EXECUTABLE and o
 const temp = mkdtempSync(join(tmpdir(), 'ztools-dock-upgrade-'));
 mkdirSync(join(temp, 'legacy')); mkdirSync('artifacts', { recursive: true });
 const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
-const previousZip = process.env.ZTOOLS_PREVIOUS_ZIP || 'release/程序坞-0.1.12-windows.zip';
+const previousZip = process.env.ZTOOLS_PREVIOUS_ZIP || 'release/程序坞-0.1.13-windows.zip';
 const previousVersion = JSON.parse(strFromU8(unzipSync(readFileSync(previousZip))['plugin.json'])).version;
 const previousSurface = previousVersion === '0.1.0' ? 'host' : 'settings';
 const evidence = { checks: [] };
@@ -47,6 +47,7 @@ try {
   await expect.poll(() => evaluate('Boolean(window.dock && document.querySelector(".settings-shell"))',previousSurface).catch(() => false)).toBe(true);
   const expected = await evaluate('(async()=>{const s=await window.dock.call("snapshot");s.config.categories[0].name="升级保留分类";s.config.entries.reverse();s.config.settings.triggerOpacity=0.66;if(s.config.settings.dockEdge!==undefined)Object.assign(s.config.settings,{dockEdge:"left",positionMode:"distance",positionDistance:120,positionAnchor:"end",positionRatio:70});await window.dock.call("save",s.config);return s.config})()',previousSurface);
   stage("old config customized");expected.settings.pinEnabled ??= true;
+  expected.settings.cardScale ??= 100;
   expected.settings.searchEnabled ??= false;
   expected.settings.triggerTheme ??= 'bar';expected.settings.iconSize ??= 'medium';expected.settings.material ??= 'solid';expected.settings.panelOpacity ??= 1;
   expected.settings.dockEdge ??= 'top';expected.settings.positionMode ??= 'ratio';expected.settings.positionRatio ??= 50;expected.settings.positionDistance ??= 0;expected.settings.positionAnchor ??= 'start';
@@ -62,7 +63,7 @@ try {
   await expect.poll(() => evaluate('Boolean(document.querySelector(".settings-shell"))', 'settings').catch(() => false)).toBe(true);
   assert.deepEqual((await evaluate('window.dock.call("snapshot")', 'settings')).config, expected);
   evidence.checks.push(`${previousVersion} → ${version} retains custom category, entry order and appearance`);
-  stage("upgraded config retained");let appearance=await evaluate('(async()=>{const s=await window.dock.call("snapshot");Object.assign(s.config.settings,{pinEnabled:false,triggerEdgeDistance:-6,showCategoryNames:false,showEntryNames:false,dockEdge:"right",positionMode:"distance",positionDistance:140,positionAnchor:"end",positionRatio:25,triggerTheme:"snail",iconSize:"large",material:s.materialsSupported?"acrylic":"solid",panelOpacity:0.35});await window.dock.call("save",s.config);return s.config})()','settings');
+  stage("upgraded config retained");let appearance=await evaluate('(async()=>{const s=await window.dock.call("snapshot");Object.assign(s.config.settings,{cardScale:125,pinEnabled:false,triggerEdgeDistance:-6,showCategoryNames:false,showEntryNames:false,dockEdge:"right",positionMode:"distance",positionDistance:140,positionAnchor:"end",positionRatio:25,triggerTheme:"snail",iconSize:"large",material:s.materialsSupported?"acrylic":"solid",panelOpacity:0.35});await window.dock.call("save",s.config);return s.config})()','settings');
   const customTrigger=await app.evaluate(({nativeImage})=>nativeImage.createFromBitmap(Buffer.from([220,90,35,255]),{width:1,height:1}).toDataURL());
   appearance=await evaluate(`(async()=>{const s=await window.dock.call('snapshot');s.config.settings.triggerTheme='custom';s.config.settings.triggerImage=${JSON.stringify(customTrigger)};await window.dock.call('save',s.config);return s.config})()`,'settings');
   await evaluate('window.ztools.outPlugin(true)');
@@ -70,7 +71,7 @@ try {
   await search(main,'程序坞设置');
   await expect.poll(()=>evaluate('Boolean(window.dock && document.querySelector(".settings-shell"))','settings').catch(()=>false)).toBe(true);
   assert.deepEqual((await evaluate('window.dock.call("snapshot")','settings')).config,appearance);
-  evidence.checks.push('custom PNG/trigger edge distance/name visibility/docking position/snail/large/native material/opacity survive plugin termination and restart');
+  evidence.checks.push('card scaling/custom PNG/trigger edge distance/name visibility/docking position/snail/large/native material/opacity survive plugin termination and restart');
   stage("custom settings survived restart");Object.assign(expected.settings,appearance.settings);
 
   await evaluate('window.dock.call("settings")', 'panel');

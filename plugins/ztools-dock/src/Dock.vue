@@ -18,8 +18,19 @@ const entries = computed(() => {
 const current = computed(() => categories.value.find(c => c.id === selected.value));
 const vertical = computed(() => ['left','right'].includes(props.state.config.settings.dockEdge));
 const iconPixels = computed(() => ({ small: 24, medium: 29, large: 36 })[props.state.config.settings.iconSize]);
-const gridColumns = computed(() => Math.min(props.state.config.settings.columns, entries.value.length || 2));
-const dimensions = computed(() => ({ '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${Math.max(160, categories.value.length * 100 + 32)}px`, '--tray-width': `${gridColumns.value * 128 + 8}px`, '--card-height': `${props.state.config.settings.cardSize}px` }));
+const viewportWidth = ref(0), scrollbarWidth = ref(0);
+const cardRatio = computed(() => props.state.config.settings.cardScale / 100);
+const cardIconPixels = computed(() => Math.round(iconPixels.value * cardRatio.value));
+const cardFont = computed(() => Math.max(10, 12 * cardRatio.value));
+const cardHeight = computed(() => Math.ceil(Math.max(props.state.config.settings.cardSize * cardRatio.value,
+  cardIconPixels.value + 12 * cardRatio.value + 2 + (props.state.config.settings.showEntryNames ? cardFont.value * 1.5 + 6 * cardRatio.value : 0))));
+const gridColumns = computed(() => {
+  const width = viewportWidth.value || props.state.bounds?.panel.width || 1000;
+  const available = width - (vertical.value ? 100 : 32) - scrollbarWidth.value;
+  const fitting = Math.max(1, Math.floor(((available - 2) / cardRatio.value - 6) / 128));
+  return Math.min(props.state.config.settings.columns, entries.value.length || 2, fitting);
+});
+const dimensions = computed(() => ({ '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${Math.max(160, categories.value.length * 100 + 32)}px`, '--tray-width': `${(gridColumns.value * 128 + 6) * cardRatio.value + 2 + scrollbarWidth.value}px`, '--card-height': `${cardHeight.value}px`, '--card-padding': `${6 * cardRatio.value}px`, '--card-gap': `${6 * cardRatio.value}px`, '--card-font': `${cardFont.value}px`, '--grid-gap': `${8 * cardRatio.value}px`, '--tray-padding': `${7 * cardRatio.value}px`, '--card-radius': `${Math.max(4, 7 * cardRatio.value)}px` }));
 let observer: ResizeObserver | undefined, frame = 0, lastShape = '';
 
 function scheduleLayout() {
@@ -28,6 +39,9 @@ function scheduleLayout() {
 function updateLayout() {
   if (!shell.value || !bar.value || !tray.value) return;
   const width = shell.value.clientWidth, height = shell.value.clientHeight;
+  viewportWidth.value = width;
+  const grid = tray.value.querySelector<HTMLElement>('.dock-grid');
+  scrollbarWidth.value = grid ? grid.offsetWidth - grid.clientWidth : 0;
   const edge = props.state.config.settings.dockEdge;
   const anchor = props.state.bounds?.anchor || { x: width / 2, y: height / 2 };
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(Math.max(min, max), value));
@@ -119,9 +133,9 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); doc
 
       </div>
       <div v-if="state.error" class="inline-error" role="alert">{{ state.error }}</div>
-      <div class="dock-grid" :style="{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }">
+      <div class="dock-grid" :style="{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, ${120 * cardRatio}px))` }">
         <button v-for="entry in entries" :key="entry.id" class="launch-card" :aria-label="entry.name" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
-          <span class="launch-icon" :style="{ color: entry.color }"><Icon :name="entry.icon" :image="entry.image" :size="iconPixels" /></span>
+          <span class="launch-icon" :style="{ color: entry.color }"><Icon :name="entry.icon" :image="entry.image" :size="cardIconPixels" /></span>
           <span v-if="state.config.settings.showEntryNames" class="launch-name">{{ entry.name }}</span>
         </button>
         <div v-if="!entries.length" class="dock-empty"><Icon :name="query ? 'Search' : current?.icon || 'Plus'" :size="28" /><p>{{ query ? '没有找到匹配的入口' : '这个分类还没有入口' }}</p><button v-if="!query" class="button" @click="command('settings')">添加入口</button></div>

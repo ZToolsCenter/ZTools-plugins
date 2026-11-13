@@ -28,7 +28,7 @@ export async function checkPinAdaptive({app,evaluate,screenshot,check}){
    await evaluate(`window.dock.call('save',${JSON.stringify(fixture)})`);await evaluate('window.dock.call("expand")');
    const state=await evaluate('window.dock.call("snapshot")');await app.evaluate((_,p)=>{globalThis.adaptivePoint=p},{x:state.bounds.trigger.x+1,y:state.bounds.trigger.y+1});
    await expect.poll(()=>read(`(()=>{const t=document.querySelector('.dock-tray').getBoundingClientRect(),cards=[...document.querySelectorAll('.launch-card')];return cards.length===${count}&&Math.abs(t.width-${Math.min(count,5)*128+8})<1&&cards.every(c=>Math.abs(c.getBoundingClientRect().width-120)<1)})()`)).toBe(true);
-   assert.equal(await read(`(()=>{const t=document.querySelector('.dock-tray').getBoundingClientRect();return t.x>=0&&t.y>=0&&t.right<=innerWidth+1&&t.bottom<=innerHeight+1})()`),true);
+   await expect.poll(()=>read(`(()=>{const t=document.querySelector('.dock-tray').getBoundingClientRect();return document.querySelector('.dock-panel').dataset.edge==='${edge}'&&t.x>=0&&t.y>=0&&t.right<=innerWidth+1&&t.bottom<=innerHeight+1})()`)).toBe(true);
   }
   check('adaptive tray uses 1/2/5 columns for 1/2/5/7 entries on all four edges; card width remains 120 DIP and tray stays in bounds');
   Object.assign(fixture.settings,{dockEdge:'top',searchEnabled:true,material:s.materialsSupported?'acrylic':'solid'});
@@ -37,7 +37,7 @@ export async function checkPinAdaptive({app,evaluate,screenshot,check}){
   for(const [query,width] of [['适应入口1',136],['没有结果',264],['',648]]){
    await read(`(()=>{const i=document.querySelector('.dock-search input');i.value='${query}';i.dispatchEvent(new Event('input',{bubbles:true}))})()`);
    await expect.poll(()=>read('document.querySelector(".dock-tray").getBoundingClientRect().width')).toBe(width);
-   if(s.materialsSupported)await expect.poll(()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=material-tray')).getBounds().width)).toBe(width);
+   if(s.materialsSupported)await expect.poll(()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=material-tray'))?.getBounds().width)).toBe(width);
   }
   fixture.entries=fixture.entries.slice(0,2);fixture.settings.searchEnabled=false;
   await evaluate(`window.dock.call('save',${JSON.stringify(fixture)})`);

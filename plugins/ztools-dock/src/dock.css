@@ -25,15 +25,15 @@ body[data-surface=trigger] #app,body[data-surface=panel] #app{background:transpa
 .dock-category:focus-visible{outline-offset:-3px}
 .dock-menu-toggle{width:26px;flex-shrink:0;padding:0;display:flex;justify-content:center;align-items:center;background:transparent;border:0;border-radius:0 7px 7px 0;color:#8e959c}
 .dock-menu-toggle:hover,.dock-menu-toggle.active{background:var(--soft);color:var(--accent)}
-.dock-tray{position:absolute;top:66px;width:min(var(--tray-width),calc(100% - 32px));max-height:calc(100% - 84px);display:flex;flex-direction:column;padding:7px;background:color-mix(in srgb,var(--dock-surface) var(--panel-opacity,100%),transparent);border:1px solid var(--dock-border);border-radius:8px}
-.dock-grid{display:grid;gap:8px;align-content:start;overflow:auto;min-height:0;flex:0 1 auto;overscroll-behavior:contain}
-.launch-card{min-width:0;height:var(--card-height);border:1px solid transparent;border-radius:7px;background:color-mix(in srgb,var(--dock-card) var(--card-opacity,100%),transparent);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;padding:6px;color:var(--dock-text)}
+.dock-tray{position:absolute;top:66px;width:min(var(--tray-width),calc(100% - 32px));max-height:calc(100% - 84px);display:flex;flex-direction:column;padding:var(--tray-padding,7px);background:color-mix(in srgb,var(--dock-surface) var(--panel-opacity,100%),transparent);border:1px solid var(--dock-border);border-radius:8px}
+.dock-grid{display:grid;gap:var(--grid-gap,8px);align-content:start;overflow:auto;min-height:0;flex:0 1 auto;overscroll-behavior:contain}
+.launch-card{min-width:0;height:var(--card-height);border:1px solid transparent;border-radius:var(--card-radius,7px);background:color-mix(in srgb,var(--dock-card) var(--card-opacity,100%),transparent);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:var(--card-gap,6px);padding:var(--card-padding,6px);color:var(--dock-text)}
 .launch-card:hover{border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:color-mix(in srgb,var(--accent) 5%,var(--dock-card))}
 .launch-card:active{background:color-mix(in srgb,var(--accent) 12%,var(--dock-card))}
 .launch-card:focus-visible{outline-offset:-3px}
 .launch-icon{display:flex;align-items:center;justify-content:center}
 .launch-icon svg{stroke-width:2.25}
-.launch-name{font-size:12px;line-height:1.5;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.launch-name{font-size:var(--card-font,12px);line-height:1.5;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dock-tools{display:flex;align-items:center;gap:2px;padding:0 1px 6px;flex-shrink:0}
 .dock-search{display:flex;gap:6px;align-items:center;color:var(--muted);flex:1;min-width:0}
 .dock-search input{border:0!important;background:transparent!important;padding:0!important;width:100%;height:29px!important;font-size:12px}

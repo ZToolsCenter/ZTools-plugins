@@ -10,6 +10,7 @@ import { checkStyle } from './check-style.mjs';
 import { checkAddition } from './check-addition.mjs';
 import { checkTriggerArt } from './check-trigger-art.mjs';
 import { checkCompositor } from './check-compositor.mjs';
+import { checkCardScale } from './check-card-scale.mjs';
 import { checkPinAdaptive } from './check-pin-adaptive.mjs';
 import { checkNames } from './check-names.mjs';
 import { checkPosition } from './check-position.mjs';
@@ -123,6 +124,7 @@ try {
   await checkAppearance({app,evaluate,screenshot,native,check});
   await checkPosition({app,evaluate,screenshot,native,check});
   if(!await checkCompositor({app,evaluate,native,check}))evidence.blockedChecks=['Windows locked or material unsupported: compositor check unavailable'];
+  await checkCardScale({app,evaluate,screenshot,check});
   await checkPinAdaptive({app,evaluate,screenshot,check});
   await checkNames({app,evaluate,screenshot,check});
   await checkFixes({app,evaluate,screenshot,native,triggerHandle,check});

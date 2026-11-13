@@ -19,13 +19,14 @@ export async function checkAppearance({app,evaluate,screenshot,native,check}) {
   check('real theme controls switch worm/snail SVG and resize native trigger painting/hit region to 32 DIP');
   await evaluate('window.dock.call("expand")');
   await evaluate('(async()=>{if(!(await window.dock.call("snapshot")).pinned) await window.dock.call("pin")})()');
-  for(const [size,px] of [['small',24],['medium',29],['large',36]]) {
-   await evaluate(`(()=>{const s=document.querySelector('[aria-label="图标大小"]');s.value='${size}';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
-   await expect.poll(()=>evaluate('Math.round(document.querySelector(".launch-icon svg")?.getBoundingClientRect().width || 0)','panel')).toBe(px);
+  for(const scale of [50,100,150]) {
+   await evaluate(`(()=>{const s=document.querySelector('[aria-label="卡片缩放"]');s.value='${scale}';s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+   await expect.poll(()=>evaluate('window.dock.call("snapshot").then(s=>s.config.settings.cardScale)')).toBe(scale);
+   await expect.poll(()=>evaluate(`(()=>{const c=document.querySelector('.launch-card').getBoundingClientRect(),t=document.querySelector('.dock-tray').getBoundingClientRect();return Math.abs(c.width-${120*scale/100})<1&&Math.abs(c.height-${scale})<1&&Math.abs(t.width-${390*scale/100+2})<1})()`,'panel')).toBe(true);
   }
-  await evaluate('(async()=>{const s=await window.dock.call("snapshot");s.config.settings.cardSize=76;await window.dock.call("save",s.config)})()');
-  const fit=await evaluate('(()=>{const c=document.querySelector(".launch-card").getBoundingClientRect(),i=document.querySelector(".launch-icon").getBoundingClientRect(),n=document.querySelector(".launch-name").getBoundingClientRect();return i.top>=c.top && n.bottom<=c.bottom})()','panel');assert.equal(fit,true);
-  check('icon size selector applies 24/29/36 DIP; largest icons and text fit minimum card height');
+  await evaluate('(async()=>{const s=await window.dock.call("snapshot");s.config.settings.cardSize=76;s.config.settings.cardScale=50;s.config.settings.iconSize="large";await window.dock.call("save",s.config)})()');
+  await expect.poll(()=>evaluate('(()=>{const c=document.querySelector(".launch-card").getBoundingClientRect(),i=document.querySelector(".launch-icon").getBoundingClientRect(),n=document.querySelector(".launch-name").getBoundingClientRect();return i.top>=c.top && n.bottom<=c.bottom})()','panel')).toBe(true);
+  check('real 50/100/150 percent slider scales whole card width/height and tray together; text remains inside minimum-height cards');
   if((await evaluate('window.dock.call("snapshot")')).materialsSupported) {
    for(const [material,code] of [['mica',2],['acrylic',3]]) {
     await evaluate(`(()=>{const s=document.querySelector('[aria-label="面板材质"]');s.value='${material}';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
