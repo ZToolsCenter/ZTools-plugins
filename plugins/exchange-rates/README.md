@@ -30,13 +30,3 @@ npm run build
 ## 授權
 
 MIT。見 [LICENSE](LICENSE)。
-
-## 發布前仍待補充
-
-這些項目需要你本人完成，這次沒有代做：
-
-- 在本機 ZTools 客戶端載入並走一次主要功能。
-- 準備截圖或 GIF，放到發布說明。
-- 安裝 `@ztools-center/plugin-cli` 後，在乾淨的工作區執行 `ztools publish`。
-- 到 Pull Request 勾選自檢清單，並把 Draft 改成 Ready for review。
-- 若要替換現在的純色 `logo.png`，換成你的圖檔即可。
