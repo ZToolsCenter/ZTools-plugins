@@ -27,7 +27,7 @@ function bootError(label, err) {
   } catch (e) {}
 }
 const fs = require('fs')
-const { exportDocCss, exportDocColors } = require('./preload/export-css')
+const { exportDocCss, exportDocColors } = require('./preload/ports/export-css')
 const os = require('os')
 
 const CFG_PATH = path.join(os.homedir(), '.cmark-config.json')
@@ -91,8 +91,52 @@ function themeMode () {
   return THEME_MODES.indexOf(m) >= 0 ? m : 'system'
 }
 
+/**
+ * 宿主只支持一个 onPluginEnter 回调。
+ *
+ * 设置面板要「重新进入时恢复面板」，App 要「快捷指令打开笔记 + 恢复搜索态」，
+ * 两处各自调 ztools.onPluginEnter 会互相覆盖 —— 后注册的把先注册的顶掉，
+ * 表现就是 onPluginEnter 时灵时不灵（实测重新唤起时 App 的回调完全收不到）。
+ * 统一在这里注册一次，再广播成 DOM 事件，各处改成监听事件即可。
+ */
+function wirePluginEnter () {
+  if (window.__CMARK_ENTER_WIRED) return
+  // 宿主还没注入时 window.ztools 是 host shim 的惰性 Proxy：任何方法都存在（no-op），
+  // 直接判 typeof 会「注册成功」，实际什么都没接上，事件一次都不派发。
+  // 必须用 host.js 探测出来的宿主类型判断，并用轮询等它注入。
+  const host = window.__CMARK_HOST
+  if (host !== 'ztools' && host !== 'utools') return
+  const z = window.ztools
+  if (!z || typeof z.onPluginEnter !== 'function') return
+  try {
+    z.onPluginEnter(function (enter) {
+      // 冷启动时 React 可能还没挂载，缓存一份给 App 补消费
+      window.__CMARK_LAST_ENTER = enter || {}
+      try {
+        window.dispatchEvent(new CustomEvent('cmark-plugin-enter', { detail: enter || {} }))
+      } catch (e) {}
+    })
+    window.__CMARK_ENTER_WIRED = true
+  } catch (e) {}
+}
+var __enterTries = 0
+var __enterTimer = setInterval(function () {
+  wirePluginEnter()
+  if (window.__CMARK_ENTER_WIRED || ++__enterTries > 60) clearInterval(__enterTimer)
+}, 100)
+
 function resolveTheme (mode) {
   if (mode === 'light' || mode === 'dark') return mode
+  // system：优先跟随宿主（ZTools/uTools 的主题设置，而宿主自己也可以设为跟随系统）。
+  // 为什么不用 prefers-color-scheme：宿主的标题栏是它自己的 UI，颜色由宿主的主题决定，
+  // 插件改不了；只有让「跟随」这一档跟宿主同源，插件页面和顶部那条才不会一深一浅。
+  // preload 跑在 document-start，宿主可能还没注入 window.ztools（host shim 会先给 no-op），
+  // 此时拿到的是 undefined，必须回退到系统媒体查询。
+  try {
+    const z = window.ztools
+    const v = z && typeof z.isDarkColors === 'function' ? z.isDarkColors() : undefined
+    if (typeof v === 'boolean') return v ? 'dark' : 'light'
+  } catch (e) {}
   try {
     return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   } catch (e) {
@@ -159,6 +203,26 @@ try {
   else if (mq.addListener) mq.addListener(onChange)
 } catch (e) {}
 
+// 「跟随」这一档还要跟宿主的主题变化走：用户在 ZTools 里切浅/深时，
+// 插件页面要跟着换，否则会出现「顶部变了、页面没变」的反向不一致。
+// preload 早期宿主可能还没注入，所以延后一段时间再注册一次。
+function watchHostTheme () {
+  try {
+    const z = window.ztools
+    if (!z || typeof z.onThemeChange !== 'function') return false
+    z.onThemeChange(function () { if (themeMode() === 'system') applyTheme() })
+    return true
+  } catch (e) {
+    return false
+  }
+}
+if (!watchHostTheme()) {
+  setTimeout(watchHostTheme, 600)
+  setTimeout(watchHostTheme, 2000)
+}
+// 宿主注入晚于首帧时，system 档的首帧可能按系统色算错了，补算一次
+setTimeout(function () { if (themeMode() === 'system') applyTheme() }, 300)
+
 // 工作区未设置或不存在时，退到 ~/Documents/CMark，不弹任何框
 let workspace = config.workspace
 if (!workspace || !fs.existsSync(workspace)) {
@@ -174,7 +238,7 @@ if (!workspace || !fs.existsSync(workspace)) {
  * （被 try/catch 静默吞掉，表现就是「开关点了没生效、状态读不到」）。
  * 这里给渲染层与注入脚本一个同步读写的入口，set 时广播事件让各界面同步。
  */
-const wsPrefs = require('./preload/ws-prefs.js')
+const wsPrefs = require('./preload/ports/ws-prefs.js')
 
 function currentWs () {
   try {
@@ -207,7 +271,7 @@ try { if (window) window.__CMARK_GIT = gitApi } catch (e) {}
 /* ---------------- 挂载数据层 ---------------- */
 // ndb.js 的第二个参数是"能读到 workspace 字段的 JSON 路径"
 try {
-  require('./preload/ndb.js')(window, CFG_PATH)
+  require('./preload/ports/ndb.js')(window, CFG_PATH)
 } catch (e) {
   console.error('[cmark] ndb 挂载失败', e)
   bootError('ndb', e)
@@ -215,7 +279,7 @@ try {
 
 /* ---------------- 挂载版本控制 ---------------- */
 try {
-  require('./preload/git-service.js')(window, workspace)
+  require('./preload/ports/git-service.js')(window, workspace)
 } catch (e) {
   console.error('[cmark] git 服务挂载失败', e)
   bootError('git-service', e)
@@ -223,7 +287,7 @@ try {
 
 /* ---------------- 挂载导出/附件/剪贴板 ---------------- */
 try {
-  window.services = require('./preload/services.js')(window)
+  window.services = require('./preload/ports/services.js')(window)
 } catch (e) {
   console.error('[cmark] services 挂载失败', e)
   bootError('services', e)
@@ -280,7 +344,7 @@ try {
     } catch (e) {}
   }
 
-  require('./preload/git-panel.js')(window, workspace)
+  require('./preload/panels/git-panel.js')(window, workspace)
 } catch (e) {
   console.error('[cmark] git-panel 挂载失败', e)
   bootError('git-panel', e)
@@ -289,26 +353,26 @@ try {
 // 每个模块单独 try：之前三个挤在一个 try 里，前面任一个抛错，设置面板就整块不挂载，
 // 表现就是「点设置没反应」（uTools 里尤其容易踩到）。
 try {
-  require('./preload/remote-setup.js')(window)
+  require('./preload/panels/remote-setup.js')(window)
 } catch (e) {
   console.error('[cmark] remote-setup 挂载失败', e)
   bootError('remote-setup', e)
 }
 try {
-  require('./preload/remote-wizard.js')(window)
+  require('./preload/panels/remote-wizard.js')(window)
 } catch (e) {
   console.error('[cmark] remote-wizard 挂载失败', e)
   bootError('remote-wizard', e)
 }
 try {
-  require('./preload/settings-panel.js')(window)
+  require('./preload/panels/settings-panel.js')(window)
 } catch (e) {
   console.error('[cmark] settings-panel 挂载失败', e)
   bootError('settings-panel', e)
 }
 
 try {
-  require('./preload/rename-note.js')(window, window.__znotesFindInstance)
+  require('./preload/panels/rename-note.js')(window, window.__znotesFindInstance)
 } catch (e) {
   console.error('[cmark] rename-note 挂载失败', e)
   bootError('rename-note', e)

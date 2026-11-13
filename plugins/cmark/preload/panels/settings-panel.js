@@ -878,9 +878,9 @@ module.exports = function attachSettingsPanel (win) {
   } catch (e) {}
   // 补一条：宿主重新进入插件时也恢复（部分场景不触发 visibilitychange）
   try {
-    if (win.ztools && typeof win.ztools.onPluginEnter === 'function') {
-      win.ztools.onPluginEnter(function () { if (readOpenFlag()) open() })
-    }
+    // 统一走 preload 广播的事件：宿主只支持一个 onPluginEnter，
+    // 直接调会和 App 的注册互相覆盖。
+    win.addEventListener('cmark-plugin-enter', function () { if (readOpenFlag()) open() })
   } catch (e) {}
   // 首次挂载时若上次会话面板是开的，直接打开
   if (readOpenFlag()) setTimeout(function () { try { open() } catch (e) {} }, 80)

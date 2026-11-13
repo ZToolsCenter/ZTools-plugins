@@ -567,7 +567,12 @@ module.exports = function installGitPanel(win, WS) {
     ensureStatusContainers()
     const box = $('zgp-status')
     if (!st || !st.isRepo) {
-      box.innerHTML = '<span class="zgp-chip warn">尚未初始化 git 仓库</span>'
+      // 只换 chips 的内容，绝不整体覆盖 .zgp-status：
+      // 整体覆盖会把 chips/acts/fileact 三个容器一起删掉，之后自愈重建时
+      // 散落在状态条里的旧节点会留下来，表现为「工作区变更记录」里混着
+      // 单个文档的 chip（两套状态条叠在一起）
+      const chipsBox0 = box.querySelector('#zgp-chips')
+      if (chipsBox0) chipsBox0.innerHTML = '<span class="zgp-chip warn">尚未初始化 git 仓库</span>'
       const foot0 = doc.querySelector('.zgp-acts')
       const oldE = doc.getElementById('zgp-foot-extra')
       if (oldE) oldE.remove()
@@ -700,7 +705,7 @@ module.exports = function installGitPanel(win, WS) {
     if (!rel) {
       const chips0 = box.querySelector('#zgp-chips')
       if (chips0) chips0.innerHTML = '<span class="zgp-chip warn">没有打开的笔记</span>'
-      else box.innerHTML = '<span class="zgp-chip warn">没有打开的笔记</span>'
+      else ensureStatusContainers()
       const pane = $('zgp-pane-changes')
       if (pane) pane.innerHTML = '<div class="zgp-empty"><b>没有打开的笔记</b>打开一篇笔记后，这里显示它的改动与历史</div>'
       const hp = $('zgp-pane-history')
@@ -713,10 +718,11 @@ module.exports = function installGitPanel(win, WS) {
     const chipsHtml = '<span class="zgp-chip acc">' + esc(displayPath(rel)) + '</span>'
       + (file ? '<span class="zgp-chip warn">有未提交改动</span>' : '<span class="zgp-chip ok">与最近提交一致</span>')
       + (readErr ? '<span class="zgp-chip err">' + esc(readErr.slice(0, 40)) + '</span>' : '')
-    // 只更新 chips，不要覆盖整个状态条（否则会删掉右侧操作区与容器）
+    // 只更新 chips，不要覆盖整个状态条（否则会删掉右侧操作区与容器）。
+    // 容器缺失时先自愈重建，而不是退回「直接写 .zgp-status」那种会留残骸的兜底。
+    ensureStatusContainers()
     const chipsBoxF = box.querySelector('#zgp-chips')
     if (chipsBoxF) chipsBoxF.innerHTML = chipsHtml
-    else box.innerHTML = chipsHtml
     renderFileChanges(rel, file)
     if (activeTab === 'history') renderHistory(true)
   }
@@ -1186,6 +1192,10 @@ module.exports = function installGitPanel(win, WS) {
     const fAct = root.querySelector('#zgp-fileact')
     if (fAct) fAct.style.display = isFile ? 'flex' : 'none'
     if (!isFile && fAct) fAct.innerHTML = ''
+    // 切模式时先清一遍 chips：refresh 有签名去重，命中时会直接 return，
+    // 上一模式的 chip（全局的「分支 main/工作区干净」或单文件的「路径」）就会留在新面板里
+    const chipsEl = doc.getElementById('zgp-chips')
+    if (chipsEl) chipsEl.innerHTML = ''
   }
 
   doc.querySelectorAll('.zgp-tab').forEach((t) => {
@@ -1296,6 +1306,15 @@ module.exports = function installGitPanel(win, WS) {
     const status = $('zgp-status')
     if (!status) return
     let changed = false
+    // 先清掉不属于三个容器的散落节点：历史上 renderStatus/renderFileMode 都走过
+    // 「直接给 .zgp-status 写 innerHTML」的兜底，留下的裸 chip 会和重建的容器
+    // 并排显示（全局 chip + 单文件 chip 同时出现），必须一次性清干净
+    const kids = Array.prototype.slice.call(status.children)
+    for (const el of kids) {
+      if (el.id === 'zgp-chips' || el.id === 'zgp-fileact') continue
+      if (el.classList && el.classList.contains('zgp-acts')) continue
+      try { status.removeChild(el); changed = true } catch (e) {}
+    }
     if (!$('zgp-chips')) {
       const d = doc.createElement('div')
       d.className = 'zgp-chips'
@@ -1352,7 +1371,12 @@ module.exports = function installGitPanel(win, WS) {
       refresh()
     }
   }
-  win.__zgpOpen = function (mode) { if (!root.classList.contains('open')) win.__zgpToggle(mode || 'global') }
+  win.__zgpOpen = function (mode) {
+    const m = mode === 'file' ? 'file' : 'global'
+    // 面板已经打开时也要切模式：否则从「文档变更记录」再点侧边栏的
+    // 「工作区变更记录」会被静默忽略，标题与内容停在上一层，看起来就是错乱
+    if (!root.classList.contains('open') || m !== panelMode) win.__zgpToggle(m)
+  }
   win.__zgpIsOpen = function () { return root.classList.contains('open') }
 
   // 面板打开时定时刷新（3 秒）；历史页不做轮询，避免反复重绘导致闪烁

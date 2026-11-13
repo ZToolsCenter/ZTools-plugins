@@ -203,7 +203,7 @@ module.exports = function installGitService(win, argvPath) {
     { kind: 'detached', re: /detached HEAD|not currently on a branch/i },
     { kind: 'norepo', re: /not a git repository/i },
     { kind: 'noUpstream', re: /no upstream configured|has no upstream branch|couldn't find remote ref/i },
-    { kind: 'auth', re: /(Authentication failed|Permission denied \(publickey|invalid username or password|could not read Username|could not read Password|No such identity)/i },
+    { kind: 'auth', re: /(Authentication failed|Permission denied \(publickey|invalid username or password|could not read Username|could not read Password|No such identity|token username invalid|Incorrect username or password|returned error:\s*40[13]|HTTP 40[13])/i },
     { kind: 'network', re: /could not resolve host|Unable to access|Connection (refused|reset|timed out)|Failed to connect|network is unreachable|Operation timed out/i },
     { kind: 'perm', re: /Permission denied|EACCES|Read-only file system|No space left/i },
     { kind: 'dirty', re: /local changes would be lost|Your local changes|uncommitted changes/i }
@@ -211,7 +211,7 @@ module.exports = function installGitService(win, argvPath) {
 
   const ERR_TEXT = {
     network: '网络不通或远端不可达',
-    auth: '认证失败（检查 SSH key 或凭据）',
+    auth: '认证失败：令牌无效或用户名不匹配（Gitee/自建服务重新授权一次即可）',
     conflict: '存在冲突，需要先解决',
     lock: 'git 被其他进程占用（index.lock）',
     detached: 'HEAD 处于游离状态，请先切回分支',
@@ -258,24 +258,55 @@ module.exports = function installGitService(win, argvPath) {
     } catch (e) { return null }
   }
   const NET_CMDS = { push: 1, pull: 1, fetch: 1, 'ls-remote': 1, clone: 1 }
-  function netToken (args) {
+
+  // Gitee 对 HTTPS 的用户名是**强校验**的：用户名必须与令牌所有者一致，否则直接回
+  // 403「The token username invalid」（实测：用 x-access-token 当用户名，Gitee 连
+  // 假令牌都明确回 username 相关错误）。x-access-token 这种占位用户名只有 GitHub 认。
+  // 所以按远端决定用户名：
+  //   https://gitee.com/<owner>/<repo>.git → owner（个人仓库的 owner 就是令牌所有者）
+  //   其它（GitHub 等接受任意用户名）      → x-access-token
+  const SAFE_USER = /^[A-Za-z0-9._-]{1,64}$/
+  function userForUrl (url) {
+    const m = /^https?:\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/([^/]+)\//.exec(String(url || ''))
+    if (m && /(^|\.)gitee\.com$/i.test(m[1]) && SAFE_USER.test(m[2])) return m[2]
+    return 'x-access-token'
+  }
+  // 从 .git/config 里同步取 origin 的地址（exec 是同步拼参数的场合，不能等 git 命令）
+  function originUrl () {
+    try {
+      const txt = fs.readFileSync(path.join(repoRoot || WS, '.git', 'config'), 'utf8')
+      const tail = txt.split(/\[remote "origin"\]/)[1] || ''
+      const m = /^[ \t]*url[ \t]*=[ \t]*(.+)$/m.exec(tail)
+      return m ? m[1].trim() : ''
+    } catch (e) { return '' }
+  }
+  function tokenHelper (username) {
+    const u = SAFE_USER.test(String(username || '')) ? String(username) : 'x-access-token'
+    return '!f() { echo username=' + u + '; echo password=$CMARK_GIT_TOKEN; }; f'
+  }
+  function netCred (args) {
     if (!args.some(function (a) { return NET_CMDS[a] })) return null
     // 先取本工作区的凭据，再回退到旧版全局配置（迁移兼容）
-    try {
-      const p = wsPrefs.read(WS)
-      if (p.remoteToken && p.remoteToken.token) return p.remoteToken.token
-    } catch (e) {}
-    const c = readNetCfg()
-    const t = c && c.remoteToken
-    return t && t.token ? t.token : null
+    let rec = null
+    try { rec = wsPrefs.read(WS).remoteToken || null } catch (e) {}
+    if (!(rec && rec.token)) {
+      const c = readNetCfg()
+      rec = (c && c.remoteToken) || null
+    }
+    if (!rec || !rec.token) return null
+    // 用户名以配置为准；老配置没有 username 字段就用远端地址推断，
+    // 这样已经用旧版本绑过 Gitee 的用户升级后不用重新授权
+    return { token: rec.token, username: rec.username || userForUrl(rec.url || originUrl()) }
   }
-  const TOKEN_HELPER = '!f() { echo username=x-access-token; echo password=$CMARK_GIT_TOKEN; }; f'
 
   function exec(args, opt) {
     const o = opt || {}
-    const token = o.token || netToken(args)
+    const cred = o.token
+      ? { token: o.token, username: o.username || userForUrl(o.url || originUrl()) }
+      : netCred(args)
+    const token = cred && cred.token
     const pre = token
-      ? ['-c', 'core.quotepath=false', '-c', 'credential.helper=', '-c', 'credential.helper=' + TOKEN_HELPER]
+      ? ['-c', 'core.quotepath=false', '-c', 'credential.helper=', '-c', 'credential.helper=' + tokenHelper(cred.username)]
       : BASE_ARGS
     return new Promise((resolve) => {
       execFile('git', pre.concat(args), {
@@ -1325,7 +1356,7 @@ module.exports = function installGitService(win, argvPath) {
     if (!/^(https?:\/\/|git@|ssh:\/\/|file:\/\/|[A-Za-z]:[\\/]|\\\\|\/)/.test(u)) {
       return { ok: false, kind: 'badrev', message: '远程地址格式不正确：' + u }
     }
-    const r = await runGit(['ls-remote', '--heads', u], { label: 'probe', timeout: 60000, token: token || undefined })
+    const r = await runGit(['ls-remote', '--heads', u], { label: 'probe', timeout: 60000, token: token || undefined, url: u })
     if (r.ok) return { ok: true, data: { hasRefs: !!String(r.data || '').trim() } }
     return { ok: false, kind: r.kind, message: r.message }
   }
@@ -1334,7 +1365,9 @@ module.exports = function installGitService(win, argvPath) {
   function setRemoteToken (token, url) {
     const t = String(token || '').trim()
     if (!t) return { ok: false, message: '令牌为空' }
-    const res = wsPrefs.patch(WS, { remoteToken: { provider: 'custom', token: t, url: String(url || '').trim() } })
+    const u = String(url || '').trim()
+    // 记下按远端推断出的用户名：Gitee 要求它与令牌所有者一致，见 userForUrl
+    const res = wsPrefs.patch(WS, { remoteToken: { provider: 'custom', token: t, url: u, username: userForUrl(u) } })
     if (res && res.ok === false) return res
     return { ok: true }
   }

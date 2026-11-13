@@ -20,7 +20,7 @@ const os = require('os')
 const path = require('path')
 const https = require('https')
 const { execFile } = require('child_process')
-const wsPrefs = require('./ws-prefs.js')
+const wsPrefs = require('../ports/ws-prefs.js')
 
 const CFG_PATH = path.join(os.homedir(), '.cmark-config.json')
 const GITHUB_CLIENT_ID = 'Ov23liDQDiefOfwzHHLA'
@@ -231,12 +231,24 @@ function giteeCreateRepo (token, name, isPrivate) {
 }
 
 /* ---------------- git 绑定 ---------------- */
-const TOKEN_HELPER = '!f() { echo username=x-access-token; echo password=$CMARK_GIT_TOKEN; }; f'
+// Gitee 的 HTTPS 用户名是强校验的：必须与令牌所有者一致，否则回 403
+// 「The token username invalid」（x-access-token 只有 GitHub 认）。
+// 用户名优先级：调用方给的 login > 从仓库地址推断的 owner > x-access-token
+const SAFE_USER = /^[A-Za-z0-9._-]{1,64}$/
+function userForUrl (url) {
+  const m = /^https?:\/\/(?:[^@/]+@)?([^/:]+)(?::\d+)?\/([^/]+)\//.exec(String(url || ''))
+  if (m && /(^|\.)gitee\.com$/i.test(m[1]) && SAFE_USER.test(m[2])) return m[2]
+  return 'x-access-token'
+}
+function tokenHelper (username) {
+  const u = SAFE_USER.test(String(username || '')) ? String(username) : 'x-access-token'
+  return '!f() { echo username=' + u + '; echo password=$CMARK_GIT_TOKEN; }; f'
+}
 
-function git (args, cwd, token, timeout) {
+function git (args, cwd, token, timeout, username) {
   return new Promise(function (resolve) {
     const pre = token
-      ? ['-c', 'core.quotepath=false', '-c', 'credential.helper=', '-c', 'credential.helper=' + TOKEN_HELPER]
+      ? ['-c', 'core.quotepath=false', '-c', 'credential.helper=', '-c', 'credential.helper=' + tokenHelper(username)]
       : ['-c', 'core.quotepath=false', '-c', 'credential.helper=', '-c', 'credential.helper=manager']
     execFile('git', pre.concat(args), {
       cwd: cwd,
@@ -279,6 +291,9 @@ async function bind (o) {
   const dir = opt.dir
   const url = opt.url
   const token = opt.token
+  // Gitee 必须用令牌所有者的用户名校验；调用方（向导）拿到的是 login，
+  // 老路径/手填地址没有 login 时用仓库地址里的 owner 兜底
+  const username = opt.username || userForUrl(url)
   if (!dir || !url || !token) return { ok: false, message: '参数不完整' }
   if (!fs.existsSync(dir)) {
     try { fs.mkdirSync(dir, { recursive: true }) } catch (e) {
@@ -287,6 +302,25 @@ async function bind (o) {
   }
 
   const steps = []
+  // 首推：本地还没有提交就先提交，然后 push -u origin main。
+  // 全新仓库和「选了已有仓库但远端是空的」两种情况共用。
+  async function firstPush () {
+    const hasCommit = await git(['rev-parse', '--verify', 'HEAD'], dir)
+    if (!hasCommit.ok) {
+      const addAll = await git(['add', '-A', '--', '.'], dir)
+      if (!addAll.ok) return { ok: false, message: '暂存失败：' + addAll.message, steps: steps }
+      const commit = await git(['commit', '-m', '初始化笔记仓库'], dir)
+      if (!commit.ok && !/nothing to commit/i.test(commit.message)) {
+        return { ok: false, message: '提交失败：' + commit.message, steps: steps }
+      }
+      steps.push('commit')
+    }
+    const push = await git(['push', '-u', 'origin', 'main'], dir, token, 180000, username)
+    if (!push.ok) return { ok: false, message: '首次推送失败：' + push.message, steps: steps }
+    steps.push('push')
+    return { ok: true }
+  }
+
   if (!isRepo(dir)) {
     const init = await git(['init', '-b', 'main'], dir)
     if (!init.ok) return { ok: false, message: 'git init 失败：' + init.message }
@@ -306,42 +340,41 @@ async function bind (o) {
 
   if (opt.existing) {
     // 远程已有仓库：把内容拉下来（只能 fast-forward，避免覆盖本地笔记）
-    const fetch = await git(['fetch', 'origin'], dir, token, 180000)
+    const fetch = await git(['fetch', 'origin'], dir, token, 180000, username)
     if (!fetch.ok) return { ok: false, message: '拉取失败：' + fetch.message, steps: steps }
     steps.push('fetch')
 
-    // 远端默认分支不一定是 main（Gitee 新建仓库默认 master），按远端 HEAD 指向来合并
-    let remoteBranch = 'main'
-    try {
-      const sym = await git(['ls-remote', '--symref', 'origin', 'HEAD'], dir, token, 60000)
-      const m = sym.ok ? /ref:\s+refs\/heads\/(\S+)\s+HEAD/.exec(sym.data || '') : null
-      if (m && m[1]) remoteBranch = m[1]
-    } catch (e) {}
+    // 「使用已有仓库」也可能选到刚建好、还没推过东西的空仓库（auto_init:false 没有任何分支）：
+    // 这种情况下 fetch 会成功但拉不到任何引用，接着 merge origin/main 必然失败。
+    // 所以要显式分叉到首推，而不是让用户看到「合并失败」这种莫名报错。
+    const heads = await git(['ls-remote', '--heads', 'origin'], dir, token, 60000, username)
+    const hasRemoteHeads = heads.ok && String(heads.data || '').trim() !== ''
+    if (!hasRemoteHeads) {
+      const fp = await firstPush()
+      if (!fp.ok) return fp
+    } else {
+      // 远端默认分支不一定是 main（Gitee 新建仓库默认 master），按远端 HEAD 指向来合并
+      let remoteBranch = 'main'
+      try {
+        const sym = await git(['ls-remote', '--symref', 'origin', 'HEAD'], dir, token, 60000, username)
+        const m = sym.ok ? /ref:\s+refs\/heads\/(\S+)\s+HEAD/.exec(sym.data || '') : null
+        if (m && m[1]) remoteBranch = m[1]
+      } catch (e) {}
 
-    if (remoteBranch !== 'main') {
-      // 本地是 main、远程是别的名字：把本地主干指到远程分支，避免两个平行根
-      await git(['branch', '-M', remoteBranch], dir)
+      if (remoteBranch !== 'main') {
+        // 本地是 main、远程是别的名字：把本地主干指到远程分支，避免两个平行根
+        await git(['branch', '-M', remoteBranch], dir)
+      }
+      const merge = await git(['merge', '--ff-only', 'origin/' + remoteBranch], dir, token, 60000, username)
+      if (!merge.ok) {
+        return { ok: false, message: '合并远端分支 ' + remoteBranch + ' 失败：' + merge.message, steps: steps }
+      }
+      steps.push('merge')
     }
-    const merge = await git(['merge', '--ff-only', 'origin/' + remoteBranch], dir, token, 60000)
-    if (!merge.ok) {
-      return { ok: false, message: '合并远端分支 ' + remoteBranch + ' 失败：' + merge.message, steps: steps }
-    }
-    steps.push('merge')
   } else {
     // 全新仓库：提交本地内容后首次推送
-    const hasCommit = await git(['rev-parse', '--verify', 'HEAD'], dir)
-    if (!hasCommit.ok) {
-      const addAll = await git(['add', '-A', '--', '.'], dir)
-      if (!addAll.ok) return { ok: false, message: '暂存失败：' + addAll.message }
-      const commit = await git(['commit', '-m', '初始化笔记仓库'], dir)
-      if (!commit.ok && !/nothing to commit/i.test(commit.message)) {
-        return { ok: false, message: '提交失败：' + commit.message }
-      }
-      steps.push('commit')
-    }
-    const push = await git(['push', '-u', 'origin', 'main'], dir, token, 180000)
-    if (!push.ok) return { ok: false, message: '首次推送失败：' + push.message, steps: steps }
-    steps.push('push')
+    const fp = await firstPush()
+    if (!fp.ok) return fp
   }
 
   // dir 是工作区（仓库根）。笔记目录若已经在它之内就保持不动，
@@ -354,7 +387,7 @@ async function bind (o) {
     keepWs = !!curWs && !rel.startsWith('..') && !path.isAbsolute(rel)
   } catch (e) { keepWs = false }
   patchCfg(Object.assign({ repoDir: dir, initialized: true }, keepWs ? {} : { workspace: dir }))
-  const savedRes = wsPrefs.patch(dir, { remoteToken: { provider: opt.provider || '', token: token, url: url } })
+  const savedRes = wsPrefs.patch(dir, { remoteToken: { provider: opt.provider || '', token: token, url: url, username: username } })
   const saved = !!(savedRes && savedRes.ok)
   return { ok: saved, steps: steps, message: saved ? '' : ((savedRes && savedRes.message) || '写入配置失败') }
 }
