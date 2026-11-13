@@ -2,9 +2,20 @@
 const bookmarks = require('./bookmarks')
 
 const handleBookmarksQuery = async ({ keyword }, ctx) => {
-    if (!bookmarks.BOOKMARKS_DATA) bookmarks.readBookmarksData()
+    // 读取插件配置的便携版数据目录（未配置则退回默认路径）
+    let extra = null
+    try {
+        const raw = window.ztools.dbStorage.getItem('bookmarks-config')
+        if (raw) {
+            const cfg = JSON.parse(raw)
+            extra = {
+                chrome: Array.isArray(cfg.chromeDirs) ? cfg.chromeDirs : [],
+                edge: Array.isArray(cfg.edgeDirs) ? cfg.edgeDirs : []
+            }
+        }
+    } catch (e) {}
+    bookmarks.readBookmarksData(null, extra)
     const bookmarksResult = bookmarks.searchBookmarks(keyword)
-    console.log(bookmarksResult)
     // 根据 outputSchema，返回数组，每个元素有 title 和 url
     return bookmarksResult.map(b => ({
         title: b.title,
