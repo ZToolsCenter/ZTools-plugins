@@ -221,3 +221,13 @@ test('待决启动失败不能重新激活已暂停或已销毁的程序坞', as
     f.controller.dispose();
   }
 });
+
+test('关闭钉住功能会解除现有钉住、收起隐藏卡片的导航，并阻止再次钉住；失败保存不解除',()=>{
+ const f=fixture();f.controller.init();f.controller.expand();f.controller.pin();f.controller.collapse(false);
+ const c=f.controller.snapshot().config;c.settings.pinEnabled=false;f.controller.save(c);
+ assert.equal(f.controller.snapshot().pinned,false);assert.equal(f.controller.snapshot().expanded,false);
+ assert.equal(f.controller.pin(),false);assert.equal(f.controller.snapshot().pinned,false);
+ f.controller.expand();f.controller.collapse(false);assert.equal(f.controller.snapshot().expanded,false);
+ c.settings.pinEnabled=true;f.controller.save(c);f.controller.expand();f.controller.pin();f.setFail();c.settings.pinEnabled=false;
+ assert.throws(()=>f.controller.save(c),/disk full/);assert.equal(f.controller.snapshot().pinned,true);assert.equal(f.controller.snapshot().config.settings.pinEnabled,true);f.controller.dispose();
+});

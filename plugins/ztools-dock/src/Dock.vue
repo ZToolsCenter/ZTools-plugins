@@ -18,7 +18,8 @@ const entries = computed(() => {
 const current = computed(() => categories.value.find(c => c.id === selected.value));
 const vertical = computed(() => ['left','right'].includes(props.state.config.settings.dockEdge));
 const iconPixels = computed(() => ({ small: 24, medium: 29, large: 36 })[props.state.config.settings.iconSize]);
-const dimensions = computed(() => ({ '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${Math.max(160, categories.value.length * 100 + 32)}px`, '--tray-width': `${props.state.config.settings.columns * 128 + 8}px`, '--card-height': `${props.state.config.settings.cardSize}px` }));
+const gridColumns = computed(() => Math.min(props.state.config.settings.columns, entries.value.length || 2));
+const dimensions = computed(() => ({ '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${Math.max(160, categories.value.length * 100 + 32)}px`, '--tray-width': `${gridColumns.value * 128 + 8}px`, '--card-height': `${props.state.config.settings.cardSize}px` }));
 let observer: ResizeObserver | undefined, frame = 0, lastShape = '';
 
 function scheduleLayout() {
@@ -88,7 +89,7 @@ function keydown(event: KeyboardEvent) {
     event.preventDefault();
     const cards = [...document.querySelectorAll<HTMLButtonElement>('.launch-card')];
     const index = cards.indexOf(event.target as HTMLButtonElement);
-    const shift = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowDown' ? props.state.config.settings.columns : -props.state.config.settings.columns;
+    const shift = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowDown' ? gridColumns.value : -gridColumns.value;
     cards[(index + shift + cards.length) % cards.length]?.focus();
   }
 }
@@ -110,7 +111,7 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); doc
           <Icon :name="category.icon" :image="category.image" :size="Math.round(iconPixels * 25 / 29)" /><span v-if="state.config.settings.showCategoryNames" class="dock-category-name">{{ category.name }}</span>
         </button>
       </nav>
-      <button class="dock-menu-toggle" :class="{ active: state.pinned }" :aria-pressed="state.pinned" :title="state.pinned ? '取消钉住导航条' : '钉住导航条'" :aria-label="state.pinned ? '取消钉住导航条' : '钉住导航条'" @click="command('pin')"><Icon name="Pin" :size="18" /></button>
+      <button v-if="state.config.settings.pinEnabled" class="dock-menu-toggle" :class="{ active: state.pinned }" :aria-pressed="state.pinned" :title="state.pinned ? '取消钉住导航条' : '钉住导航条'" :aria-label="state.pinned ? '取消钉住导航条' : '钉住导航条'" @click="command('pin')"><Icon name="Pin" :size="18" /></button>
     </div>
     <section v-show="state.trayVisible" ref="tray" class="dock-tray" :aria-label="query ? '搜索结果' : current?.name">
       <div v-if="state.config.settings.searchEnabled" class="dock-tools">
@@ -118,7 +119,7 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); doc
 
       </div>
       <div v-if="state.error" class="inline-error" role="alert">{{ state.error }}</div>
-      <div class="dock-grid" :style="{ gridTemplateColumns: `repeat(${state.config.settings.columns}, minmax(0, 1fr))` }">
+      <div class="dock-grid" :style="{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))` }">
         <button v-for="entry in entries" :key="entry.id" class="launch-card" :aria-label="entry.name" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
           <span class="launch-icon" :style="{ color: entry.color }"><Icon :name="entry.icon" :image="entry.image" :size="iconPixels" /></span>
           <span v-if="state.config.settings.showEntryNames" class="launch-name">{{ entry.name }}</span>

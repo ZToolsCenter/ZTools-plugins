@@ -2,7 +2,7 @@
   "name": "ztools-dock",
   "title": "程序坞",
   "description": "屏幕边缘的分类启动器，快速打开应用、文件夹、网址和 ZTools 插件",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "platform": [
     "win32"
   ],

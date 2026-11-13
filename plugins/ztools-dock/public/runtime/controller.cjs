@@ -132,6 +132,7 @@ function createController(api, options = {}) {
     persist(valid);
     config = valid; error = '';
     if (config.settings.enabled) ensureWindows(); else stopWindows();
+    if (!config.settings.pinEnabled && pinned) { pinned = false; clear('close'); if (!trayVisible) collapse(); else startCursorPolling(); }
     notify(); return true;
   }
   function start() {
@@ -192,7 +193,7 @@ function createController(api, options = {}) {
     clear('open');
     if (active && !expanded && config.settings.enabled) openTimer = timers.setTimeout(() => { openTimer = null; expand(); }, config.settings.openDelay);
   }
-  function pin() { pinned = !pinned; clear('close'); startCursorPolling(); notify('runtime'); return true; }
+  function pin() { if (!config.settings.pinEnabled) return false; pinned = !pinned; clear('close'); startCursorPolling(); notify('runtime'); return true; }
   function select(id) {
     if (!config.categories.some(c => c.id === id)) throw new Error('分类不存在');
     if (id !== config.settings.lastCategoryId) {
