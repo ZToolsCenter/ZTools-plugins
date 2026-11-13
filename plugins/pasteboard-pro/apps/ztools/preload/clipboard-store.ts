@@ -6,6 +6,7 @@ import {
 } from "./clipboard-record-groups";
 import {
   createTextItem as createTextItemCommand,
+  promoteRecord as promoteRecordCommand,
   updateImagePayload as updateImagePayloadCommand,
   updateItemTitle as updateItemTitleCommand,
   updateItemUrlMetadata as updateItemUrlMetadataCommand,
@@ -34,7 +35,7 @@ export type {
   ZToolsDocumentDatabase,
 } from "./clipboard-store-types";
 export { documentsFromAllDocs } from "./clipboard-document-database";
-export { MAX_CLIPBOARD_TEXT_BYTES, storedRecord } from "./clipboard-record-codec";
+export { MAX_CLIPBOARD_TEXT_BYTES, recordActivityTime, storedRecord } from "./clipboard-record-codec";
 export { normalizeHostClipboardItem } from "./clipboard-host-normalization";
 export { mirrorHostHistory } from "./clipboard-history-mirror";
 
@@ -110,6 +111,13 @@ export class ZToolsCanonicalClipboardStore
     ocrText: string | undefined,
   ): Promise<CanonicalClipboardRecord> {
     return updateOcrTextCommand(this.commandPort(), itemId, ocrText);
+  }
+
+  async promoteRecord(
+    itemId: string,
+    timestampMs?: number,
+  ): Promise<CanonicalClipboardRecord | undefined> {
+    return promoteRecordCommand(this.commandPort(), itemId, timestampMs);
   }
 
   async updateImagePayload(

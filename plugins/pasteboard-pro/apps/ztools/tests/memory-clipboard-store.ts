@@ -9,6 +9,13 @@ export class MemoryStore implements CanonicalClipboardStore {
   private imageRetryBoundary: HostCursor | undefined;
   private historyClearBoundary: HistoryClearBoundary | undefined;
 
+  async findRecordByFingerprint(fingerprint: string): Promise<CanonicalClipboardRecord | undefined> {
+    const item = this.fingerprints.get(fingerprint);
+    if (item === undefined) return undefined;
+    const record = this.records.get(item.id);
+    return record === undefined ? undefined : structuredClone(record);
+  }
+
   async findByFingerprint(fingerprint: string): Promise<PasteItem | undefined> {
     return this.fingerprints.get(fingerprint);
   }

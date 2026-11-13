@@ -64,6 +64,18 @@ export function applyListOrder(
     .map(({ item }) => item);
 }
 
+export function promoteIdInListOrder(
+  orderedIds: readonly string[],
+  itemId: string,
+): string[] {
+  if (orderedIds.length === 0 || orderedIds[0] === itemId) {
+    return [...orderedIds];
+  }
+  const index = orderedIds.indexOf(itemId);
+  if (index === -1) return [...orderedIds];
+  return [itemId, ...orderedIds.slice(0, index), ...orderedIds.slice(index + 1)];
+}
+
 export function reorderItemIds(
   itemIds: readonly string[],
   sourceId: string,

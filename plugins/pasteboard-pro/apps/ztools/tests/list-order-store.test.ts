@@ -56,4 +56,27 @@ describe("ZTools list order store", () => {
     });
     await expect(store.put("unknown", ["a"])).rejects.toThrow(/scope/i);
   });
+
+  it("promotes an item in the all scope without touching pinboard orders", async () => {
+    let saved: Record<string, unknown> | undefined;
+    const store = new ZToolsListOrderStore({
+      async get() {
+        if (saved === undefined) throw { status: 404 };
+        return structuredClone(saved);
+      },
+      async put(next) {
+        saved = structuredClone(next);
+        return { ok: true };
+      },
+    });
+
+    await store.put("all", ["item-3", "item-2", "item-1"]);
+    await store.put("pinboard:board-1", ["item-1", "item-2"]);
+    await expect(store.promoteAllScope("item-1")).resolves.toEqual({
+      all: ["item-1", "item-3", "item-2"],
+      "pinboard:board-1": ["item-1", "item-2"],
+    });
+    await expect(store.promoteAllScope("item-1")).resolves.toBeUndefined();
+    await expect(store.promoteAllScope("missing")).resolves.toBeUndefined();
+  });
 });

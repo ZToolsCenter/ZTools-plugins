@@ -140,9 +140,33 @@ export async function mirrorHostHistory(
       }
 
       if (record !== null) {
-        const existing = await store.findByFingerprint(record.item.contentFingerprint);
+        const existingRecord = store.findRecordByFingerprint !== undefined
+          ? await store.findRecordByFingerprint(record.item.contentFingerprint)
+          : undefined;
+        const existing = existingRecord?.item ?? await store.findByFingerprint(record.item.contentFingerprint);
         if (existing !== undefined) {
           if (record.item.kind === "image") await store.imageRetries?.complete(cursor);
+          const duplicateTimestamp = Date.parse(record.item.copiedAt);
+          if (
+            existingRecord !== undefined &&
+            Number.isFinite(duplicateTimestamp) &&
+            options.onDuplicatePromoted !== undefined
+          ) {
+            const promotedRecord: CanonicalClipboardRecord = {
+              ...existingRecord,
+              activityAt: new Date(
+                Math.max(
+                  duplicateTimestamp,
+                  Date.parse(existingRecord.item.copiedAt) || 0,
+                  existingRecord.activityAt === undefined ? 0 : Date.parse(existingRecord.activityAt) || 0,
+                ),
+              ).toISOString(),
+            };
+            if (promotedRecord.activityAt !== existingRecord.activityAt) {
+              await store.put(promotedRecord);
+              await options.onDuplicatePromoted(promotedRecord);
+            }
+          }
           skipped += 1;
           continue;
         }

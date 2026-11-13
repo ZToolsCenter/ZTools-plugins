@@ -83,6 +83,16 @@ export function createZToolsPreloadBridge(input: Readonly<{
     clearClipboardHistory: clearHistoryWithOwner,
   } = coordinator;
 
+  async function promoteToTop(itemId: string): Promise<void> {
+    const [promoted, promotedOrder] = await Promise.all([
+      store.promoteRecord(itemId),
+      listOrderStore.promoteAllScope(itemId),
+    ]);
+    if (promoted !== undefined || promotedOrder !== undefined) {
+      broadcastHistoryChanged();
+    }
+  }
+
   const bridge: PasteboardProBridge = {
     getHostCompatibility: () => hostCompatibility,
     getPlatformCapabilities: () => platformCapabilities,
@@ -168,12 +178,15 @@ export function createZToolsPreloadBridge(input: Readonly<{
     async pasteItem(itemId, plainText = false) {
       const record = await store.findRecordByItemId(itemId);
       if (record === undefined) throw new RangeError("Clipboard item no longer exists");
-      return pasteCanonicalRecord(record, canonicalClipboardHost, plainText);
+      const result = await pasteCanonicalRecord(record, canonicalClipboardHost, plainText);
+      await promoteToTop(itemId);
+      return result;
     },
     async copyItem(itemId, plainText = false) {
       const record = await store.findRecordByItemId(itemId);
       if (record === undefined) throw new RangeError("Clipboard item no longer exists");
       await copyCanonicalRecord(record, canonicalClipboardHost, plainText);
+      await promoteToTop(itemId);
     },
     async createTextItem(text, title, pinboardId) {
       if (

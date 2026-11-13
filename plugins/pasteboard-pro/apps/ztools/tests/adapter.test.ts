@@ -450,6 +450,84 @@ describe("ZTools clipboard adapter", () => {
       items: [{ id: "ztools:text-1" }],
     });
   });
+
+  it("promotes duplicate host copies and explicit paste/copy actions to the top of all history without overwriting pinboard order", async () => {
+    const documents = new Map<string, Record<string, unknown>>();
+    let revision = 0;
+    const database: ZToolsDocumentDatabase = {
+      async get(id) {
+        const document = documents.get(id);
+        if (document === undefined) throw { status: 404 };
+        return structuredClone(document);
+      },
+      async put(document) {
+        const id = String(document._id);
+        const current = documents.get(id);
+        if (current !== undefined && document._rev !== current._rev) {
+          throw { status: 409 };
+        }
+        revision += 1;
+        documents.set(id, { ...structuredClone(document), _rev: `${revision}-test` });
+        return { ok: true, id, rev: `${revision}-test` };
+      },
+      async allDocs(options) {
+        const start = String(options.startkey ?? "");
+        const end = String(options.endkey ?? "\uffff");
+        return {
+          rows: [...documents.entries()]
+            .filter(([id]) => id >= start && id <= end)
+            .map(([id, document]) => ({ id, doc: structuredClone(document) })),
+        };
+      },
+    };
+    const store = new ZToolsCanonicalClipboardStore(database, {
+      deviceId: "ztools-device",
+      now: () => 500,
+    });
+    const hostRows = [
+      { id: "text-new", type: "text", timestamp: 300, content: "Newest copy" },
+      { id: "text-old", type: "text", timestamp: 100, content: "Older pinned copy" },
+    ];
+    await mirrorHostHistory(
+      { async getHistory() { return { items: hostRows, total: hostRows.length }; } },
+      store,
+      { deviceId: "ztools-device" },
+    );
+    await store.assignToPinboard(["ztools:text-old"], "board-work");
+
+    // External re-copy of the older item promotes its activity timestamp while preserving its original copiedAt.
+    const recopiedRows = [
+      { id: "text-recopy", type: "text", timestamp: 400, content: "Older pinned copy" },
+      ...hostRows,
+    ];
+    const promotedFromMirror: string[] = [];
+    await expect(
+      mirrorHostHistory(
+        { async getHistory() { return { items: recopiedRows, total: recopiedRows.length }; } },
+        store,
+        {
+          deviceId: "ztools-device",
+          onDuplicatePromoted: (record) => { promotedFromMirror.push(record.item.id); },
+        },
+      ),
+    ).resolves.toEqual({ imported: 0, skipped: 3, pages: 1 });
+    expect(promotedFromMirror).toEqual(["ztools:text-old"]);
+    expect((await store.listRecords()).map((record) => record.item.id)).toEqual([
+      "ztools:text-old",
+      "ztools:text-new",
+    ]);
+    expect((await store.findRecordByItemId("ztools:text-old"))?.item.copiedAt).toBe(
+      new Date(100).toISOString(),
+    );
+    expect((await store.findRecordByItemId("ztools:text-old"))?.item.pinboardId).toBe("board-work");
+
+    // Promoting the older item explicitly (e.g. paste/copy action) moves it back ahead of text-old.
+    await store.promoteRecord("ztools:text-new", 450);
+    expect((await store.listRecords()).map((record) => record.item.id)).toEqual([
+      "ztools:text-new",
+      "ztools:text-old",
+    ]);
+  });
 });
 
 

@@ -16,6 +16,30 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function validActivityAt(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return Number.isFinite(Date.parse(value)) ? value : undefined;
+}
+
+export function recordActivityTime(record: CanonicalClipboardRecord): number {
+  const copiedMs = Date.parse(record.item.copiedAt);
+  const activityMs = record.activityAt === undefined ? Number.NaN : Date.parse(record.activityAt);
+  if (Number.isFinite(activityMs) && Number.isFinite(copiedMs)) {
+    return Math.max(activityMs, copiedMs);
+  }
+  return Number.isFinite(activityMs) ? activityMs : Number.isFinite(copiedMs) ? copiedMs : 0;
+}
+
+export function compareRecordsByActivity(
+  left: CanonicalClipboardRecord,
+  right: CanonicalClipboardRecord,
+): number {
+  return (
+    recordActivityTime(right) - recordActivityTime(left) ||
+    left.item.id.localeCompare(right.item.id)
+  );
+}
+
 export function storedRecord(value: unknown): CanonicalClipboardRecord | undefined {
   if (
     !isRecord(value) ||
@@ -31,6 +55,7 @@ export function storedRecord(value: unknown): CanonicalClipboardRecord | undefin
   const origin = value.record.origin;
   if (!item.success) return undefined;
   const itemData = refinePasteItemKind(item.data);
+  const activityAt = validActivityAt(value.record.activityAt);
   if (origin.host === "sync") {
     if (typeof origin.remoteAvailable !== "boolean") return undefined;
     const hostCapture = Object.hasOwn(origin, "hostCapture") ? parseHostImageCapture(origin.hostCapture) : undefined;
@@ -51,6 +76,7 @@ export function storedRecord(value: unknown): CanonicalClipboardRecord | undefin
           ? { pluginBlobId: origin.pluginBlobId }
           : {}),
       },
+      ...(activityAt === undefined ? {} : { activityAt }),
     };
   }
   if (
@@ -77,7 +103,11 @@ export function storedRecord(value: unknown): CanonicalClipboardRecord | undefin
       ? { pluginBlobId: origin.pluginBlobId }
       : {}),
   };
-  return { item: itemData, origin: normalizedOrigin };
+  return {
+    item: itemData,
+    origin: normalizedOrigin,
+    ...(activityAt === undefined ? {} : { activityAt }),
+  };
 }
 
 export function fingerprint(value: unknown): string {
