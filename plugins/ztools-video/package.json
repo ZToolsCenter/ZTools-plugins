@@ -1,0 +1,30 @@
+{
+  "name": "ztools-video",
+  "version": "1.10.0",
+  "description": "搜索 4K 影视并播放 MP4 与 HLS 视频",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:preload && vue-tsc --noEmit && vite build",
+    "build:preload": "node scripts/build-preload.mjs",
+    "preview": "vite preview",
+    "test:e2e": "npm run build && playwright test --config=playwright.e2e.config.js",
+    "pretest": "npm run build:preload",
+    "test": "node --test tests/unit/*.test.js"
+  },
+  "dependencies": {
+    "dplayer": "^1.27.1",
+    "hls.js": "1.6.11",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@ztools-center/ztools-api-types": "^1.0.1",
+    "esbuild": "^0.25.12",
+    "parse5": "^7.3.0",
+    "typescript": "^5.3.0",
+    "vite": "^6.0.11",
+    "vue-tsc": "^2.0.0"
+  }
+}

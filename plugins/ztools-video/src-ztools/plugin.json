@@ -1,0 +1,30 @@
+{
+  "name": "ztools-video",
+  "title": "影视搜索",
+  "description": "搜索 4K 影视、选集并播放 MP4 或 HLS 视频",
+  "version": "1.10.0",
+  "author": "zing",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://127.0.0.1:15182/"
+  },
+  "features": [
+    {
+      "code": "video-search",
+      "explain": "搜索影视、选择剧集并播放",
+      "cmds": [
+        "影视搜索",
+        "视频播放",
+        {
+          "type": "regex",
+          "label": "在影视搜索中打开播放页",
+          "match": "/^https:\\/\\/(?:www\\.)?4kvm\\.tv\\/play\\/[a-zA-Z0-9_-]{1,64}\\/?(?:[?#][^\\s]*)?$/i",
+          "minLength": 21,
+          "maxLength": 300
+        }
+      ]
+    }
+  ]
+}
