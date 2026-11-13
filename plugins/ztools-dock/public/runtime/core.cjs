@@ -16,14 +16,16 @@ function defaults() {
     ['home', '用户目录', 'House'], ['desktop', '桌面', 'Monitor'], ['downloads', '下载', 'Download'],
     ['documents', '文档', 'FileText'], ['pictures', '图片', 'Image'], ['music', '音乐', 'Music'], ['videos', '视频', 'Video']
   ].map(([target, name, icon], i) => ({ id: `system-${target}`, categoryId: 'folders', name, type: 'system', target, icon, color: ['#087fe7', '#0c9c83', '#08a7cd'][i % 3] }));
-  return { version: 1, settings: { enabled: true, searchEnabled: false, displayId: 'primary', openDelay: 180, closeDelay: 450, triggerWidth: 80, triggerHeight: 5, triggerOpacity: 0.75, accent: '#087fe7', columns: 3, cardSize: 100, theme: 'system', lastCategoryId: 'folders' }, categories, entries };
+  return { version: 1, settings: { enabled: true, searchEnabled: false, triggerTheme: 'bar', iconSize: 'medium', material: 'solid', panelOpacity: 1, displayId: 'primary', openDelay: 180, closeDelay: 450, triggerWidth: 80, triggerHeight: 5, triggerOpacity: 0.75, accent: '#087fe7', columns: 3, cardSize: 100, theme: 'system', lastCategoryId: 'folders' }, categories, entries };
 }
 
 /** Validate an entire import before any state is mutated; retain only known fields. */
 function validateConfig(input) {
   if (!input || input.version !== 1) throw new Error('不支持此配置版本，请使用程序坞导出的 JSON 文件');
-  const s = input.settings && { ...input.settings, searchEnabled: input.settings.searchEnabled ?? false };
+  const s = input.settings && { ...input.settings, searchEnabled: input.settings.searchEnabled ?? false, triggerTheme: input.settings.triggerTheme ?? 'bar', iconSize: input.settings.iconSize ?? 'medium', material: input.settings.material ?? 'solid', panelOpacity: input.settings.panelOpacity ?? 1 };
   if (!s || typeof s.enabled !== 'boolean' || !cleanText(s.displayId, 80)) throw new Error('基本设置不完整');
+  if (!['bar', 'worm', 'snail'].includes(s.triggerTheme) || !['small', 'medium', 'large'].includes(s.iconSize) || !['solid', 'mica', 'acrylic'].includes(s.material)) throw new Error('外观主题或材质无效');
+  if (typeof s.panelOpacity !== 'number' || !Number.isFinite(s.panelOpacity) || s.panelOpacity < 0.1 || s.panelOpacity > 1) throw new Error('面板不透明度超出允许范围');
   if (typeof s.searchEnabled !== 'boolean') throw new Error('搜索设置无效');
   for (const [key, min, max, label] of [['openDelay', 0, 2000, '展开延迟'], ['closeDelay', 100, 3000, '收起延迟'], ['triggerWidth', 24, 400, '触发条宽度'], ['triggerHeight', 3, 16, '触发条高度'], ['columns', 2, 6, '列数'], ['cardSize', 76, 144, '卡片大小']]) {
     if (!Number.isInteger(s[key]) || s[key] < min || s[key] > max) throw new Error(`${label}超出允许范围`);
@@ -90,15 +92,17 @@ function geometry(settings, displays, primary, categoryCount = 7) {
   const display = displays.find(d => String(d.id) === settings.displayId) || primary || displays[0];
   if (!display) throw new Error('未找到可用显示器');
   const area = display.workArea || display.bounds;
+  const triggerHeight = settings.triggerTheme && settings.triggerTheme !== 'bar' ? 32 : settings.triggerHeight;
+  const triggerWidth = settings.triggerTheme && settings.triggerTheme !== 'bar' ? Math.max(64, settings.triggerWidth) : settings.triggerWidth;
   const trayWidth = settings.columns * 128 + 8;
   const barWidth = Math.max(160, categoryCount * 100 + 32);
   // The dropdown is centred under the active category, including the first and last tabs.
   const width = Math.min(Math.max(trayWidth, barWidth + Math.max(0, trayWidth - 100)) + 32, Math.max(240, area.width - 24));
-  const height = Math.min(820, Math.max(180, area.height - settings.triggerHeight - 12));
+  const height = Math.min(820, Math.max(180, area.height - triggerHeight - 12));
   return {
     displayId: String(display.id),
-    trigger: { x: Math.round(area.x + (area.width - settings.triggerWidth) / 2), y: area.y, width: Math.min(settings.triggerWidth, area.width), height: settings.triggerHeight },
-    panel: { x: Math.round(area.x + (area.width - width) / 2), y: area.y + settings.triggerHeight, width, height }
+    trigger: { x: Math.round(area.x + (area.width - triggerWidth) / 2), y: area.y, width: Math.min(triggerWidth, area.width), height: triggerHeight },
+    panel: { x: Math.round(area.x + (area.width - width) / 2), y: area.y + triggerHeight, width, height }
   };
 }
 module.exports = { defaults, validateConfig, geometry, resolveEntry, SYSTEM_KEYS, MAX_CONFIG_BYTES, validUrl };

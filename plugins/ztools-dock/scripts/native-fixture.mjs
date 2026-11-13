@@ -7,6 +7,7 @@ export function nativeFixture(root) {
   writeFileSync(source, `using System; using System.IO; using System.Runtime.InteropServices;
 class Probe {
  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int left,top,right,bottom; }
+ [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h, int attribute, out int value, int size);
  [DllImport("user32.dll")] static extern int GetWindowRgn(IntPtr h, IntPtr r);
  [DllImport("gdi32.dll")] static extern IntPtr CreateRectRgn(int a,int b,int c,int d);
  [DllImport("gdi32.dll")] static extern int GetRgnBox(IntPtr r, out RECT b);
@@ -22,8 +23,9 @@ class Probe {
   if (args.Length == 0) { File.WriteAllText(${JSON.stringify(marker)}, "launched"); return; }
   SetProcessDpiAwarenessContext(new IntPtr(-4));
   IntPtr h=new IntPtr(long.Parse(args[0])), r=CreateRectRgn(0,0,0,0); RECT box, client; int kind=GetWindowRgn(h,r); GetRgnBox(r,out box); bool contains=args.Length>3 && PtInRegion(r,int.Parse(args[2]),int.Parse(args[3])); DeleteObject(r); GetClientRect(h,out client);
+  int material; int materialResult=DwmGetWindowAttribute(h,38,out material,4);
   bool otherAbove = args.Length > 1 && IsAbove(h, new IntPtr(long.Parse(args[1])));
-  Console.WriteLine("{\\"kind\\":"+kind+",\\"width\\":"+(box.right-box.left)+",\\"height\\":"+(box.bottom-box.top)+",\\"clientWidth\\":"+client.right+",\\"clientHeight\\":"+client.bottom+",\\"dpi\\":"+GetDpiForWindow(h)+",\\"contains\\":"+contains.ToString().ToLower()+",\\"otherAbove\\":"+otherAbove.ToString().ToLower()+",\\"foreground\\":\\""+GetForegroundWindow().ToInt64()+"\\"}");
+  Console.WriteLine("{\\"material\\":"+material+",\\"materialResult\\":"+materialResult+",\\"kind\\":"+kind+",\\"width\\":"+(box.right-box.left)+",\\"height\\":"+(box.bottom-box.top)+",\\"clientWidth\\":"+client.right+",\\"clientHeight\\":"+client.bottom+",\\"dpi\\":"+GetDpiForWindow(h)+",\\"contains\\":"+contains.ToString().ToLower()+",\\"otherAbove\\":"+otherAbove.ToString().ToLower()+",\\"foreground\\":\\""+GetForegroundWindow().ToInt64()+"\\"}");
  }
 }`);
   const result = spawnSync('C:/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe', ['/nologo', '/target:winexe', `/out:${exe}`, source], { encoding: 'utf8', windowsHide: true });

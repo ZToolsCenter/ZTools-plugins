@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { createController } = require('../public/runtime/controller.cjs');
 const { defaults } = require('../public/runtime/core.cjs');
 
-function fixture(exists = false) {
+function fixture(exists = false, options = {}) {
   let stored = null, fail = false;
   const wins = [], callbacks = new Map(), calls = {}, messages = []; let timerId = 0;
   const timers = { setInterval: (fn, ms) => { fn.interval = ms; callbacks.set(++timerId, fn); return timerId; }, clearInterval: id => callbacks.delete(id), setTimeout: fn => { callbacks.set(++timerId, fn); return timerId; }, clearTimeout: id => callbacks.delete(id) };
@@ -24,9 +24,22 @@ function fixture(exists = false) {
   for (const key of ['getAllDisplays', 'getPrimaryDisplay', 'getCursorScreenPoint']) {
     const original = api[key]; api[key] = (...args) => { calls[key] = (calls[key] || 0) + 1; return original(...args); };
   }
-  const controller = createController(api, { timers, exists: () => exists, onChange() {} });
+  const controller = createController(api, { timers, exists: () => exists, onChange() {}, ...options });
   return { controller, api, wins, callbacks, calls, messages, setFail: () => { fail = true; } };
 }
+
+test('原生材质切换只复建面板，保持展开钉住，重复保存不复建；不支持系统退回纯色', () => {
+  const f=fixture(false,{materialsSupported:true});f.controller.init();f.controller.expand();f.controller.pin();
+  const trigger=f.wins[0],panel=f.wins[1],c=f.controller.snapshot().config;c.settings.material='mica';
+  f.controller.save(c);const next=f.wins[2];
+  assert.equal(panel.gone,true);assert.equal(trigger.gone,false);assert.equal(next.bounds.backgroundMaterial,'mica');assert.equal(next.bounds.transparent,false);
+  assert.deepEqual(next.shape,[{x:0,y:0,width:1,height:1}]);assert.equal(next.visible,false);assert.equal(f.controller.snapshot().pinned,true);assert.equal(f.controller.snapshot().trayVisible,true);
+  f.controller.panelLayout([{x:100,y:0,width:200,height:66},{x:40,y:66,width:392,height:220}]);
+  assert.equal(next.visible,true);assert.ok(next.shape.length>2);assert.ok(next.shape.every(r=>r.x>=40));
+  f.controller.save(c);assert.equal(f.wins.length,3);f.controller.dispose();
+  const old=fixture(false,{materialsSupported:false});const config=defaults();config.settings.material='acrylic';old.controller.save(config);
+  assert.equal(old.controller.snapshot().material,'solid');assert.equal(old.wins[1].bounds.transparent,true);assert.equal(old.controller.snapshot().config.settings.material,'acrylic');old.controller.dispose();
+});
 
 test('展开收起复用窗口布局且不广播入口全集；重复展开无额外状态更新', () => {
   const f = fixture(); f.controller.init();

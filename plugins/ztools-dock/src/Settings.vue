@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import type { Category, Config, Entry, EntryType, Settings as DockSettings, State } from './types';
 import Icon from './Icon.vue';
+import TriggerArt from './TriggerArt.vue';
 import { command, toast } from './bridge';
 const props = defineProps<{ state: State }>();
 const tab = ref('entries');
@@ -106,6 +107,7 @@ async function importConfig() {
   const imported = await command('import');
   if (imported) confirm('替换当前配置？', `将导入 ${imported.categories.length} 个分类、${imported.entries.length} 个入口。建议先导出当前配置。`, async () => { await save(imported, '配置已导入'); });
 }
+async function setMaterial(event: Event) { const next=clone(); next.settings.material=value(event) as DockSettings['material']; if(next.settings.material !== 'solid' && next.settings.panelOpacity === 1) next.settings.panelOpacity=0.55; await save(next); }
 function reset() { confirm('重置外观与行为？', '显示位置、展开和收起延迟、触发条、面板外观与搜索设置将恢复默认。分类、快捷入口和启用状态会保留。', async () => { await command('reset', undefined, '外观与行为已重置'); }); }
 </script>
 <template>
@@ -144,19 +146,23 @@ function reset() { confirm('重置外观与行为？', '显示位置、展开和
       </div>
     </section>
     <section v-else-if="tab === 'appearance'" class="preferences">
-      <div class="preference-preview"><div class="mini-screen"><span class="mini-trigger" :style="{ width: Math.min(config.settings.triggerWidth, 180) + 'px', height: config.settings.triggerHeight + 'px', opacity: config.settings.triggerOpacity, background: config.settings.accent }"></span><div class="mini-dock"><Icon name="Folder" :size="20" /><Icon name="BriefcaseBusiness" :size="20" /><Icon name="CodeXml" :size="20" /><Icon name="Bot" :size="20" /></div></div><div><h2>让程序坞适合你的桌面</h2><p>设置自动保存，并实时应用到悬浮窗口。</p></div></div>
+      <div class="preference-preview"><div class="mini-screen"><span class="mini-trigger trigger" :style="{ width: Math.min(config.settings.triggerWidth, 180) + 'px', height: (config.settings.triggerTheme === 'bar' ? config.settings.triggerHeight : 32) + 'px', opacity: config.settings.triggerOpacity, color: config.settings.accent, background: 'transparent' }"><TriggerArt :theme="config.settings.triggerTheme" /></span><div class="mini-dock"><Icon name="Folder" :size="20" /><Icon name="BriefcaseBusiness" :size="20" /><Icon name="CodeXml" :size="20" /><Icon name="Bot" :size="20" /></div></div><div><h2>让程序坞适合你的桌面</h2><p>设置自动保存，并实时应用到悬浮窗口。</p></div></div>
       <div class="preference-group"><h3>触发与显示</h3>
         <label class="setting-row"><span><strong>显示位置</strong><small>选定显示屏的顶部居中；断开后回到主屏</small></span><select :value="config.settings.displayId" @change="setting('displayId', value($event))"><option value="primary">主显示器</option><option v-for="display in state.displays" :key="display.id" :value="display.id">{{ display.label }} · {{ display.width }} × {{ display.height }}</option></select></label>
         <label class="setting-row"><span><strong>展开延迟</strong><small>鼠标停留后展开，减少误触</small></span><div class="range-control"><input type="range" min="0" max="2000" step="20" :value="config.settings.openDelay" @change="setting('openDelay', +value($event))"><output>{{ config.settings.openDelay }} ms</output></div></label>
         <label class="setting-row"><span><strong>收起延迟</strong><small>鼠标离开整个程序坞后收起</small></span><div class="range-control"><input type="range" min="100" max="3000" step="50" :value="config.settings.closeDelay" @change="setting('closeDelay', +value($event))"><output>{{ config.settings.closeDelay }} ms</output></div></label>
       </div>
       <div class="preference-group"><h3>触发条</h3>
+        <div class="setting-row"><span><strong>触发条主题</strong><small>虫仔、蜗牛为静态图案，高度为 32 px</small></span><div class="trigger-theme-options"><button v-for="item in [{key:'bar',label:'经典细条'},{key:'worm',label:'虫仔'},{key:'snail',label:'蜗牛'}]" class="trigger-theme-choice" :class="{selected:config.settings.triggerTheme===item.key}" :aria-pressed="config.settings.triggerTheme===item.key" @click="setting('triggerTheme', item.key as DockSettings['triggerTheme'])"><span :style="{color:config.settings.accent}"><TriggerArt :theme="item.key as DockSettings['triggerTheme']" /></span>{{item.label}}</button></div></div>
         <label class="setting-row"><span><strong>主题色</strong></span><input type="color" :value="config.settings.accent" @change="setting('accent', value($event))"></label>
         <label class="setting-row"><span><strong>宽度</strong></span><div class="range-control"><input type="range" min="24" max="400" step="4" :value="config.settings.triggerWidth" @change="setting('triggerWidth', +value($event))"><output>{{ config.settings.triggerWidth }} px</output></div></label>
-        <label class="setting-row"><span><strong>高度</strong></span><div class="range-control"><input type="range" min="3" max="16" :value="config.settings.triggerHeight" @change="setting('triggerHeight', +value($event))"><output>{{ config.settings.triggerHeight }} px</output></div></label>
+        <label class="setting-row"><span><strong>高度</strong></span><div class="range-control"><input type="range" min="3" max="16" :disabled="config.settings.triggerTheme !== 'bar'" :value="config.settings.triggerHeight" @change="setting('triggerHeight', +value($event))"><output>{{ config.settings.triggerTheme === 'bar' ? config.settings.triggerHeight : 32 }} px</output></div></label>
         <label class="setting-row"><span><strong>不透明度</strong></span><div class="range-control"><input type="range" min="0.1" max="1" step="0.05" :value="config.settings.triggerOpacity" @change="setting('triggerOpacity', +value($event))"><output>{{ Math.round(config.settings.triggerOpacity * 100) }}%</output></div></label>
       </div>
       <div class="preference-group"><h3>面板外观</h3>
+        <label class="setting-row"><span><strong>面板材质</strong><small>{{state.materialsSupported ? '原生系统材质；切换时面板会重新打开' : '云母、亚克力需要 Windows 11 22H2 或更新版本'}}</small></span><select aria-label="面板材质" :value="config.settings.material" @change="setMaterial"><option value="solid">纯色</option><option value="mica" :disabled="!state.materialsSupported">云母 Mica</option><option value="acrylic" :disabled="!state.materialsSupported">亚克力 Acrylic</option></select></label>
+        <label class="setting-row"><span><strong>背景不透明度</strong><small>仅调整背景着色，文字和图标保持清晰；材质模糊由系统控制</small></span><div class="range-control"><input aria-label="背景不透明度" type="range" min="0.1" max="1" step="0.05" :value="config.settings.panelOpacity" @change="setting('panelOpacity', +value($event))"><output>{{Math.round(config.settings.panelOpacity * 100)}}%</output></div></label>
+        <label class="setting-row"><span><strong>图标大小</strong><small>同时调整分类与入口图标</small></span><select aria-label="图标大小" :value="config.settings.iconSize" @change="setting('iconSize', value($event))"><option value="small">小</option><option value="medium">中</option><option value="large">大</option></select></label>
         <label class="setting-row"><span><strong>颜色模式</strong></span><select :value="config.settings.theme" @change="setting('theme', value($event))"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
         <label class="setting-row"><span><strong>每行列数</strong></span><select :value="config.settings.columns" @change="setting('columns', +value($event))"><option v-for="n in [2,3,4,5,6]" :value="n">{{ n }} 列</option></select></label>
         <label class="setting-row"><span><strong>显示搜索框</strong><small>在卡片面板中搜索所有入口，默认关闭</small></span><input class="switch" type="checkbox" :checked="config.settings.searchEnabled" aria-label="显示搜索框" @change="setting('searchEnabled', ($event.target as HTMLInputElement).checked)"></label>
@@ -168,7 +174,7 @@ function reset() { confirm('重置外观与行为？', '显示位置、展开和
       <div class="backup-intro"><Icon name="Package" :size="32" /><h2>把你的程序坞保存下来</h2><p>导出分类、入口和外观。换一台电脑时，可以重新导入。</p></div>
       <div class="backup-actions"><button class="backup-action" @click="command('export', undefined, '配置已导出')"><Icon name="Download" :size="25" /><strong>导出配置</strong><span>保存为 JSON 文件</span></button><button class="backup-action" @click="importConfig"><Icon name="Upload" :size="25" /><strong>导入配置</strong><span>检查内容后替换当前配置</span></button></div>
       <div class="help-block"><h3>使用提示</h3><p><strong>快速打开：</strong>在 ZTools 输入“程序坞”或“dock”。输入“程序坞设置”管理入口。</p><p><strong>后台运行：</strong>在 ZTools 的插件管理中关闭本插件的“退出即结束”。如宿主提供“跟随启动”，可按需开启，随后重启验证。</p><p><strong>悬浮窗口：</strong>悬停顶部细条展开；右键细条打开设置；导航栏右侧图钉开关可钉住或取消钉住导航条，卡片区仍随鼠标移出收起；右键面板也可打开设置。搜索可在“外观与行为”中开启，默认关闭。</p><p><strong>迁移配置：</strong>本地路径仍指向原位置，换机后可能需要重新选择。程序坞依赖 ZTools 运行。</p><p><strong>首版范围：</strong>Windows 单个显示屏顶部停靠。全屏自动避让、管理员窗口兼容和文件拖到应用执行尚未支持。</p></div>
-      <div class="reset-row"><span>程序坞 <b>0.1.8</b></span></div>
+      <div class="reset-row"><span>程序坞 <b>0.1.9</b></span></div>
     </section>
     <div v-if="editor" class="modal-overlay" @click.self="editor = null" @keydown.esc="editor = null">
       <form class="editor-modal" @submit.prevent="submit">

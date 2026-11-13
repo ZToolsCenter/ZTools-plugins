@@ -8,6 +8,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { checkFixes } from './check-fixes.mjs';
 import { checkStyle } from './check-style.mjs';
 import { checkAddition } from './check-addition.mjs';
+import { checkAppearance } from './check-appearance.mjs';
 import { checkReset } from './check-reset.mjs';
 
 const executablePath = process.env.ZTOOLS_EXECUTABLE;
@@ -113,6 +114,7 @@ try {
   assert.equal(region.kind, 2, 'trigger has an actual native rectangle region');
   assert.ok(region.height > 0 && region.height <= Math.ceil(5 * region.dpi / 96) + 1, `trigger hit region is clipped to configured height: ${JSON.stringify(region)}`);
   check('native trigger region clipped; hover panel does not steal focus');
+  await checkAppearance({app,evaluate,screenshot,native,check});
   await checkFixes({app,evaluate,screenshot,native,triggerHandle,check});
   await checkStyle({app,evaluate,screenshot,native,check});
   await checkAddition({app,main,evaluate,screenshot,native,temp,check});

@@ -13,7 +13,7 @@ export async function checkFixes({ app, evaluate, screenshot, native, triggerHan
     const cover = await app.evaluate(async ({ BrowserWindow, screen }) => {
       const area = screen.getPrimaryDisplay().bounds;
       globalThis.dockCover = new BrowserWindow({ ...area, frame:false, show:false, focusable:false, skipTaskbar:true, backgroundColor:'#b12735' });
-      await globalThis.dockCover.loadURL('data:text/html,<body>Dock controlled occluder</body>');
+      await Promise.race([globalThis.dockCover.loadURL('data:text/html,<body>Dock controlled occluder</body>'),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Controlled occluder failed to load')),15000))]);
       globalThis.dockCover.setAlwaysOnTop(true, 'screen-saver'); globalThis.dockCover.showInactive(); globalThis.dockCover.moveTop();
       return globalThis.dockCover.getNativeWindowHandle().readBigUInt64LE().toString();
     });

@@ -1,14 +1,18 @@
 html:has(body[data-surface=trigger]),html:has(body[data-surface=panel]),
 body[data-surface=trigger],body[data-surface=panel],
 body[data-surface=trigger] #app,body[data-surface=panel] #app{background:transparent!important}
-.trigger{width:100%;height:100%;border-radius:0 0 4px 4px;cursor:pointer}
+.trigger{width:100%;height:100%;cursor:pointer;display:flex;align-items:flex-start;justify-content:center}
+.trigger-line{width:100%;height:100%;background:currentColor;border-radius:0 0 4px 4px}
+.trigger-art{display:block;width:100%;height:32px;flex-shrink:0}
+.material-native{filter:none}
+.dock-panel.material-native{filter:none}
 .dock-panel{
   --dock-surface:#f5f5f5;--dock-card:#fff;--dock-border:#bcbcbc;--dock-text:#202020;
   --dock-shadow:0 6px 7px #0003;
   position:relative;width:100%;height:100%;padding:0 16px 18px;color:var(--dock-text);filter:drop-shadow(var(--dock-shadow));
 }
 :root[data-theme=dark] .dock-panel{--dock-surface:#25282e;--dock-card:#33373f;--dock-border:#555b65;--dock-text:#f0f1f4;--dock-shadow:0 6px 7px #0007}
-.dock-bar{position:relative;z-index:2;display:flex;width:min(var(--bar-width),100%);height:66px;margin:0 auto;background:var(--dock-surface);border:1px solid var(--dock-border);border-radius:7px}
+.dock-bar{position:relative;z-index:2;display:flex;width:min(var(--bar-width),100%);height:66px;margin:0 auto;background:color-mix(in srgb,var(--dock-surface) var(--panel-opacity,100%),transparent);border:1px solid var(--dock-border);border-radius:7px}
 .dock-no-categories{align-self:center;margin:auto;font-size:12px;color:var(--muted);white-space:nowrap}
 .dock-categories{display:flex;flex:1;min-width:0;gap:4px;padding:0 5px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 .dock-categories::-webkit-scrollbar{display:none}
@@ -21,9 +25,9 @@ body[data-surface=trigger] #app,body[data-surface=panel] #app{background:transpa
 .dock-category:focus-visible{outline-offset:-3px}
 .dock-menu-toggle{width:26px;flex-shrink:0;padding:0;display:flex;justify-content:center;align-items:center;background:transparent;border:0;border-radius:0 7px 7px 0;color:#8e959c}
 .dock-menu-toggle:hover,.dock-menu-toggle.active{background:var(--soft);color:var(--accent)}
-.dock-tray{position:absolute;top:66px;width:min(var(--tray-width),calc(100% - 32px));max-height:calc(100% - 84px);display:flex;flex-direction:column;padding:7px;background:var(--dock-surface);border:1px solid var(--dock-border);border-radius:8px}
+.dock-tray{position:absolute;top:66px;width:min(var(--tray-width),calc(100% - 32px));max-height:calc(100% - 84px);display:flex;flex-direction:column;padding:7px;background:color-mix(in srgb,var(--dock-surface) var(--panel-opacity,100%),transparent);border:1px solid var(--dock-border);border-radius:8px}
 .dock-grid{display:grid;gap:8px;align-content:start;overflow:auto;min-height:0;flex:0 1 auto;overscroll-behavior:contain}
-.launch-card{min-width:0;height:var(--card-height);border:1px solid transparent;border-radius:7px;background:var(--dock-card);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;padding:9px 6px;color:var(--dock-text)}
+.launch-card{min-width:0;height:var(--card-height);border:1px solid transparent;border-radius:7px;background:color-mix(in srgb,var(--dock-card) var(--card-opacity,100%),transparent);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;padding:6px;color:var(--dock-text)}
 .launch-card:hover{border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:color-mix(in srgb,var(--accent) 5%,var(--dock-card))}
 .launch-card:active{background:color-mix(in srgb,var(--accent) 12%,var(--dock-card))}
 .launch-card:focus-visible{outline-offset:-3px}

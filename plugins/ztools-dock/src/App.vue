@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, ref, watchEffect } from 'vue';
+import TriggerArt from './TriggerArt.vue';
 import { initialize, state, notice, command } from './bridge';
 const Settings = defineAsyncComponent(() => import('./Settings.vue'));
 const Dock = defineAsyncComponent(() => import('./Dock.vue'));
@@ -12,7 +13,7 @@ onMounted(async () => { try { await initialize(); } catch (error) { failure.valu
 </script>
 <template>
   <template v-if="state">
-    <div v-if="surface === 'trigger'" class="trigger" :style="{ background: state.config.settings.accent, opacity: state.config.settings.triggerOpacity, height: state.config.settings.triggerHeight + 'px' }" @mouseenter="command('hover', true)" @mouseleave="command('hover', false)" @dragenter.prevent="command('hover', true)" @dragover.prevent @click="command('expand')" @contextmenu.prevent="command('settings')" title="程序坞 · 悬停展开，右键设置" />
+    <div v-if="surface === 'trigger'" class="trigger" :style="{ color: state.config.settings.accent, opacity: state.config.settings.triggerOpacity }" @mouseenter="command('hover', true)" @mouseleave="command('hover', false)" @dragenter.prevent="command('hover', true)" @dragover.prevent @click="command('expand')" @contextmenu.prevent="command('settings')" title="程序坞 · 悬停展开，右键设置"><TriggerArt :theme="state.config.settings.triggerTheme" /></div>
     <Dock v-else-if="surface === 'panel'" :state="state" />
     <div v-else-if="surface === 'host'" class="loading"><button class="button" @click="command('settings')">打开程序坞设置窗口</button></div>
     <Settings v-else :state="state" />

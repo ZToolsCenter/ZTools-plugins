@@ -17,7 +17,8 @@ const entries = computed(() => {
 });
 const current = computed(() => categories.value.find(c => c.id === selected.value));
 const trayLeft = ref(16);
-const dimensions = computed(() => ({ '--bar-width': `${Math.max(160, categories.value.length * 100 + 32)}px`, '--tray-width': `${props.state.config.settings.columns * 128 + 8}px`, '--card-height': `${props.state.config.settings.cardSize}px` }));
+const iconPixels = computed(() => ({ small: 24, medium: 29, large: 36 })[props.state.config.settings.iconSize]);
+const dimensions = computed(() => ({ '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${Math.max(160, categories.value.length * 100 + 32)}px`, '--tray-width': `${props.state.config.settings.columns * 128 + 8}px`, '--card-height': `${props.state.config.settings.cardSize}px` }));
 let observer: ResizeObserver | undefined, frame = 0, lastShape = '';
 
 function scheduleLayout() {
@@ -33,7 +34,7 @@ function updateLayout() {
   // Position and native hit-region must come from the same rendered layout.
   tray.value.style.left = `${trayLeft.value}px`;
   const regions = [bar.value, ...(props.state.trayVisible ? [tray.value] : [])].map(el => {
-    const rect = el.getBoundingClientRect(), shadow = 14;
+    const rect = el.getBoundingClientRect(), shadow = props.state.material && props.state.material !== 'solid' ? 0 : 14;
     const x = Math.max(0, Math.floor(rect.x - shadow)), y = Math.max(0, Math.floor(rect.y - shadow));
     return { x, y, width: Math.min(width, Math.ceil(rect.right + shadow)) - x, height: Math.min(height, Math.ceil(rect.bottom + shadow)) - y };
   });
@@ -52,7 +53,7 @@ watch([categories, () => props.state.config.settings.lastCategoryId], ([list, id
   selected.value = list.some(c => c.id === id) ? id : list[0]?.id || '';
 }, { immediate: true });
 watch(selected, revealSelected);
-watch([() => props.state.expanded, () => props.state.trayVisible, dimensions, () => entries.value.length, () => props.state.config.settings.searchEnabled, query], async () => { await nextTick(); scheduleLayout(); });
+watch([() => props.state.expanded, () => props.state.trayVisible, dimensions, () => props.state.material, () => entries.value.length, () => props.state.config.settings.searchEnabled, query], async () => { await nextTick(); scheduleLayout(); });
 function select(id: string) {
   if (!props.state.trayVisible) command('expand');
   query.value = '';
@@ -88,12 +89,12 @@ onMounted(() => {
 onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibility); });
 </script>
 <template>
-  <main ref="shell" class="dock-panel" :style="dimensions" @keydown="keydown" @contextmenu.prevent="command('settings')">
+  <main ref="shell" class="dock-panel" :class="{ 'material-native': state.material && state.material !== 'solid' }" :style="dimensions" @keydown="keydown" @contextmenu.prevent="command('settings')">
     <div ref="bar" class="dock-bar" @mouseenter="command('expand')">
       <nav class="dock-categories" aria-label="程序坞分类" @scroll.passive="scheduleLayout" @wheel.prevent="scrollCategories">
         <span v-if="!categories.length" class="dock-no-categories">暂无快捷入口</span>
         <button v-for="category in categories" :key="category.id" class="dock-category" :class="{ selected: selected === category.id }" :style="{ '--category-color': category.color }" :aria-pressed="selected === category.id" :title="category.name" @mouseenter="select(category.id)" @click="select(category.id)">
-          <Icon :name="category.icon" :image="category.image" :size="25" /><span>{{ category.name }}</span>
+          <Icon :name="category.icon" :image="category.image" :size="Math.round(iconPixels * 25 / 29)" /><span>{{ category.name }}</span>
         </button>
       </nav>
       <button class="dock-menu-toggle" :class="{ active: state.pinned }" :aria-pressed="state.pinned" :title="state.pinned ? '取消钉住导航条' : '钉住导航条'" :aria-label="state.pinned ? '取消钉住导航条' : '钉住导航条'" @click="command('pin')"><Icon name="Pin" :size="18" /></button>
@@ -106,7 +107,7 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); doc
       <div v-if="state.error" class="inline-error" role="alert">{{ state.error }}</div>
       <div class="dock-grid" :style="{ gridTemplateColumns: `repeat(${state.config.settings.columns}, minmax(0, 1fr))` }">
         <button v-for="entry in entries" :key="entry.id" class="launch-card" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
-          <span class="launch-icon" :style="{ color: entry.color }"><Icon :name="entry.icon" :image="entry.image" :size="29" /></span>
+          <span class="launch-icon" :style="{ color: entry.color }"><Icon :name="entry.icon" :image="entry.image" :size="iconPixels" /></span>
           <span class="launch-name">{{ entry.name }}</span>
         </button>
         <div v-if="!entries.length" class="dock-empty"><Icon :name="query ? 'Search' : current?.icon || 'Plus'" :size="28" /><p>{{ query ? '没有找到匹配的入口' : '这个分类还没有入口' }}</p><button v-if="!query" class="button" @click="command('settings')">添加入口</button></div>

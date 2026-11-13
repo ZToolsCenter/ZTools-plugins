@@ -1,5 +1,6 @@
 'use strict';
 const { defaults, validateConfig, geometry, resolveEntry, SYSTEM_KEYS } = require('./core.cjs');
+const { supportsMaterials, roundedRegions } = require('./appearance.cjs');
 const nativeTimers = require('node:timers');
 const { randomUUID } = require('node:crypto');
 
@@ -9,6 +10,9 @@ function createController(api, options = {}) {
   const exists = options.exists || require('node:fs').existsSync;
   let config = defaults(), error = '', expanded = false, trayVisible = false, pinned = false, disposed = false;
   let trigger = null, panel = null, editor = null, openTimer = null, closeTimer = null, pollTimer = null, topmostTimer = null;
+  const materialsSupported = options.materialsSupported ?? supportsMaterials();
+  let panelMaterial = 'solid', panelNeedsReveal = false;
+  const effectiveMaterial = () => materialsSupported ? config.settings.material : 'solid';
   let bounds = null, lastLayout = '';
   let panelRegions = [], lastPanelShape = '';
   let generation = 0;
@@ -28,7 +32,7 @@ function createController(api, options = {}) {
     displayInfo = next.map(d => ({ id: String(d.id), label: d.label || `显示器 ${d.id}`, width: d.bounds.width, height: d.bounds.height, scaleFactor: d.scaleFactor || 1 }));
     return true;
   }
-  function runtimeState() { displays(); return { expanded, trayVisible, pinned, additionId, error, dark, displays: displayInfo, bounds }; }
+  function runtimeState() { displays(); return { materialsSupported, material: effectiveMaterial(), expanded, trayVisible, pinned, additionId, error, dark, displays: displayInfo, bounds }; }
   function snapshot() { return { config: structuredClone(config), ...runtimeState() }; }
   function notify(mode = 'full') {
     dark = Boolean(api.isDarkColors());
@@ -48,7 +52,7 @@ function createController(api, options = {}) {
     // A peer topmost window can cover an existing topmost window on Windows.
     // Reassert the level and z-order without showing hidden windows or taking keyboard focus.
     // Visibility is owned here; do not query the hidden panel on every maintenance tick.
-    for (const win of expanded ? [panel, trigger] : [trigger]) if (live(win)) {
+    for (const win of expanded ? [panel, trigger] : [trigger]) if (live(win) && !(win === panel && panelNeedsReveal)) {
       win.setAlwaysOnTop(true, 'screen-saver');
       win.moveTop();
     }
@@ -65,7 +69,8 @@ function createController(api, options = {}) {
   }
   function resetPanelShape() {
     panelRegions = []; lastPanelShape = '';
-    panel.setShape([{ x: 0, y: 0, width: bounds.panel.width, height: Math.min(84, bounds.panel.height) }]);
+    // Do not expose a full-width native backdrop before the renderer reports its visible regions.
+    panel.setShape(panelMaterial === 'solid' ? [{ x: 0, y: 0, width: bounds.panel.width, height: Math.min(84, bounds.panel.height) }] : [{ x: 0, y: 0, width: 1, height: 1 }]);
   }
   function panelLayout(rects) {
     if (!bounds || !Array.isArray(rects) || rects.length < 1 || rects.length > 3) throw new Error('面板区域无效');
@@ -76,8 +81,9 @@ function createController(api, options = {}) {
     });
     const signature = JSON.stringify(regions);
     if (signature !== lastPanelShape && live(panel)) {
-      panel.setShape(regions); panelRegions = regions; lastPanelShape = signature;
+      panel.setShape(panelMaterial === 'solid' ? regions : roundedRegions(regions)); panelRegions = regions; lastPanelShape = signature;
     }
+    if (panelNeedsReveal) { panelNeedsReveal = false; if (expanded && live(panel)) { panel.showInactive(); maintainTopmost(); } }
     return true;
   }
   function ensureWindows() {
@@ -91,9 +97,13 @@ function createController(api, options = {}) {
       trigger.setShape([{ x: 0, y: 0, width: bounds.trigger.width, height: bounds.trigger.height }]);
       trigger.showInactive(); maintainTopmost();
     }
+    const material = effectiveMaterial();
+    if (live(panel) && panelMaterial !== material) { panel.destroy(); panel = null; }
     if (!live(panel)) {
-      panel = api.createBrowserWindow('index.html?surface=panel', { ...common, ...bounds.panel, transparent: true, backgroundColor: '#00000000', hasShadow: false });
+      panelMaterial = material; panelNeedsReveal = expanded;
+      panel = api.createBrowserWindow('index.html?surface=panel', { ...common, ...bounds.panel, transparent: material === 'solid', ...(material !== 'solid' ? { backgroundMaterial: material } : {}), backgroundColor: '#00000000', hasShadow: false });
       resetPanelShape();
+      // Replacement windows are revealed after their renderer reports its first layout.
     }
     if (topmostTimer === null) topmostTimer = timers.setInterval(() => {
       try {
@@ -149,7 +159,7 @@ function createController(api, options = {}) {
     }
     if (!config.settings.enabled || disposed) start(); else ensureWindows();
     expanded = true; trayVisible = true;
-    panel.showInactive();
+    if (!panelNeedsReveal) panel.showInactive();
     maintainTopmost();
     startCursorPolling();
     notify('runtime'); return true;
