@@ -1,0 +1,60 @@
+{
+  "name": "ztools-dock",
+  "title": "程序坞",
+  "description": "屏幕边缘的分类启动器，快速打开应用、文件夹、网址和 ZTools 插件",
+  "version": "0.1.14",
+  "platform": [
+    "win32"
+  ],
+  "main": "index.html",
+  "preload": "preload.cjs",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "backgroundRunning": true
+  },
+  "features": [
+    {
+      "code": "dock",
+      "explain": "展开程序坞",
+      "cmds": [
+        "程序坞",
+        "dock",
+        "chengxuwu"
+      ]
+    },
+    {
+      "code": "settings",
+      "explain": "管理分类、快捷入口与外观",
+      "cmds": [
+        "程序坞设置"
+      ]
+    },
+    {
+      "code": "pause",
+      "explain": "暂停程序坞并隐藏触发条",
+      "cmds": [
+        "暂停程序坞"
+      ]
+    },
+    {
+      "code": "add",
+      "explain": "添加到程序坞",
+      "cmds": [
+        "添加到程序坞",
+        {
+          "type": "regex",
+          "label": "添加到程序坞",
+          "match": "/^(?:https?:\\/\\/|www\\.|\"?(?:[a-z]:[\\\\/]|\\\\\\\\)).+/i",
+          "minLength": 3
+        },
+        {
+          "type": "files",
+          "label": "添加到程序坞",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      ]
+    }
+  ],
+  "author": "jiang66-so"
+}
