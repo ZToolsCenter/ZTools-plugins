@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {writeFileSync} from 'node:fs';
 import {expect} from '@playwright/test';
 
 export async function checkPosition({app,evaluate,screenshot,native,check}) {
@@ -71,8 +72,21 @@ export async function checkPosition({app,evaluate,screenshot,native,check}) {
    await evaluate('(async()=>{const s=await window.dock.call("snapshot");s.config.settings.material="acrylic";s.config.settings.panelOpacity=0.55;await window.dock.call("save",s.config)})()');
    await expect.poll(()=>read('Boolean(document.querySelector(".dock-panel.material-native"))').catch(()=>false)).toBe(true);
    await expect.poll(()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=panel'))?.isVisible())).toBe(true);
+   await expect.poll(()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().filter(w=>w.webContents.getURL().includes('material.html')&&w.isVisible()).length)).toBe(2);
    const handle=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=panel')).getNativeWindowHandle().readBigUInt64LE().toString());
-   assert.equal(native.probe(handle).material,3);const r=await layout();assert.ok(r.tray.right<=r.bar.x+1);
+   assert.equal(native.probe(handle).material,0);const materialHandle=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=material-bar')).getNativeWindowHandle().readBigUInt64LE().toString());assert.equal(native.probe(materialHandle).material,3);const r=await layout();assert.ok(r.tray.right<=r.bar.x+1);
+   const measured=[];
+   for(const edge of ['top','left','bottom','right']){
+    await control('停靠方向',edge);
+    await expect.poll(async()=>{
+     const r=await layout();if(r.edge!==edge)return false;
+     const native=await app.evaluate(({BrowserWindow})=>{const all=BrowserWindow.getAllWindows(),panel=all.find(w=>w.webContents.getURL().includes('surface=panel'));return {origin:panel.getBounds(),bar:all.find(w=>w.webContents.getURL().includes('surface=material-bar')).getBounds(),tray:all.find(w=>w.webContents.getURL().includes('surface=material-tray')).getBounds()};});
+     writeFileSync('artifacts/material-native-bounds-attempt.json',JSON.stringify({edge,layout:r,native},null,2));
+     return ['bar','tray'].every(k=>Math.abs(native[k].width-(Math.ceil(r[k].right)-Math.floor(r[k].x)))<=1&&Math.abs(native[k].height-(Math.ceil(r[k].bottom)-Math.floor(r[k].y)))<=1&&Math.abs(native[k].x-native.origin.x-Math.floor(r[k].x))<=1&&Math.abs(native[k].y-native.origin.y-Math.floor(r[k].y))<=1);
+    }).toBe(true);
+    measured.push({edge,layout:await layout(),native:await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().filter(w=>w.webContents.getURL().includes('material.html')).map(w=>w.getBounds()))});
+   }
+   writeFileSync('artifacts/material-native-bounds.json',JSON.stringify(measured,null,2));
    check('right-edge long category list also supports visible native Acrylic with inward tray placement');
   }
 

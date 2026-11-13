@@ -4,7 +4,7 @@ import {expect} from '@playwright/test';
 export async function checkAppearance({app,evaluate,screenshot,native,check}) {
  const original=await evaluate('window.dock.call("snapshot")');
  const before=original.config;
- await app.evaluate(({screen})=>{globalThis.appearanceOriginalCursor=screen.getCursorScreenPoint;screen.getCursorScreenPoint=()=>({x:960,y:50});});
+ await app.evaluate(({screen,BrowserWindow})=>{globalThis.appearanceOriginalCursor=screen.getCursorScreenPoint;screen.getCursorScreenPoint=()=>{const b=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=trigger')).getBounds();return {x:b.x+b.width/2,y:b.y+1}};});
  try {
   await evaluate('document.querySelectorAll(".settings-tabs button")[1].click()');
   for(const [theme,index] of [['worm',1],['snail',2]]) {
@@ -34,7 +34,10 @@ export async function checkAppearance({app,evaluate,screenshot,native,check}) {
     await evaluate('window.dock.call("expand")');
     await expect.poll(()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=panel'))?.isVisible())).toBe(true);
     const handle=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=panel')).getNativeWindowHandle().readBigUInt64LE().toString());
-    const probe=native.probe(handle);assert.equal(probe.materialResult,0);assert.equal(probe.material,code);
+    const probe=native.probe(handle);assert.equal(probe.materialResult,0);assert.equal(probe.material,0);
+    await expect.poll(()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().filter(w=>w.webContents.getURL().includes('material.html')&&w.isVisible()).length)).toBe(2);
+    const materialHandles=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().filter(w=>w.webContents.getURL().includes('material.html')).map(w=>w.getNativeWindowHandle().readBigUInt64LE().toString()));
+    assert.equal(materialHandles.length,2);for(const h of materialHandles)assert.equal(native.probe(h).material,code);
     const state=await evaluate('window.dock.call("snapshot")');assert.equal(state.pinned,true);assert.equal(state.expanded,true);
     const outside=native.probe(handle,'0',{x:1,y:150});assert.equal(outside.contains,false);
    }

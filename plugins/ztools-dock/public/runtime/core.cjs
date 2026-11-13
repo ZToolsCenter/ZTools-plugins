@@ -16,15 +16,17 @@ function defaults() {
     ['home', '用户目录', 'House'], ['desktop', '桌面', 'Monitor'], ['downloads', '下载', 'Download'],
     ['documents', '文档', 'FileText'], ['pictures', '图片', 'Image'], ['music', '音乐', 'Music'], ['videos', '视频', 'Video']
   ].map(([target, name, icon], i) => ({ id: `system-${target}`, categoryId: 'folders', name, type: 'system', target, icon, color: ['#087fe7', '#0c9c83', '#08a7cd'][i % 3] }));
-  return { version: 1, settings: { enabled: true, searchEnabled: false, showCategoryNames: true, showEntryNames: true, dockEdge: 'top', positionMode: 'ratio', positionRatio: 50, positionDistance: 0, positionAnchor: 'start', triggerTheme: 'bar', iconSize: 'medium', material: 'solid', panelOpacity: 1, displayId: 'primary', openDelay: 180, closeDelay: 450, triggerWidth: 80, triggerHeight: 5, triggerOpacity: 0.75, accent: '#087fe7', columns: 3, cardSize: 100, theme: 'system', lastCategoryId: 'folders' }, categories, entries };
+  return { version: 1, settings: { enabled: true, searchEnabled: false, showCategoryNames: true, showEntryNames: true, dockEdge: 'top', positionMode: 'ratio', positionRatio: 50, positionDistance: 0, positionAnchor: 'start', triggerTheme: 'bar', triggerImage: '', triggerEdgeDistance: 0, iconSize: 'medium', material: 'solid', panelOpacity: 1, displayId: 'primary', openDelay: 180, closeDelay: 450, triggerWidth: 80, triggerHeight: 5, triggerOpacity: 0.75, accent: '#087fe7', columns: 3, cardSize: 100, theme: 'system', lastCategoryId: 'folders' }, categories, entries };
 }
 
 /** Validate an entire import before any state is mutated; retain only known fields. */
 function validateConfig(input) {
   if (!input || input.version !== 1) throw new Error('不支持此配置版本，请使用程序坞导出的 JSON 文件');
-  const s = input.settings && { ...input.settings, searchEnabled: input.settings.searchEnabled ?? false, showCategoryNames: input.settings.showCategoryNames === undefined ? true : input.settings.showCategoryNames, showEntryNames: input.settings.showEntryNames === undefined ? true : input.settings.showEntryNames, triggerTheme: input.settings.triggerTheme ?? 'bar', iconSize: input.settings.iconSize ?? 'medium', material: input.settings.material ?? 'solid', panelOpacity: input.settings.panelOpacity ?? 1, dockEdge: input.settings.dockEdge ?? 'top', positionMode: input.settings.positionMode ?? 'ratio', positionRatio: input.settings.positionRatio ?? 50, positionDistance: input.settings.positionDistance ?? 0, positionAnchor: input.settings.positionAnchor ?? 'start' };
+  const s = input.settings && { ...input.settings, searchEnabled: input.settings.searchEnabled ?? false, showCategoryNames: input.settings.showCategoryNames === undefined ? true : input.settings.showCategoryNames, showEntryNames: input.settings.showEntryNames === undefined ? true : input.settings.showEntryNames, triggerTheme: input.settings.triggerTheme ?? 'bar', triggerImage: input.settings.triggerImage ?? '', triggerEdgeDistance: input.settings.triggerEdgeDistance ?? 0, iconSize: input.settings.iconSize ?? 'medium', material: input.settings.material ?? 'solid', panelOpacity: input.settings.panelOpacity ?? 1, dockEdge: input.settings.dockEdge ?? 'top', positionMode: input.settings.positionMode ?? 'ratio', positionRatio: input.settings.positionRatio ?? 50, positionDistance: input.settings.positionDistance ?? 0, positionAnchor: input.settings.positionAnchor ?? 'start' };
   if (!s || typeof s.enabled !== 'boolean' || !cleanText(s.displayId, 80)) throw new Error('基本设置不完整');
-  if (!['bar', 'worm', 'snail'].includes(s.triggerTheme) || !['small', 'medium', 'large'].includes(s.iconSize) || !['solid', 'mica', 'acrylic'].includes(s.material)) throw new Error('外观主题或材质无效');
+  if (!['bar', 'worm', 'snail', 'custom'].includes(s.triggerTheme) || !['small', 'medium', 'large'].includes(s.iconSize) || !['solid', 'mica', 'acrylic'].includes(s.material)) throw new Error('外观主题或材质无效');
+  if (!Number.isInteger(s.triggerEdgeDistance) || s.triggerEdgeDistance < -400 || s.triggerEdgeDistance > 400) throw new Error('底部距离超出允许范围');
+  if (typeof s.triggerImage !== 'string' || (s.triggerImage && !pngSize(s.triggerImage)) || (s.triggerTheme === 'custom' && !s.triggerImage)) throw new Error('请上传有效的PNG触发图案');
   if (typeof s.panelOpacity !== 'number' || !Number.isFinite(s.panelOpacity) || s.panelOpacity < 0.1 || s.panelOpacity > 1) throw new Error('面板不透明度超出允许范围');
   if (!['top','bottom','left','right'].includes(s.dockEdge) || !['ratio','distance'].includes(s.positionMode) || !['start','end'].includes(s.positionAnchor)) throw new Error('停靠位置设置无效');
   if (!Number.isFinite(s.positionRatio) || s.positionRatio < 0 || s.positionRatio > 100 || !Number.isInteger(s.positionDistance) || s.positionDistance < 0 || s.positionDistance > 20000) throw new Error('位置距离或比例超出允许范围');
@@ -90,6 +92,15 @@ function resolveEntry(entry, paths) {
   return { kind: 'path', target: entry.target };
 }
 
+/** Normalized PNG data only; filesystem decoder verifies selected images before saving. */
+function pngSize(value) {
+  if (typeof value !== 'string' || value.length > 1400000 || !/^data:image\/png;base64,[a-zA-Z0-9+/=]+$/.test(value)) return null;
+  const bytes=Buffer.from(value.slice(22),'base64');
+  if(bytes.length<33 || bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a' || bytes.toString('ascii',12,16)!=='IHDR')return null;
+  const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
+  return width>0&&height>0&&width<=512&&height<=512?{width,height}:null;
+}
+
 /** Lay out windows in Electron DIP coordinates, including negative monitor origins. */
 function geometry(settings, displays, primary, categoryCount = 7) {
   const display = displays.find(d => String(d.id) === settings.displayId) || primary || displays[0];
@@ -97,29 +108,35 @@ function geometry(settings, displays, primary, categoryCount = 7) {
   const area = display.workArea || display.bounds;
   const edge = settings.dockEdge || 'top', vertical = edge === 'left' || edge === 'right';
   const axisLength = vertical ? area.height : area.width;
-  const thickness = Math.min(settings.triggerTheme && settings.triggerTheme !== 'bar' ? 32 : settings.triggerHeight, vertical ? area.width : area.height);
   const length = Math.min(settings.triggerTheme && settings.triggerTheme !== 'bar' ? Math.max(64, settings.triggerWidth) : settings.triggerWidth, axisLength);
+  const image=settings.triggerTheme==='custom'?pngSize(settings.triggerImage):null;
+  const desiredThickness=image?Math.min(160,Math.max(1,Math.round(length*image.height/image.width))):settings.triggerTheme&&settings.triggerTheme!=='bar'?32:settings.triggerHeight;
+  const thickness = Math.min(desiredThickness, vertical ? area.width : area.height);
   const travel = Math.max(0, axisLength - length);
   const clamp = (v, min, max) => Math.max(min, Math.min(Math.max(min, max), v));
   const distance = settings.positionMode === 'distance' ? (settings.positionAnchor === 'end' ? travel - settings.positionDistance : settings.positionDistance) : travel * (settings.positionRatio ?? 50) / 100;
   const offset = Math.round(clamp(distance, 0, travel));
-  const trigger = vertical
-    ? { x: edge === 'left' ? area.x : area.x + area.width - thickness, y: area.y + offset, width: thickness, height: length }
-    : { x: area.x + offset, y: edge === 'top' ? area.y : area.y + area.height - thickness, width: length, height: thickness };
+  const inset=clamp(settings.triggerEdgeDistance??0,-thickness+1,Math.max(0,(vertical?area.width:area.height)-thickness-(vertical?360:180)));
+  const triggerArt = vertical
+    ? { x: edge === 'left' ? area.x+inset : area.x+area.width-inset-thickness, y: area.y+offset, width:thickness,height:length }
+    : { x:area.x+offset,y:edge==='top'?area.y+inset:area.y+area.height-inset-thickness,width:length,height:thickness };
+  const x=Math.max(area.x,triggerArt.x),y=Math.max(area.y,triggerArt.y);
+  const trigger={x,y,width:Math.min(area.x+area.width,triggerArt.x+triggerArt.width)-x,height:Math.min(area.y+area.height,triggerArt.y+triggerArt.height)-y};
   // Keep the entire native backing on this monitor: Windows minimum window sizes
   // otherwise push a thin right/bottom trigger onto a neighbour with a different DPI.
   const backingWidth = Math.min(area.width, Math.max(128, trigger.width)), backingHeight = Math.min(area.height, Math.max(64, trigger.height));
   const triggerWindow = { x: Math.round(clamp(trigger.x - (backingWidth - trigger.width) / 2, area.x, area.x + area.width - backingWidth)), y: Math.round(clamp(trigger.y - (backingHeight - trigger.height) / 2, area.y, area.y + area.height - backingHeight)), width: backingWidth, height: backingHeight };
   const trayWidth = settings.columns * 128 + 8;
   const barWidth = Math.max(160, categoryCount * 100 + 32);
-  const width = vertical ? Math.min(100 + trayWidth + 32, Math.max(1, area.width - thickness - 12)) : Math.min(Math.max(trayWidth, barWidth + Math.max(0, trayWidth - 100)) + 32, Math.max(1, area.width - 24));
-  const height = Math.min(820, Math.max(1, area.height - (vertical ? 24 : thickness + 12)));
+  const inward = edge==='left'?area.x+area.width-trigger.x-trigger.width:edge==='right'?trigger.x-area.x:edge==='top'?area.y+area.height-trigger.y-trigger.height:trigger.y-area.y;
+  const width = vertical ? Math.min(100 + trayWidth + 32, Math.max(1, inward - 12)) : Math.min(Math.max(trayWidth, barWidth + Math.max(0, trayWidth - 100)) + 32, Math.max(1, area.width - 24));
+  const height = Math.min(820, Math.max(1, vertical ? area.height - 24 : inward - 12));
   const centre = { x: trigger.x + trigger.width / 2, y: trigger.y + trigger.height / 2 };
   const panel = {
     x: vertical ? (edge === 'left' ? trigger.x + trigger.width : trigger.x - width) : Math.round(clamp(centre.x - width / 2, area.x, area.x + area.width - width)),
     y: vertical ? Math.round(clamp(centre.y - height / 2, area.y, area.y + area.height - height)) : (edge === 'top' ? trigger.y + trigger.height : trigger.y - height),
     width, height
   };
-  return { displayId: String(display.id), trigger, triggerWindow, panel, anchor: { x: centre.x - panel.x, y: centre.y - panel.y } };
+  return { displayId: String(display.id), trigger, triggerArt, triggerWindow, panel, anchor: { x: centre.x - panel.x, y: centre.y - panel.y } };
 }
-module.exports = { defaults, validateConfig, geometry, resolveEntry, SYSTEM_KEYS, MAX_CONFIG_BYTES, validUrl };
+module.exports = { defaults, validateConfig, geometry, resolveEntry, SYSTEM_KEYS, MAX_CONFIG_BYTES, validUrl, pngSize };

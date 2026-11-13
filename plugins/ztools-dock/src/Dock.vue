@@ -63,6 +63,7 @@ watch([categories, () => props.state.config.settings.lastCategoryId], ([list, id
   selected.value = list.some(c => c.id === id) ? id : list[0]?.id || '';
 }, { immediate: true });
 watch(selected, revealSelected);
+watch(() => props.state.material, () => { lastShape = ''; scheduleLayout(); });
 watch(() => props.state.config.settings.dockEdge, async () => { await nextTick(); updateLayout(); await revealSelected(); });
 watch([() => props.state.expanded, () => props.state.trayVisible, dimensions, () => props.state.config.settings.dockEdge, () => props.state.bounds?.anchor.x, () => props.state.bounds?.anchor.y, () => props.state.material, () => entries.value.length, () => props.state.config.settings.searchEnabled, query], async () => { await nextTick(); scheduleLayout(); });
 function select(id: string) {

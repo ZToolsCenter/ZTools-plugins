@@ -1,6 +1,8 @@
 'use strict';
 const { defaults, validateConfig, geometry, resolveEntry, SYSTEM_KEYS } = require('./core.cjs');
 const { supportsMaterials, roundedRegions } = require('./appearance.cjs');
+const { createMaterialSurfaces } = require('./material-surfaces.cjs');
+const { validateTriggerImage } = require('./file-actions.cjs');
 const nativeTimers = require('node:timers');
 const { randomUUID } = require('node:crypto');
 
@@ -11,7 +13,8 @@ function createController(api, options = {}) {
   let config = defaults(), error = '', expanded = false, trayVisible = false, pinned = false, disposed = false;
   let trigger = null, panel = null, editor = null, openTimer = null, closeTimer = null, pollTimer = null, topmostTimer = null;
   const materialsSupported = options.materialsSupported ?? supportsMaterials();
-  let panelMaterial = 'solid', panelNeedsReveal = false;
+  let panelMaterial = 'solid';
+  const materialSurfaces = createMaterialSurfaces(api);
   const effectiveMaterial = () => materialsSupported ? config.settings.material : 'solid';
   let bounds = null, lastLayout = '', triggerOffset = { x: 0, y: 0 };
   let panelRegions = [], lastPanelShape = '';
@@ -19,7 +22,7 @@ function createController(api, options = {}) {
   let addition = null, additionId = '';
   let monitorSignature = '', displayCache = [], primaryDisplay, displayInfo = [], maintenanceTicks = 0;
   let dark = Boolean(api.isDarkColors());
-  try { const stored = api.dbStorage.getItem('dock-config-v1'); if (stored) config = validateConfig(stored); }
+  try { const stored = api.dbStorage.getItem('dock-config-v1'); if (stored) { const valid = validateConfig(stored); validateTriggerImage(valid.settings); config = valid; } }
   catch (e) { error = `配置读取失败：${e.message}。可从设置导入备份或恢复默认。`; config.settings.enabled = false; }
 
   function live(win) { return win && !win.isDestroyed(); }
@@ -52,15 +55,16 @@ function createController(api, options = {}) {
     // A peer topmost window can cover an existing topmost window on Windows.
     // Reassert the level and z-order without showing hidden windows or taking keyboard focus.
     // Visibility is owned here; do not query the hidden panel on every maintenance tick.
-    for (const win of expanded ? [panel, trigger] : [trigger]) if (live(win) && !(win === panel && panelNeedsReveal)) {
+    if (expanded) materialSurfaces.raise();
+    for (const win of expanded ? [panel, trigger] : [trigger]) if (live(win)) {
       win.setAlwaysOnTop(true, 'screen-saver');
       win.moveTop();
     }
   }
   function clipTrigger() {
     const actual = trigger.getBounds();
-    triggerOffset = { x: Math.max(0, bounds.trigger.x - actual.x), y: Math.max(0, bounds.trigger.y - actual.y) };
-    trigger.setShape([{ ...triggerOffset, width: bounds.trigger.width, height: bounds.trigger.height }]);
+    triggerOffset = { x: bounds.triggerArt.x-actual.x, y: bounds.triggerArt.y-actual.y };
+    trigger.setShape([{ x: Math.max(0,bounds.trigger.x-actual.x), y: Math.max(0,bounds.trigger.y-actual.y), width: bounds.trigger.width, height: bounds.trigger.height }]);
   }
   function layout() {
     const occupied = new Set(config.entries.map(entry => entry.categoryId));
@@ -69,6 +73,7 @@ function createController(api, options = {}) {
     if (signature !== lastLayout) {
       if (live(trigger)) { trigger.setBounds(bounds.triggerWindow); clipTrigger(); }
       if (live(panel)) panel.setBounds(bounds.panel);
+      materialSurfaces.layout(panelRegions,bounds.panel,expanded,trayVisible);
       lastLayout = signature;
     }
   }
@@ -88,7 +93,8 @@ function createController(api, options = {}) {
     if (signature !== lastPanelShape && live(panel)) {
       panel.setShape(panelMaterial === 'solid' ? regions : roundedRegions(regions)); panelRegions = regions; lastPanelShape = signature;
     }
-    if (panelNeedsReveal) { panelNeedsReveal = false; if (expanded && live(panel)) { panel.showInactive(); maintainTopmost(); } }
+    materialSurfaces.layout(regions, bounds.panel, expanded, trayVisible);
+    maintainTopmost();
     return true;
   }
   function ensureWindows() {
@@ -103,13 +109,12 @@ function createController(api, options = {}) {
       trigger.showInactive(); maintainTopmost();
     }
     const material = effectiveMaterial();
-    if (live(panel) && panelMaterial !== material) { panel.destroy(); panel = null; }
+    panelMaterial = material;
     if (!live(panel)) {
-      panelMaterial = material; panelNeedsReveal = expanded;
-      panel = api.createBrowserWindow('index.html?surface=panel', { ...common, ...bounds.panel, transparent: material === 'solid', ...(material !== 'solid' ? { backgroundMaterial: material } : {}), backgroundColor: '#00000000', hasShadow: false });
+      panel = api.createBrowserWindow('index.html?surface=panel', { ...common, ...bounds.panel, transparent: true, backgroundColor: '#00000000', hasShadow: false });
       resetPanelShape();
-      // Replacement windows are revealed after their renderer reports its first layout.
     }
+    if (materialSurfaces.setMaterial(material,common)) { panelRegions=[];lastPanelShape=''; }
     if (topmostTimer === null) topmostTimer = timers.setInterval(() => {
       try {
         maintainTopmost();
@@ -123,6 +128,7 @@ function createController(api, options = {}) {
   }
   function save(next) {
     const valid = validateConfig(next);
+    if (valid.settings.triggerImage !== config.settings.triggerImage) validateTriggerImage(valid.settings);
     persist(valid);
     config = valid; error = '';
     if (config.settings.enabled) ensureWindows(); else stopWindows();
@@ -139,6 +145,7 @@ function createController(api, options = {}) {
     ['open', 'close', 'poll', 'topmost'].forEach(clear); maintenanceTicks = 0;
     expanded = false; trayVisible = false; pinned = false;
     for (const win of [panel, trigger]) if (live(win)) win.destroy();
+    materialSurfaces.dispose();
     trigger = panel = null; lastLayout = ''; panelRegions = []; lastPanelShape = '';
   }
   function pause() { const next = structuredClone(config); next.settings.enabled = false; return save(next); }
@@ -150,21 +157,22 @@ function createController(api, options = {}) {
     clear('open'); clear('close'); clear('poll');
     if (!expanded && !pinned) return;
     trayVisible = false;
-    if (!force && pinned) { notify('runtime'); return; }
+    if (!force && pinned) { materialSurfaces.layout(panelRegions, bounds.panel, true, false); notify('runtime'); return; }
     expanded = false; if (force) pinned = false;
-    if (live(panel)) panel.hide(); notify('runtime');
+    if (live(panel)) panel.hide(); if (bounds) materialSurfaces.layout(panelRegions, bounds.panel, false, false); notify('runtime');
   }
   function inside(point, rect) { return rect && point.x >= rect.x && point.x < rect.x + rect.width && point.y >= rect.y && point.y < rect.y + rect.height; }
   function expand() {
     generation++;
     clear('open'); clear('close');
     if (expanded && live(panel)) {
-      if (!trayVisible) { trayVisible = true; startCursorPolling(); notify('runtime'); }
+      if (!trayVisible) { trayVisible = true; materialSurfaces.layout(panelRegions,bounds.panel,true,true); maintainTopmost(); startCursorPolling(); notify('runtime'); }
       return true;
     }
     if (!config.settings.enabled || disposed) start(); else ensureWindows();
     expanded = true; trayVisible = true;
-    if (!panelNeedsReveal) panel.showInactive();
+    panel.showInactive();
+    materialSurfaces.layout(panelRegions,bounds.panel,true,true);
     maintainTopmost();
     startCursorPolling();
     notify('runtime'); return true;

@@ -9,7 +9,7 @@ function fixture(exists = false, options = {}) {
   const timers = { setInterval: (fn, ms) => { fn.interval = ms; callbacks.set(++timerId, fn); return timerId; }, clearInterval: id => callbacks.delete(id), setTimeout: fn => { callbacks.set(++timerId, fn); return timerId; }, clearTimeout: id => callbacks.delete(id) };
   const display = { id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 } };
   const api = { dbStorage: { getItem: () => stored, setItem: (_key, v) => { if (fail) throw new Error('disk full'); stored = structuredClone(v); } }, getAllDisplays: () => [display], getPrimaryDisplay: () => display, getCursorScreenPoint: () => ({ x: 0, y: 0 }), isDarkColors: () => false,
-    createBrowserWindow: (url, options) => { const w = { url, id: wins.length + 1, gone: false, visible: false, topmost: options.alwaysOnTop, raised: 0, focused: 0, webContents: { id: wins.length + 100, send() {} }, isDestroyed() { return this.gone; }, destroy() { this.gone = true; }, hide() { this.visible = false; }, isVisible() { return this.visible; }, showInactive() { this.visible = true; }, show() { this.visible = true; }, focus() { this.focused++; }, setAlwaysOnTop(flag,level) { this.topmost = flag; this.level = level; }, moveTop() { this.raised++; }, isMinimized() { return false; }, setBounds(b) { this.bounds = b; }, getBounds() { return this.bounds; }, setShape(rects) { this.shape = rects; }, ...{ bounds: options } }; wins.push(w); return w; },
+    createBrowserWindow: (url, options) => { const w = { url, id: wins.length + 1, gone: false, visible: false, topmost: options.alwaysOnTop, raised: 0, focused: 0, webContents: { id: wins.length + 100, send() {} }, isDestroyed() { return this.gone; }, destroy() { this.gone = true; }, hide() { this.visible = false; }, isVisible() { return this.visible; }, showInactive() { this.visible = true; }, show() { this.visible = true; }, focus() { this.focused++; }, setIgnoreMouseEvents(value) { this.ignoreMouse = value; }, setAlwaysOnTop(flag,level) { this.topmost = flag; this.level = level; }, moveTop() { this.raised++; }, isMinimized() { return false; }, setBounds(b) { this.bounds = b; }, getBounds() { return this.bounds; }, setShape(rects) { this.shape = rects; }, ...{ bounds: options } }; wins.push(w); return w; },
     getPath: key => `C:\\${key}`, shellOpenPath: () => ({ success: true }), redirect: () => false, hideMainWindow() {}, showMainWindow() {}
   };
   const create = api.createBrowserWindow;
@@ -28,17 +28,18 @@ function fixture(exists = false, options = {}) {
   return { controller, api, wins, callbacks, calls, messages, setFail: () => { fail = true; } };
 }
 
-test('原生材质切换只复建面板，保持展开钉住，重复保存不复建；不支持系统退回纯色', () => {
-  const f=fixture(false,{materialsSupported:true});f.controller.init();f.controller.expand();f.controller.pin();
-  const trigger=f.wins[0],panel=f.wins[1],c=f.controller.snapshot().config;c.settings.material='mica';
-  f.controller.save(c);const next=f.wins[2];
-  assert.equal(panel.gone,true);assert.equal(trigger.gone,false);assert.equal(next.bounds.backgroundMaterial,'mica');assert.equal(next.bounds.transparent,false);
-  assert.deepEqual(next.shape,[{x:0,y:0,width:1,height:1}]);assert.equal(next.visible,false);assert.equal(f.controller.snapshot().pinned,true);assert.equal(f.controller.snapshot().trayVisible,true);
-  f.controller.panelLayout([{x:100,y:0,width:200,height:66},{x:40,y:66,width:392,height:220}]);
-  assert.equal(next.visible,true);assert.ok(next.shape.length>2);assert.ok(next.shape.every(r=>r.x>=40));
-  f.controller.save(c);assert.equal(f.wins.length,3);f.controller.dispose();
-  const old=fixture(false,{materialsSupported:false});const config=defaults();config.settings.material='acrylic';old.controller.save(config);
-  assert.equal(old.controller.snapshot().material,'solid');assert.equal(old.wins[1].bounds.transparent,true);assert.equal(old.controller.snapshot().config.settings.material,'acrylic');old.controller.dispose();
+test('原生材质仅创建贴合组件的背景窗，主画布保持透明并复用；不支持系统回退纯色',()=>{
+ const f=fixture(false,{materialsSupported:true});f.controller.init();f.controller.expand();f.controller.pin();
+ const panel=f.wins[1],c=f.controller.snapshot().config;c.settings.material='mica';f.controller.save(c);
+ assert.equal(f.wins.length,4);assert.equal(panel.gone,false);assert.equal(panel.bounds.transparent,true);
+ assert.ok(f.wins.slice(2).every(w=>w.bounds.backgroundMaterial==='mica'&&w.ignoreMouse));
+ const rects=[{x:100,y:0,width:200,height:66},{x:40,y:66,width:392,height:220}];f.controller.panelLayout(rects);
+ const origin=f.controller.snapshot().bounds.panel;
+ assert.deepEqual(f.wins[2].bounds,{x:origin.x+100,y:origin.y,width:200,height:66});assert.equal(f.wins[3].visible,true);
+ assert.equal(f.controller.snapshot().pinned,true);assert.ok(panel.shape.length>2);
+ f.controller.collapse(false);assert.equal(f.wins[2].visible,true);assert.equal(f.wins[3].visible,false);
+ f.controller.save(c);assert.equal(f.wins.length,4);f.controller.dispose();assert.ok(f.wins.every(w=>w.gone));
+ const old=fixture(false,{materialsSupported:false});old.controller.save(c);assert.equal(old.wins.length,2);assert.equal(old.controller.snapshot().material,'solid');old.controller.dispose();
 });
 
 test('展开收起复用窗口布局且不广播入口全集；重复展开无额外状态更新', () => {
