@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import ChannelBrowser from './components/ChannelBrowser.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 import DisclaimerDialog from './components/DisclaimerDialog.vue'
 import HistoryList from './components/HistoryList.vue'
 import PlaybackDetails from './components/PlaybackDetails.vue'
@@ -13,17 +14,19 @@ import type { PlaybackRequest, Result } from './types'
 
 const input = ref('')
 const navigation = [
-  { key: 'home', label: '首页' },
   { key: 'movie', label: '电影' },
   { key: 'tv', label: '电视剧' },
   { key: 'anime', label: '动漫' },
 ] as const
 type NavigationKey = (typeof navigation)[number]['key']
-const channel = ref<NavigationKey>('home')
+// 打开插件直接进入电影频道。
+const channel = ref<NavigationKey>('movie')
 const channelLabel = computed(() => navigation.find(item => item.key === channel.value)?.label ?? '')
 const searchInput = ref<HTMLInputElement | null>(null)
 const results = ref<Result[]>([])
 const searched = ref(false)
+// 有搜索词时用搜索结果覆盖频道列表。
+const showingResults = computed(() => searched.value && (results.value.length > 0 || Boolean(busy.value) || Boolean(error.value)))
 // browse 是搜索/频道页，history 是播放记录页。
 const view = ref<'browse' | 'history'>('browse')
 const previewPlayback = ref<PlaybackRequest>()
@@ -49,17 +52,23 @@ function showBrowse() {
   busy.value = ''
   error.value = ''
   windowError.value = ''
-  void nextTick(() => {
-    if (channel.value === 'home') searchInput.value?.focus({ preventScroll: true })
-    window.scrollTo(0, browseScroll)
-  })
+  void nextTick(() => window.scrollTo(0, browseScroll))
 }
 
+/**
+ * 切换频道，同时清掉搜索结果，回到频道列表。
+ * @param key 目标频道。
+ */
 function switchChannel(key: NavigationKey) {
-  if (channel.value === key && !previewPlayback.value && view.value === 'browse') return
+  const sameChannel = channel.value === key && !previewPlayback.value && view.value === 'browse'
+  if (sameChannel && !searched.value) return
   if (channel.value !== key) browseScroll = 0
   channel.value = key
   view.value = 'browse'
+  // 切频道视为放弃当前搜索，回到该频道的列表。
+  searched.value = false
+  results.value = []
+  input.value = ''
   showBrowse()
 }
 
@@ -116,13 +125,29 @@ function refreshHistory() {
   history.value = readHistory(true)
 }
 
+// 删除是破坏性操作，先弹窗确认再执行。
+const pendingDelete = ref<{ key: string; title: string } | null>(null)
+const pendingClear = ref(false)
+
 function forget(key: string) {
-  removeHistory(key)
-  refreshHistory()
+  const entry = history.value.find(item => item.key === key)
+  pendingDelete.value = { key, title: entry?.title || '这条记录' }
 }
 
 function forgetAll() {
+  pendingClear.value = true
+}
+
+function confirmDelete() {
+  if (!pendingDelete.value) return
+  removeHistory(pendingDelete.value.key)
+  pendingDelete.value = null
+  refreshHistory()
+}
+
+function confirmClear() {
   clearHistory()
+  pendingClear.value = false
   refreshHistory()
 }
 
@@ -138,10 +163,9 @@ function confirmDisclaimer() {
 
 async function submit() {
   const query = input.value.trim()
-  channel.value = 'home'
   view.value = 'browse'
   browseScroll = 0
-  // 清空输入并提交后回到初始页。
+  // 清空输入并提交后回到频道列表。
   if (!query) {
     searched.value = false
     results.value = []
@@ -170,9 +194,15 @@ async function submit() {
   }
 }
 
-function example(query: string) {
-  input.value = query
-  void submit()
+/**
+ * 清空搜索，回到当前频道的列表。
+ */
+function clearSearch() {
+  input.value = ''
+  searched.value = false
+  results.value = []
+  showBrowse()
+  void nextTick(() => searchInput.value?.focus({ preventScroll: true }))
 }
 
 // 播放窗口在独立进程里写入记录，靠 preload 的中继消息通知主窗口。
@@ -214,9 +244,16 @@ onBeforeUnmount(() => {
       <div class="topbar-row">
         <nav class="channel-nav" aria-label="影视频道">
           <button v-for="item in navigation" :key="item.key" type="button"
-            :aria-current="channel === item.key && view === 'browse' ? 'page' : undefined"
+            :aria-current="channel === item.key && view === 'browse' && !showingResults ? 'page' : undefined"
             @click="switchChannel(item.key)">{{ item.label }}</button>
         </nav>
+        <form v-if="view === 'browse'" class="search-form topbar-search" role="search" @submit.prevent="submit">
+          <label class="searchbox">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5" stroke="currentColor" stroke-width="1.7"/><path d="m15 15 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <input ref="searchInput" v-model="input" type="search" aria-label="片名或播放链接" autocomplete="off" spellcheck="false"
+              placeholder="搜索片名或粘贴链接，回车确认" maxlength="8192" @keydown.enter.prevent="submit">
+          </label>
+        </form>
         <button type="button" class="icon-button history-toggle" :class="{ active: view === 'history' }"
           :aria-label="view === 'history' ? '返回浏览' : '播放记录'" :aria-pressed="view === 'history'"
           :title="view === 'history' ? '返回浏览' : '播放记录'" @click="showHistory(view === 'history' ? 'browse' : 'history')">
@@ -227,36 +264,26 @@ onBeforeUnmount(() => {
           <span v-if="history.length" class="history-count">{{ history.length > 99 ? '99+' : history.length }}</span>
         </button>
       </div>
-      <form v-if="channel === 'home' && view === 'browse'" class="search-form" role="search" @submit.prevent="submit">
-        <label class="searchbox">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.5" stroke="currentColor" stroke-width="1.7"/><path d="m15 15 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-          <input ref="searchInput" v-model="input" type="search" aria-label="片名或播放链接" autocomplete="off" spellcheck="false"
-            placeholder="片名或播放链接" maxlength="8192">
-        </label>
-        <button class="primary" type="submit">搜索 / 播放</button>
-      </form>
     </header>
 
     <div v-if="windowError" class="state-panel failure playback-window-error" role="alert">{{ windowError }}</div>
 
-    <section v-if="!previewPlayback && view === 'browse' && channel === 'home'" class="content" aria-label="影视搜索">
+    <!-- 搜索结果覆盖频道列表；清空或切频道后回到频道。 -->
+    <section v-if="!previewPlayback && view === 'browse' && showingResults" class="content" aria-label="搜索结果">
       <div v-if="busy || error" class="state-panel" :class="{ failure: error }" role="status">
         <span v-if="busy" class="spinner" aria-hidden="true"></span><span>{{ error || busy }}</span>
         <button v-if="error && input" class="secondary" type="button" @click="submit">重试</button>
       </div>
-      <template v-else-if="results.length">
-        <div class="section-heading results-heading"><h2>搜索结果</h2><span>{{ results.length }} 部</span></div>
-        <ResultList :results="results" @open="result => openResult(result.v, result.title, result.cover)" />
+      <template v-else>
+        <div class="section-heading results-heading">
+          <h2>搜索结果<span>{{ results.length }} 部</span></h2>
+          <button type="button" class="link-button" @click="clearSearch">返回{{ channelLabel }}</button>
+        </div>
+        <ResultList v-if="results.length" :results="results" @open="result => openResult(result.v, result.title, result.cover)" />
+        <div v-else class="empty">
+          <h2>没有找到相关影片</h2><p>试试更短的片名或别名。</p>
+        </div>
       </template>
-      <div v-else-if="searched" class="empty">
-        <h2>没有找到相关影片</h2><p>试试更短的片名或别名。</p>
-      </div>
-      <div v-else class="empty">
-        <div class="empty-icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none"><path d="m11 9 8 5-8 5V9Z" fill="currentColor"/><rect x="3" y="3" width="22" height="22" rx="7" stroke="currentColor" stroke-width="1.5"/></svg></div>
-        <h2>搜索片名，或粘贴链接播放</h2>
-        <p>支持 4K 影视播放页、MP4 和 M3U8 链接。</p>
-        <div class="examples"><button class="secondary" type="button" @click="example('三国')">三国</button><button class="secondary" type="button" @click="example('绝命毒师')">绝命毒师</button></div>
-      </div>
     </section>
 
     <section v-if="!previewPlayback && view === 'history'" class="content history-page" aria-label="播放记录">
@@ -273,10 +300,17 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <ChannelBrowser v-show="!previewPlayback && view === 'browse' && channel !== 'home'"
-      :channel="channel === 'home' ? null : channel" :label="channelLabel" @open="result => openResult(result.v, result.title, result.cover)" />
+    <ChannelBrowser v-show="!previewPlayback && view === 'browse' && !showingResults"
+      :channel="channel" :label="channelLabel" @open="result => openResult(result.v, result.title, result.cover)" />
 
     <PlaybackDetails v-if="previewPlayback" :request="previewPlayback" inline @back="showBrowse" />
+
+    <ConfirmDialog v-if="pendingDelete" title="删除播放记录"
+      :message="`确定删除「${pendingDelete.title}」的播放记录吗？删除后无法恢复。`"
+      @confirm="confirmDelete" @cancel="pendingDelete = null" />
+    <ConfirmDialog v-if="pendingClear" title="清空播放记录"
+      :message="`确定清空全部 ${history.length} 条播放记录吗？删除后无法恢复。`"
+      confirm-text="清空" @confirm="confirmClear" @cancel="pendingClear = false" />
 
     <DisclaimerDialog v-if="showDisclaimer" @accept="confirmDisclaimer" />
   </main>

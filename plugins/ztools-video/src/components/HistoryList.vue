@@ -24,7 +24,7 @@ function detail(entry: HistoryEntry) {
  */
 function actionText(entry: HistoryEntry) {
   if (entry.duration > 0 && entry.position > 0) {
-    return `继续观看 · 还剩 ${formatDuration(entry.duration - entry.position)}`
+    return `还剩 ${formatDuration(entry.duration - entry.position)}`
   }
   return entry.position > 0 ? '继续观看' : '开始观看'
 }
