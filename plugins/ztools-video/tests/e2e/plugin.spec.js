@@ -244,7 +244,8 @@ async function withPlugin(testInfo, { fixture = false, dismissDisclaimer = true,
     expect(inspection.width).toBeGreaterThan(0)
     expect(inspection.height).toBeGreaterThan(0)
     expect(inspection.nonBackgroundPixels).toBeGreaterThan(50)
-    expect(inspection.text).toContain('搜索片名，或粘贴链接播放')
+    // 打开插件直接进入电影频道，不再有首页。
+    expect(inspection.text).toContain('电影')
     if (process.env.ZTOOLS_E2E_EXPECTED_TEXT) {
       expect(inspection.text).toContain(process.env.ZTOOLS_E2E_EXPECTED_TEXT)
     }
@@ -281,7 +282,8 @@ async function withPlugin(testInfo, { fixture = false, dismissDisclaimer = true,
         return this.windows()[0]
       },
     }
-    await check?.(run, capture, setZoom, player)
+    // 截图用例需要直接拿到两个页面的地址与宿主实例。
+    await check?.(run, capture, setZoom, player, { electronApp, mainUrl: expectedUrl, playerUrl })
   } finally {
     // 无论断言是否成功，都释放测试实例并删除本次创建的数据目录。
     await electronApp?.close()
@@ -327,10 +329,12 @@ test('首屏与检索：安装、免责声明、搜索、选集、频道、窄�
     await expect.poll(() => run(`Boolean(document.querySelector('.disclaimer'))`)).toBe(false)
     expect(await run(`ztools.dbStorage.getItem('disclaimer-accepted')`)).toBe(true)
 
-    // 首页结构与频道切换。
-    expect(await run(`document.querySelector('.channel-nav [aria-current="page"]').textContent`)).toBe('首页')
-    expect(await run(`Boolean(document.querySelector('form[role="search"]'))`)).toBe(true)
-    for (const [label, heading] of [['电影', '最新上架'], ['电视剧', '最近更新'], ['动漫', '正在连载']]) {
+    // 打开即进入电影频道，顶栏带搜索框，没有首页入口。
+    expect(await run(`document.querySelector('.channel-nav [aria-current="page"]').textContent`)).toBe('电影')
+    expect(await run(`document.querySelectorAll('.channel-nav button').length`)).toBe(3)
+    expect(await run(`Boolean(document.querySelector('.topbar-row form[role="search"]'))`)).toBe(true)
+    await expect.poll(() => run(`document.querySelector('.channel-browser h2')?.textContent`), { timeout: 30_000 }).toBe('最新上架')
+    for (const [label, heading] of [['电视剧', '最近更新'], ['动漫', '正在连载']]) {
       await clickChannel(run, label)
       await expect.poll(() => run(`document.querySelector('.channel-browser h2')?.textContent`)).toBe(heading)
       expect(await run(`document.querySelector('.channel-nav [aria-current="page"]').textContent`)).toBe(label)
@@ -355,7 +359,7 @@ test('首屏与检索：安装、免责声明、搜索、选集、频道、窄�
       return innerWidth <= 365 && lastTab.width > 0 && lastTab.right <= innerWidth && firstPoster.right <= innerWidth;
     })()`)).toBe(true)
     await capture('narrow-channel')
-    await clickChannel(run, '首页')
+    await clickChannel(run, '电影')
 
     // 搜索、选集：结果卡片打开播放窗口，并能在窗口内切集。
     await submit(run, '测试影片')
@@ -502,7 +506,8 @@ test('播放记录：封面、进度、续播、删除', async ({}, testInfo) =>
     expect(await run(`document.querySelector('.history-card img')?.getAttribute('src')`)).toMatch(/\/cover\.png$/)
     expect(await run(`document.querySelector('.history-detail').textContent`)).toContain('第 2 集')
     expect(await run(`document.querySelector('.history-detail').textContent`)).toContain('已看 00:0')
-    expect(await run(`document.querySelector('.history-action').textContent`)).toContain('继续观看')
+    // 第三行显示剩余时长，可据此判断能续播。
+    expect(await run(`document.querySelector('.history-action').textContent`)).toContain('还剩')
     expect(await run(`document.querySelector('.history-bar span')?.style.width`)).not.toBe('')
     expect(await run(`document.querySelector('.history-toggle').getAttribute('aria-pressed')`)).toBe('true')
 
@@ -515,12 +520,52 @@ test('播放记录：封面、进度、续播、删除', async ({}, testInfo) =>
       .toBeGreaterThan(5.5)
     await resumedWindow.close()
 
-    // 主窗口仍停在记录页，直接删除，列表清空并显示空状态。
+    // 主窗口仍停在记录页。删除要先确认，取消则记录保留。
     await expect.poll(() => run(`Boolean(document.querySelector('.history-remove'))`)).toBe(true)
     await run(`document.querySelector('.history-remove').click()`)
+    await expect.poll(() => run(`document.querySelector('.dialog')?.innerText || ''`)).toContain('删除播放记录')
+    expect(await run(`document.querySelector('.dialog p').textContent`)).toContain('测试影片')
+    await run(`document.querySelector('.dialog .secondary').click()`)
+    await expect.poll(() => run(`Boolean(document.querySelector('.dialog'))`)).toBe(false)
+    expect(await run(`document.querySelectorAll('.history-card').length`)).toBe(1)
+
+    // 再次删除并确认，列表清空并显示空状态。
+    await run(`document.querySelector('.history-remove').click()`)
+    await expect.poll(() => run(`Boolean(document.querySelector('.dialog-danger'))`)).toBe(true)
+    await run(`document.querySelector('.dialog-danger').click()`)
     await expect.poll(() => run(`Boolean(document.querySelector('.history-grid'))`)).toBe(false)
     expect(await run(`document.querySelector('.empty h2').textContent`)).toBe('还没有播放记录')
     expect(await run(`Boolean(document.querySelector('.history-count'))`)).toBe(false)
+
+    // 记录已清空，现在停在记录页；先回到浏览页再搜索。
+    await run(`document.querySelector('.history-toggle').click()`)
+    await expect.poll(() => run(`Boolean(document.querySelector('input[type="search"]'))`)).toBe(true)
+    // 再播一部产生一条新记录，用来验证「清空」的确认流程。
+    await submit(run, '测试影片')
+    await expect.poll(() => run(`Boolean(document.querySelector('.result-card'))`)).toBe(true)
+    await run(`document.querySelector('.result-card').click()`)
+    await player.window()
+    await expect.poll(() => player.run(videoReady), { timeout: 30_000 }).toBe(true)
+    await player.run(`(() => { const v = document.querySelector('video'); v.currentTime = 6; void v.play().catch(() => {}) })()`)
+    await expect.poll(() => player.run('document.querySelector("video").currentTime')).toBeGreaterThan(6.2)
+    await player.window().then(w => w.close())
+    await expect.poll(() => player.windows().length).toBe(0)
+    await submit(run, '')
+    await run(`document.querySelector('.history-toggle').click()`)
+    await expect.poll(() => run(`document.querySelectorAll('.history-card').length`)).toBe(1)
+    await run(`[...document.querySelectorAll('.link-button')].find(n => n.textContent.includes('清空')).click()`)
+    await expect.poll(() => run(`document.querySelector('.dialog')?.innerText || ''`)).toContain('清空播放记录')
+    expect(await run(`document.querySelector('.dialog p').textContent`)).toContain('1 条')
+    // Esc 关闭，记录保留。
+    await run(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+    await expect.poll(() => run(`Boolean(document.querySelector('.dialog'))`)).toBe(false)
+    expect(await run(`document.querySelectorAll('.history-card').length`)).toBe(1)
+    // 再确认一次，记录被清空。
+    await run(`[...document.querySelectorAll('.link-button')].find(n => n.textContent.includes('清空')).click()`)
+    await expect.poll(() => run(`Boolean(document.querySelector('.dialog-danger'))`)).toBe(true)
+    await run(`document.querySelector('.dialog-danger').click()`)
+    await expect.poll(() => run(`document.querySelectorAll('.history-card').length`)).toBe(0)
+    expect(await run(`ztools.dbStorage.getItem('playback-history').length`)).toBe(0)
   } })
 })
 
@@ -534,7 +579,7 @@ test('实际线路：MP4 与带 PNG 前缀的 HLS', async ({}, testInfo) => {
       expect(await run(`document.querySelectorAll('.channel-browser .result-card').length`)).toBeGreaterThan(0)
       if (label === '电影') await capture('movie-channel')
     }
-    await clickChannel(run, '首页')
+    // 搜索会覆盖当前频道，不再需要切回首页。
     // 《三国》的 CDN 在部分网络下只有 206 却读不到数据，改用响应正常的影片。
     await submit(run, '野兽之心')
     await expect.poll(() => run(`[...document.querySelectorAll('.result-card')].some(node => node.textContent.includes('野兽之心'))`), { timeout: 30_000 }).toBe(true)
@@ -552,5 +597,66 @@ test('实际线路：MP4 与带 PNG 前缀的 HLS', async ({}, testInfo) => {
     await expect.poll(() => player.run(videoReady), { timeout: 40_000 }).toBe(true)
     await verifyPlaybackProgress(player.run)
     await player.capture('hls-png-playing')
+  } })
+})
+
+test('生成 README 截图', async ({}, testInfo) => {
+  test.skip(process.env.ZTOOLS_VIDEO_SHOTS !== '1', '仅在需要刷新 README 截图时运行')
+  test.setTimeout(300_000)
+  const outDir = path.resolve(projectRoot, 'docs/screenshots')
+  const save = async (electronApp, url, name) => {
+    const png = await electronApp.evaluate(async ({ webContents }, targetUrl) => {
+      const contents = webContents.getAllWebContents().find(item => item.getURL() === targetUrl)
+      if (!contents) throw new Error('找不到目标页面')
+      const image = await contents.capturePage()
+      return image.toPNG().toString('base64')
+    }, url)
+    await fs.mkdir(outDir, { recursive: true })
+    await fs.writeFile(path.join(outDir, `${name}.png`), Buffer.from(png, 'base64'))
+    console.log('已保存 docs/screenshots/' + name + '.png')
+  }
+  await withPlugin(testInfo, { check: async (run, _capture, _setZoom, player, ctx) => {
+    const { electronApp, mainUrl, playerUrl } = ctx
+    // 首页搜索结果
+    await submit(run, '凡人修仙传')
+    await expect.poll(() => run(`document.querySelectorAll('.result-card').length`), { timeout: 40_000 }).toBeGreaterThan(0)
+    await save(electronApp, mainUrl, 'home')
+
+    // 播放窗口
+    await run(`document.querySelector('.result-card').click()`)
+    const w = await player.window()
+    await expect.poll(() => player.run(videoReady), { timeout: 60_000 }).toBe(true)
+    await player.run(`(() => { const v = document.querySelector('video'); v.currentTime = 30; void v.play().catch(()=>{}) })()`)
+    await w.waitForTimeout(6000)
+    const box = await w.locator('.dplayer').boundingBox()
+    await w.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await w.waitForTimeout(900)
+    await save(electronApp, playerUrl, 'player')
+    await w.close()
+
+    // 播放记录页
+    await run(`(() => {
+      ztools.dbStorage.setItem('playback-history', [
+        { key: 'catalog:cgzq7f3tf', kind: 'catalog', title: '凡人修仙传', v: 'cgzq7f3tf', episodeV: 'cgzq7f3tf', episodeNumber: 20, episodeLine: 1, position: 1420, duration: 2488, cover: 'https://gimg0.baidu.com/gimg/app=2001&n=0&g=0n&fmt=jpeg&src=4kvm.staticimgjs.org/uploads/2022/04/bb14k2AyChUVSJiFqd8wd2fQ4U8-250x350.jpg', updatedAt: Date.now() },
+        { key: 'catalog:ch4napyc1', kind: 'catalog', title: '无间兄弟情', v: 'ch4napyc1', episodeV: 'ch4napyc1', episodeNumber: 3, episodeLine: 1, position: 900, duration: 2700, cover: 'https://gimg0.baidu.com/gimg/app=2001&n=0&g=0n&fmt=jpeg&src=4kvm.staticimgjs.org/uploads/2026/10/douban_1791269022-300x450.jpg', updatedAt: Date.now() - 60000 }
+      ]);
+      return true
+    })()`)
+    await run(`document.querySelector('.history-toggle').click()`)
+    await expect.poll(() => run(`document.querySelectorAll('.history-card').length`)).toBe(2)
+    // 等所有封面图片都加载完再截图，避免截到占位图标。
+    await expect.poll(() => run(`(() => {
+      const images = [...document.querySelectorAll('.history-card img')];
+      return images.length > 0 && images.every(img => img.complete && img.naturalWidth > 0);
+    })()`), { timeout: 25_000 }).toBe(true)
+    await save(electronApp, mainUrl, 'history')
+
+    // 频道页
+    await run(`document.querySelector('.history-toggle').click()`)
+    await clickChannel(run, '电影')
+    await expect.poll(() => run(`document.querySelectorAll('.poster-list .result-card').length`), { timeout: 40_000 }).toBeGreaterThan(0)
+    // 等海报图加载完，避免截到占位图标。
+    await run('new Promise(resolve => setTimeout(resolve, 3000))')
+    await save(electronApp, mainUrl, 'channels')
   } })
 })

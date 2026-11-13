@@ -1,6 +1,6 @@
 {
   "name": "ztools-video",
-  "version": "1.10.0",
+  "version": "1.12.0",
   "description": "搜索 4K 影视并播放 MP4 与 HLS 视频",
   "type": "module",
   "scripts": {

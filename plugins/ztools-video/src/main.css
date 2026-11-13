@@ -33,6 +33,7 @@ button:disabled { opacity: .42; cursor: default; }
 h1, h2, h3, p { margin: 0; }
 .shell { max-width: 1200px; margin: auto; padding: 14px 20px 20px; }
 .topbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding-bottom: 13px; border-bottom: 1px solid var(--line); }
+.topbar-row { gap: 10px; }
 .topbar-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .channel-nav { display: flex; gap: 4px; justify-self: start; padding: 3px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
 .channel-nav button { border: 0; border-radius: 7px; min-height: 32px; padding: 4px 13px; white-space: nowrap; background: transparent; color: var(--muted); }
@@ -42,7 +43,10 @@ h1, h2, h3, p { margin: 0; }
 .icon-button:hover { border-color: var(--accent); color: var(--active-ink); background: var(--soft); }
 .icon-button.active { border-color: var(--accent); color: var(--active-ink); background: var(--soft); }
 .icon-button svg { width: 19px; height: 19px; }
-.history-toggle { margin-left: auto; }
+/* 搜索框和记录图标一起靠右，频道标签留在左侧。 */
+.topbar-search { flex: 0 1 300px; min-width: 0; margin-left: auto; }
+.topbar-search .searchbox { flex: 1; min-width: 0; padding-right: 9px; }
+.history-toggle { flex: none; }
 .history-count { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums; }
 .search-form { display: flex; gap: 8px; min-width: 0; }
 .searchbox { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; min-width: 0; flex: 1; padding: 0 10px; }
@@ -64,7 +68,7 @@ h1, h2, h3, p { margin: 0; }
 .examples { display: flex; gap: 7px; margin-top: 12px; }
 .examples .secondary { border-radius: 100px; padding: 4px 12px; font-size: 12px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.section-heading h2 { font-size: 15px; }
+.section-heading h2 { font-size: 15px; display: flex; align-items: baseline; gap: 7px; }
 .section-heading span, .section-heading small { color: var(--muted); font-weight: 500; font-size: 12px; }
 .results-heading { margin-bottom: 9px; }
 .result-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 214px), 1fr)); gap: 9px; }
@@ -83,16 +87,18 @@ h1, h2, h3, p { margin: 0; }
 .page-heading { margin-bottom: 12px; }
 .page-heading h2 { display: flex; align-items: baseline; gap: 7px; }
 .page-heading h2 span { color: var(--muted); font-size: 12px; font-weight: 500; }
-.history-grid { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 132px), 1fr)); gap: 12px; }
+/* 与电影/电视剧/动漫的海报网格保持同一列宽和间距，封面尺寸才一致。 */
+.history-grid { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 112px), 1fr)); gap: 10px; }
 .history-item { position: relative; }
 .history-card { width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 0; overflow: hidden; display: flex; flex-direction: column; text-align: left; }
 .history-card:hover { border-color: var(--accent); background: var(--panel); }
 .history-card .cover { flex: none; width: 100%; height: auto; aspect-ratio: 2 / 3; border-radius: 0; }
-.history-card .cover svg { width: 30px; height: 30px; }
-.history-copy { display: grid; gap: 2px; padding: 8px 9px 9px; min-width: 0; }
-.history-title { font-weight: 660; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-card .cover svg { width: 33px; height: 33px; }
+.history-copy { display: grid; gap: 2px; padding: 7px 8px 8px; min-width: 0; }
+.history-title { font-weight: 660; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-detail { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.history-action { color: var(--active-ink); font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 卡片较窄，允许换行以便完整显示剩余时长，不用省略号。 */
+.history-action { color: var(--active-ink); font-size: 11px; font-weight: 600; line-height: 1.35; }
 .history-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #00000066; }
 .history-bar span { display: block; height: 100%; background: var(--accent); }
 .history-remove { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border: 0; border-radius: 50%; background: #0d1524b8; color: #e6edf9; display: grid; place-items: center; opacity: .55; transition: opacity .15s; }
@@ -145,7 +151,13 @@ h1, h2, h3, p { margin: 0; }
 .episode-grid button[aria-current] { font-weight: 750; }
 .pager { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-top: 9px; color: var(--muted); font-size: 11px; }
 .pager button { padding: 3px 5px; }
-.disclaimer-mask { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: #0b1220cc; backdrop-filter: blur(2px); }
+.disclaimer-mask, .dialog-mask { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: #0b1220cc; backdrop-filter: blur(2px); }
+.dialog { width: 100%; max-width: 340px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 18px; display: grid; gap: 10px; }
+.dialog h2 { font-size: 16px; }
+.dialog p { color: var(--muted); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.dialog-danger { border: 1px solid transparent; background: var(--alert); color: #fff; border-radius: 8px; font-weight: 620; padding: 7px 12px; white-space: nowrap; }
+.dialog-danger:hover { filter: brightness(.94); }
 .disclaimer { width: 100%; max-width: 460px; max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 20px; display: grid; gap: 12px; }
 .disclaimer h2 { font-size: 17px; }
 .disclaimer-body { display: grid; gap: 9px; color: var(--muted); font-size: 13px; line-height: 1.6; }
@@ -164,7 +176,7 @@ h1, h2, h3, p { margin: 0; }
   .watch-grid.with-episodes { grid-template-columns: minmax(0, 1fr); }
   .episode-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
   .poster-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 96px), 1fr)); gap: 8px; }
-  .history-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 104px), 1fr)); gap: 9px; }
+  .history-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 96px), 1fr)); gap: 8px; }
 }
 @media (max-width: 365px) {
   .channel-nav { justify-self: stretch; }
