@@ -320,6 +320,9 @@ export function createZToolsHistoryCoordinator(environment: HistoryCoordinatorEn
               storeLocalBlob: (bytes, mediaType) => syncRepository.storeLocalBlob(bytes, mediaType),
             });
           },
+          onDuplicatePromoted: async (promotedRecord) => {
+            await listOrderStore.promoteAllScope(promotedRecord.item.id);
+          },
         });
       } catch (error) {
         try {

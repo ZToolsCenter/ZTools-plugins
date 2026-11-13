@@ -74,6 +74,41 @@ export class ZToolsListOrderStore {
     }
   }
 
+  async promoteAllScope(itemId: string): Promise<Record<string, string[]> | undefined> {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      let current: unknown;
+      try {
+        current = await this.database.get(LIST_ORDER_ID);
+      } catch (error) {
+        if (isDatabaseStatus(error, 404)) return undefined;
+        throw error;
+      }
+      const revision = isRecord(current) && typeof current._rev === "string"
+        ? current._rev
+        : undefined;
+      const orders = ordersFromDocument(current);
+      const currentAll = orders.all;
+      if (currentAll === undefined || currentAll.length === 0 || currentAll[0] === itemId) {
+        return undefined;
+      }
+      const index = currentAll.indexOf(itemId);
+      if (index === -1) return undefined;
+      orders.all = [itemId, ...currentAll.slice(0, index), ...currentAll.slice(index + 1)];
+      try {
+        await this.database.put({
+          _id: LIST_ORDER_ID,
+          ...(revision === undefined ? {} : { _rev: revision }),
+          type: "pasteboard-pro-list-orders",
+          orders,
+        });
+        return structuredClone(orders);
+      } catch (error) {
+        if (!isDatabaseStatus(error, 409) || attempt === 2) throw error;
+      }
+    }
+    return undefined;
+  }
+
   async put(scopeInput: string, itemIdsInput: readonly string[]): Promise<Record<string, string[]>> {
     const scope = normalizedScope(scopeInput);
     const itemIds = normalizedItemIds(itemIdsInput);

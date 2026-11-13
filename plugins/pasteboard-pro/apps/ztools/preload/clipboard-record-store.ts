@@ -17,7 +17,12 @@ import {
   rememberRecord,
   recordDocumentFor,
 } from "./record-index";
-import { isRecord, storedRecord } from "./clipboard-record-codec";
+import {
+  compareRecordsByActivity,
+  isRecord,
+  recordActivityTime,
+  storedRecord,
+} from "./clipboard-record-codec";
 import type { StoredRecordDocument } from "./clipboard-record-codec";
 import { storedCursor } from "./clipboard-host-normalization";
 import {
@@ -63,13 +68,19 @@ export class ClipboardRecordStore implements CanonicalClipboardStore {
     this.imageRetries = new MirrorImageRetryJournal(database, this.deviceId, this.ready);
   }
 
-  async findByFingerprint(fingerprint: string): Promise<PasteItem | undefined> {
+  async findRecordByFingerprint(
+    fingerprint: string,
+  ): Promise<CanonicalClipboardRecord | undefined> {
     await this.ready;
     const document = await getOptionalDocument(
       this.database,
       this.recordDocumentId(fingerprint),
     );
-    return storedRecord(document)?.item;
+    return storedRecord(document);
+  }
+
+  async findByFingerprint(fingerprint: string): Promise<PasteItem | undefined> {
+    return (await this.findRecordByFingerprint(fingerprint))?.item;
   }
 
   async put(record: CanonicalClipboardRecord): Promise<void> {
@@ -100,6 +111,7 @@ export class ClipboardRecordStore implements CanonicalClipboardStore {
                 item.kind !== "pdf" &&
                 item.kind !== "files",
             } as const),
+      ...(current?.activityAt === undefined ? {} : { activityAt: current.activityAt }),
     });
   }
 
@@ -125,6 +137,7 @@ export class ClipboardRecordStore implements CanonicalClipboardStore {
               blobBytes,
               pluginBlobId: blobId,
             },
+      ...(current.activityAt === undefined ? {} : { activityAt: current.activityAt }),
     });
   }
 
@@ -268,11 +281,7 @@ export class ClipboardRecordStore implements CanonicalClipboardStore {
         }
         return record === undefined ? [] : [record];
       })
-      .sort(
-        (left, right) =>
-          Date.parse(right.item.copiedAt) - Date.parse(left.item.copiedAt) ||
-          left.item.id.localeCompare(right.item.id),
-      );
+      .sort(compareRecordsByActivity);
   }
 
   async search(
@@ -290,9 +299,15 @@ export class ClipboardRecordStore implements CanonicalClipboardStore {
       throw new RangeError("Search limit must be an integer between 1 and 10000");
     }
     const records = await this.listRecords();
+    const activityTimes = new WeakMap(
+      records.map((record) => [record.item, recordActivityTime(record)] as const),
+    );
     const matched = searchPasteItems(
       records.map((record) => record.item),
       query,
+      {
+        recencyTimestamp: (item) => activityTimes.get(item) ?? Date.parse(item.copiedAt),
+      },
     );
     return { result: { items: matched.slice(0, limit), total: matched.length }, records };
   }

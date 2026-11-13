@@ -6,6 +6,7 @@ import {
   collapsedDragSourceShifts,
   collapsedDragSourcesShifts,
   listOrderScope,
+  promoteIdInListOrder,
   reorderItemGroupIds,
   reorderItemGroupShifts,
   reorderItemIds,
@@ -85,5 +86,11 @@ describe("list ordering", () => {
     expect(listOrderScope(SMART_TEXT_PINBOARD_ID)).toBe("smart:text");
     expect(listOrderScope(SMART_IMAGE_PINBOARD_ID)).toBe("smart:image");
     expect(listOrderScope("board/a b")).toBe("pinboard:board%2Fa%20b");
+  });
+
+  it("promotes a re-used item id to the head of an ordered list", () => {
+    expect(promoteIdInListOrder(["a", "b", "c"], "c")).toEqual(["c", "a", "b"]);
+    expect(promoteIdInListOrder(["a", "b", "c"], "a")).toEqual(["a", "b", "c"]);
+    expect(promoteIdInListOrder(["a", "b", "c"], "missing")).toEqual(["a", "b", "c"]);
   });
 });

@@ -178,7 +178,11 @@ export function useApplicationHistory(
   }
 
   function onHistoryChanged(): void {
-    void loadHistory().then(() => {
+    void (async () => {
+      const savedOrders = await window.pasteboardPro?.getListOrders();
+      if (savedOrders !== undefined) listOrders.value = savedOrders;
+      await loadHistory();
+    })().then(() => {
       if (status.value.includes("正在同步历史") || status.value.includes("正在载入")) {
         status.value = "截图已存入历史并写入剪贴板";
       }
@@ -189,7 +193,14 @@ export function useApplicationHistory(
 
   function selectPinboard(pinboardId: string | undefined): void {
     activePinboardId.value = pinboardId;
-    if (pagedHistory) { void loadPagedHistory(false).catch(reportHistoryError); return; }
+    if (pagedHistory) {
+      void (async () => {
+        const savedOrders = await window.pasteboardPro?.getListOrders();
+        if (savedOrders !== undefined) listOrders.value = savedOrders;
+        await loadPagedHistory(false);
+      })().catch(reportHistoryError);
+      return;
+    }
     searchScheduler.flush();
     state.restoreSelection(visibleItems.value.map((item) => item.id));
   }

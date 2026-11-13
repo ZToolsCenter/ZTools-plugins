@@ -13,6 +13,7 @@ import type {
 import {
   fingerprint,
   MAX_CLIPBOARD_TEXT_BYTES,
+  recordActivityTime,
   textTitle,
 } from "./clipboard-record-codec";
 import { classifyTextKind } from "./text-kind-classifier";
@@ -131,6 +132,7 @@ export async function updateTextItem(
   const updated: CanonicalClipboardRecord = {
     item,
     origin: { host: "sync", remoteAvailable: true },
+    ...(record.activityAt === undefined ? {} : { activityAt: record.activityAt }),
   };
   await port.put(updated);
   return updated;
@@ -159,7 +161,11 @@ export async function updateItemTitle(
       title: { wallMs: timestamp, counter: 0, deviceId: port.deviceId },
     },
   });
-  const updated = { item, origin: record.origin };
+  const updated: CanonicalClipboardRecord = {
+    item,
+    origin: record.origin,
+    ...(record.activityAt === undefined ? {} : { activityAt: record.activityAt }),
+  };
   await port.put(updated);
   return updated;
 }
@@ -193,7 +199,11 @@ export async function updateItemUrlMetadata(
       payload: { wallMs: timestamp, counter: 1, deviceId: port.deviceId },
     },
   });
-  const updated = { item, origin: record.origin };
+  const updated: CanonicalClipboardRecord = {
+    item,
+    origin: record.origin,
+    ...(record.activityAt === undefined ? {} : { activityAt: record.activityAt }),
+  };
   await port.put(updated);
   return updated;
 }
@@ -221,7 +231,11 @@ export async function updateOcrText(
       ocrText: { wallMs: timestamp, counter: 0, deviceId: port.deviceId },
     },
   });
-  const updated = { item, origin: record.origin };
+  const updated: CanonicalClipboardRecord = {
+    item,
+    origin: record.origin,
+    ...(record.activityAt === undefined ? {} : { activityAt: record.activityAt }),
+  };
   await port.put(updated);
   return updated;
 }
@@ -272,6 +286,36 @@ export async function updateImagePayload(
       blobBytes: input.blobBytes,
       pluginBlobId: input.blobId,
     },
+    ...(record.activityAt === undefined ? {} : { activityAt: record.activityAt }),
+  };
+  await port.put(updated);
+  return updated;
+}
+
+export async function promoteRecord(
+  port: ClipboardCommandPort,
+  itemId: string,
+  timestampMs?: number,
+): Promise<CanonicalClipboardRecord | undefined> {
+  const records = await port.listRecords();
+  const record = records.find((candidate) => candidate.item.id === itemId);
+  if (record === undefined) return undefined;
+  const topRecord = records[0];
+  const latestMs = topRecord === undefined ? 0 : recordActivityTime(topRecord);
+  const currentMs = recordActivityTime(record);
+  const candidateMs = timestampMs ?? port.validTimestamp();
+  if (topRecord?.item.id === itemId && candidateMs <= currentMs) {
+    return record;
+  }
+  const effectiveMs = topRecord?.item.id === itemId
+    ? Math.max(candidateMs, currentMs)
+    : Math.max(candidateMs, latestMs + 1);
+  if (effectiveMs <= currentMs) {
+    return record;
+  }
+  const updated: CanonicalClipboardRecord = {
+    ...record,
+    activityAt: new Date(effectiveMs).toISOString(),
   };
   await port.put(updated);
   return updated;

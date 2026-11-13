@@ -33,6 +33,7 @@ export type CanonicalClipboardOrigin =
 export type CanonicalClipboardRecord = Readonly<{
   item: PasteItem;
   origin: CanonicalClipboardOrigin;
+  activityAt?: string;
 }>;
 
 export type MirrorImageRetryJournalPort = Pick<MirrorImageRetryJournal,
@@ -41,6 +42,7 @@ export type MirrorImageRetryJournalPort = Pick<MirrorImageRetryJournal,
 export interface CanonicalClipboardStore {
   readonly imageRetries?: MirrorImageRetryJournalPort;
   findByFingerprint(fingerprint: string): Promise<PasteItem | undefined>;
+  findRecordByFingerprint?(fingerprint: string): Promise<CanonicalClipboardRecord | undefined>;
   put(record: CanonicalClipboardRecord): Promise<void>;
   getCursor(): Promise<HostCursor | undefined>;
   setCursor(cursor: HostCursor): Promise<void>;
@@ -90,6 +92,7 @@ export type MirrorHostHistoryOptions = Readonly<{
     rawItem: unknown,
     record: CanonicalClipboardRecord,
   ) => CanonicalClipboardRecord | Promise<CanonicalClipboardRecord>;
+  onDuplicatePromoted?: (record: CanonicalClipboardRecord) => void | Promise<void>;
 }>;
 
 export type MirrorHostHistoryResult = Readonly<{
