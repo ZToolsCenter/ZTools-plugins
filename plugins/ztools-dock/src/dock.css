@@ -39,3 +39,15 @@ body[data-surface=trigger] #app,body[data-surface=panel] #app{background:transpa
 .dock-search input{border:0!important;background:transparent!important;padding:0!important;width:100%;height:29px!important;font-size:12px}
 .dock-tray .inline-error{margin-bottom:7px;padding:7px;border-radius:4px}
 .dock-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;min-height:160px;color:var(--muted);font-size:12px;text-align:center}
+
+.trigger{position:relative}
+.trigger-visual{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center}
+body[data-edge=left] .trigger-visual{transform:translate(-50%,-50%) rotate(90deg)}
+body[data-edge=right] .trigger-visual{transform:translate(-50%,-50%) rotate(-90deg)}
+body[data-edge=bottom] .trigger-line{border-radius:4px 4px 0 0}
+.dock-bar{position:absolute;margin:0}
+.dock-panel:is([data-edge=left],[data-edge=right]) .dock-bar{flex-direction:column}
+.dock-panel:is([data-edge=left],[data-edge=right]) .dock-categories{flex-direction:column;padding:4px 0;gap:0;min-height:0;overflow-y:auto;overflow-x:hidden}
+.dock-panel:is([data-edge=left],[data-edge=right]) .dock-category{flex:0 0 66px;width:100%;max-width:none}
+.dock-panel:is([data-edge=left],[data-edge=right]) .dock-menu-toggle{width:100%;height:26px;border-radius:0 0 7px 7px}
+.dock-panel:is([data-edge=left],[data-edge=right]) .dock-tray{width:min(var(--tray-width),calc(100% - 100px));max-height:calc(100% - 32px)}

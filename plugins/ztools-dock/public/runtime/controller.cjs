@@ -13,7 +13,7 @@ function createController(api, options = {}) {
   const materialsSupported = options.materialsSupported ?? supportsMaterials();
   let panelMaterial = 'solid', panelNeedsReveal = false;
   const effectiveMaterial = () => materialsSupported ? config.settings.material : 'solid';
-  let bounds = null, lastLayout = '';
+  let bounds = null, lastLayout = '', triggerOffset = { x: 0, y: 0 };
   let panelRegions = [], lastPanelShape = '';
   let generation = 0;
   let addition = null, additionId = '';
@@ -32,7 +32,7 @@ function createController(api, options = {}) {
     displayInfo = next.map(d => ({ id: String(d.id), label: d.label || `显示器 ${d.id}`, width: d.bounds.width, height: d.bounds.height, scaleFactor: d.scaleFactor || 1 }));
     return true;
   }
-  function runtimeState() { displays(); return { materialsSupported, material: effectiveMaterial(), expanded, trayVisible, pinned, additionId, error, dark, displays: displayInfo, bounds }; }
+  function runtimeState() { displays(); return { triggerOffset, materialsSupported, material: effectiveMaterial(), expanded, trayVisible, pinned, additionId, error, dark, displays: displayInfo, bounds }; }
   function snapshot() { return { config: structuredClone(config), ...runtimeState() }; }
   function notify(mode = 'full') {
     dark = Boolean(api.isDarkColors());
@@ -57,12 +57,17 @@ function createController(api, options = {}) {
       win.moveTop();
     }
   }
+  function clipTrigger() {
+    const actual = trigger.getBounds();
+    triggerOffset = { x: Math.max(0, bounds.trigger.x - actual.x), y: Math.max(0, bounds.trigger.y - actual.y) };
+    trigger.setShape([{ ...triggerOffset, width: bounds.trigger.width, height: bounds.trigger.height }]);
+  }
   function layout() {
     const occupied = new Set(config.entries.map(entry => entry.categoryId));
     bounds = geometry(config.settings, displays(), primaryDisplay, config.categories.filter(category => occupied.has(category.id)).length);
     const signature = JSON.stringify(bounds);
     if (signature !== lastLayout) {
-      if (live(trigger)) { trigger.setBounds(bounds.trigger); trigger.setShape([{ x: 0, y: 0, width: bounds.trigger.width, height: bounds.trigger.height }]); }
+      if (live(trigger)) { trigger.setBounds(bounds.triggerWindow); clipTrigger(); }
       if (live(panel)) panel.setBounds(bounds.panel);
       lastLayout = signature;
     }
@@ -92,9 +97,9 @@ function createController(api, options = {}) {
     layout();
     const common = { frame: false, thickFrame: false, minWidth: 1, minHeight: 1, show: false, resizable: false, maximizable: false, minimizable: false, fullscreenable: false, skipTaskbar: true, alwaysOnTop: true, title: '程序坞', webPreferences: { preload: 'child-preload.cjs', backgroundThrottling: true } };
     if (!live(trigger)) {
-      trigger = api.createBrowserWindow('index.html?surface=trigger', { ...common, ...bounds.trigger, transparent: true, hasShadow: false, focusable: false });
+      trigger = api.createBrowserWindow('index.html?surface=trigger', { ...common, ...bounds.triggerWindow, transparent: true, hasShadow: false, focusable: false });
       // Windows enforces a native minimum height; clip both painting and hit testing.
-      trigger.setShape([{ x: 0, y: 0, width: bounds.trigger.width, height: bounds.trigger.height }]);
+      clipTrigger();
       trigger.showInactive(); maintainTopmost();
     }
     const material = effectiveMaterial();

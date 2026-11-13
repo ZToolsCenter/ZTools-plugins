@@ -9,7 +9,7 @@ if (!process.env.ZTOOLS_EXECUTABLE) throw new Error('Set ZTOOLS_EXECUTABLE and o
 const temp = mkdtempSync(join(tmpdir(), 'ztools-dock-upgrade-'));
 mkdirSync(join(temp, 'legacy')); mkdirSync('artifacts', { recursive: true });
 const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
-const previousZip = process.env.ZTOOLS_PREVIOUS_ZIP || 'release/程序坞-0.1.7-windows.zip';
+const previousZip = process.env.ZTOOLS_PREVIOUS_ZIP || 'release/程序坞-0.1.9-windows.zip';
 const previousVersion = JSON.parse(strFromU8(unzipSync(readFileSync(previousZip))['plugin.json'])).version;
 const previousSurface = previousVersion === '0.1.0' ? 'host' : 'settings';
 const evidence = { checks: [] };
@@ -44,7 +44,8 @@ try {
   await expect.poll(() => evaluate('Boolean(window.dock && document.querySelector(".settings-shell"))',previousSurface).catch(() => false)).toBe(true);
   const expected = await evaluate('(async()=>{const s=await window.dock.call("snapshot");s.config.categories[0].name="升级保留分类";s.config.entries.reverse();s.config.settings.triggerOpacity=0.66;await window.dock.call("save",s.config);return s.config})()',previousSurface);
   expected.settings.searchEnabled ??= false;
-  Object.assign(expected.settings,{triggerTheme:'bar',iconSize:'medium',material:'solid',panelOpacity:1});
+  expected.settings.triggerTheme ??= 'bar';expected.settings.iconSize ??= 'medium';expected.settings.material ??= 'solid';expected.settings.panelOpacity ??= 1;
+  Object.assign(expected.settings,{dockEdge:'top',positionMode:'ratio',positionRatio:50,positionDistance:0,positionAnchor:'start'});
   await evaluate('window.ztools.outPlugin(true)');
   await expect.poll(() => app.evaluate(({ webContents }) => webContents.getAllWebContents().filter(w=>w.getURL().includes('/plugins/ztools-dock/')).length)).toBe(0);
   await install(`release/程序坞-${version}-windows.zip`);
@@ -55,13 +56,13 @@ try {
   await expect.poll(() => evaluate('Boolean(document.querySelector(".settings-shell"))', 'settings').catch(() => false)).toBe(true);
   assert.deepEqual((await evaluate('window.dock.call("snapshot")', 'settings')).config, expected);
   evidence.checks.push(`${previousVersion} → ${version} retains custom category, entry order and appearance`);
-  let appearance=await evaluate('(async()=>{const s=await window.dock.call("snapshot");Object.assign(s.config.settings,{triggerTheme:"snail",iconSize:"large",material:s.materialsSupported?"acrylic":"solid",panelOpacity:0.35});await window.dock.call("save",s.config);return s.config})()','settings');
+  let appearance=await evaluate('(async()=>{const s=await window.dock.call("snapshot");Object.assign(s.config.settings,{dockEdge:"right",positionMode:"distance",positionDistance:140,positionAnchor:"end",positionRatio:25,triggerTheme:"snail",iconSize:"large",material:s.materialsSupported?"acrylic":"solid",panelOpacity:0.35});await window.dock.call("save",s.config);return s.config})()','settings');
   await evaluate('window.ztools.outPlugin(true)');
   await expect.poll(()=>app.evaluate(({webContents})=>webContents.getAllWebContents().filter(w=>w.getURL().includes('/plugins/ztools-dock/')).length)).toBe(0);
   await search(main,'程序坞设置');
   await expect.poll(()=>evaluate('Boolean(window.dock && document.querySelector(".settings-shell"))','settings').catch(()=>false)).toBe(true);
   assert.deepEqual((await evaluate('window.dock.call("snapshot")','settings')).config,appearance);
-  evidence.checks.push('custom snail/large/native material/opacity survive plugin termination and restart');
+  evidence.checks.push('custom docking position/snail/large/native material/opacity survive plugin termination and restart');
   Object.assign(expected.settings,appearance.settings);
 
   await evaluate('window.dock.call("settings")', 'panel');

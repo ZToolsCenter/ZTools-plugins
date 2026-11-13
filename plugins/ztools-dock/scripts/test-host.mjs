@@ -8,6 +8,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { checkFixes } from './check-fixes.mjs';
 import { checkStyle } from './check-style.mjs';
 import { checkAddition } from './check-addition.mjs';
+import { checkPosition } from './check-position.mjs';
 import { checkAppearance } from './check-appearance.mjs';
 import { checkReset } from './check-reset.mjs';
 
@@ -59,7 +60,7 @@ async function screenshot(filename, surface = 'settings', preview = false) {
     try {
       await wc.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
       await wc.executeJavaScript('Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))).then(()=>new Promise(resolve=>requestAnimationFrame(()=>resolve(true))))');
-      const crop = preview ? await wc.executeJavaScript(`(()=>{const rs=['.dock-bar','.dock-tray'].map(s=>document.querySelector(s).getBoundingClientRect());const x=Math.max(0,Math.floor(Math.min(...rs.map(r=>r.x))-16));return {x,y:0,width:Math.min(innerWidth-x,Math.ceil(Math.max(...rs.map(r=>r.right))+16-x)),height:Math.min(innerHeight,Math.ceil(Math.max(...rs.map(r=>r.bottom))+18))}})()`) : undefined;
+      const crop = preview ? await wc.executeJavaScript(`(()=>{const rs=['.dock-bar','.dock-tray'].map(s=>document.querySelector(s).getBoundingClientRect());const x=Math.max(0,Math.floor(Math.min(...rs.map(r=>r.x))-16)),y=Math.max(0,Math.floor(Math.min(...rs.map(r=>r.y))-16));return {x,y,width:Math.min(innerWidth-x,Math.ceil(Math.max(...rs.map(r=>r.right))+16-x)),height:Math.min(innerHeight-y,Math.ceil(Math.max(...rs.map(r=>r.bottom))+18-y))}})()`) : undefined;
       return Array.from((await wc.capturePage(crop)).toPNG());
     } finally { if (preview) await wc.executeJavaScript('document.documentElement.style.removeProperty("background")'); }
   }, {surface,preview});
@@ -115,6 +116,7 @@ try {
   assert.ok(region.height > 0 && region.height <= Math.ceil(5 * region.dpi / 96) + 1, `trigger hit region is clipped to configured height: ${JSON.stringify(region)}`);
   check('native trigger region clipped; hover panel does not steal focus');
   await checkAppearance({app,evaluate,screenshot,native,check});
+  await checkPosition({app,evaluate,screenshot,native,check});
   await checkFixes({app,evaluate,screenshot,native,triggerHandle,check});
   await checkStyle({app,evaluate,screenshot,native,check});
   await checkAddition({app,main,evaluate,screenshot,native,temp,check});

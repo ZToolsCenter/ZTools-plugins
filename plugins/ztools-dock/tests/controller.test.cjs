@@ -9,7 +9,7 @@ function fixture(exists = false, options = {}) {
   const timers = { setInterval: (fn, ms) => { fn.interval = ms; callbacks.set(++timerId, fn); return timerId; }, clearInterval: id => callbacks.delete(id), setTimeout: fn => { callbacks.set(++timerId, fn); return timerId; }, clearTimeout: id => callbacks.delete(id) };
   const display = { id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 } };
   const api = { dbStorage: { getItem: () => stored, setItem: (_key, v) => { if (fail) throw new Error('disk full'); stored = structuredClone(v); } }, getAllDisplays: () => [display], getPrimaryDisplay: () => display, getCursorScreenPoint: () => ({ x: 0, y: 0 }), isDarkColors: () => false,
-    createBrowserWindow: (url, options) => { const w = { url, id: wins.length + 1, gone: false, visible: false, topmost: options.alwaysOnTop, raised: 0, focused: 0, webContents: { id: wins.length + 100, send() {} }, isDestroyed() { return this.gone; }, destroy() { this.gone = true; }, hide() { this.visible = false; }, isVisible() { return this.visible; }, showInactive() { this.visible = true; }, show() { this.visible = true; }, focus() { this.focused++; }, setAlwaysOnTop(flag,level) { this.topmost = flag; this.level = level; }, moveTop() { this.raised++; }, isMinimized() { return false; }, setBounds(b) { this.bounds = b; }, setShape(rects) { this.shape = rects; }, ...{ bounds: options } }; wins.push(w); return w; },
+    createBrowserWindow: (url, options) => { const w = { url, id: wins.length + 1, gone: false, visible: false, topmost: options.alwaysOnTop, raised: 0, focused: 0, webContents: { id: wins.length + 100, send() {} }, isDestroyed() { return this.gone; }, destroy() { this.gone = true; }, hide() { this.visible = false; }, isVisible() { return this.visible; }, showInactive() { this.visible = true; }, show() { this.visible = true; }, focus() { this.focused++; }, setAlwaysOnTop(flag,level) { this.topmost = flag; this.level = level; }, moveTop() { this.raised++; }, isMinimized() { return false; }, setBounds(b) { this.bounds = b; }, getBounds() { return this.bounds; }, setShape(rects) { this.shape = rects; }, ...{ bounds: options } }; wins.push(w); return w; },
     getPath: key => `C:\\${key}`, shellOpenPath: () => ({ success: true }), redirect: () => false, hideMainWindow() {}, showMainWindow() {}
   };
   const create = api.createBrowserWindow;
@@ -57,7 +57,7 @@ test('重置只恢复外观行为，保留自定义分类入口顺序、启用�
   const f=fixture(), custom=defaults();
   custom.categories.push({id:'custom',name:'我的分类',icon:'Folder',color:'#123456'});
   custom.entries.reverse();custom.entries.push({id:'mine',categoryId:'custom',name:'自定义网址',type:'url',target:'https://example.com',icon:'Globe',color:'#123456'});
-  Object.assign(custom.settings,{enabled:false,lastCategoryId:'custom',searchEnabled:true,accent:'#123456',columns:6,cardSize:144,triggerWidth:200,triggerHeight:12,theme:'dark',openDelay:500,closeDelay:1200});
+  Object.assign(custom.settings,{dockEdge:'right',positionMode:'distance',positionDistance:140,positionRatio:25,positionAnchor:'end',enabled:false,lastCategoryId:'custom',searchEnabled:true,accent:'#123456',columns:6,cardSize:144,triggerWidth:200,triggerHeight:12,theme:'dark',openDelay:500,closeDelay:1200});
   f.controller.save(custom);f.controller.resetAppearance();const actual=f.controller.snapshot().config;
   assert.deepEqual(actual.categories,custom.categories);assert.deepEqual(actual.entries,custom.entries);
   assert.deepEqual(actual.settings,{...defaults().settings,enabled:false,lastCategoryId:'custom'});
@@ -118,7 +118,7 @@ test('快照使用显示器缓存；轮询仍检测显示器变动并通知界�
   const d = f.api.getAllDisplays()[0]; d.bounds.width = 1600; d.workArea.width = 1600;
   for(let i=0;i<5;i++) for(const fn of [...f.callbacks.values()]) fn();
   assert.equal(f.controller.snapshot().displays[0].width, 1600);
-  assert.equal(f.wins[0].bounds.x, 760);
+  assert.equal(f.wins[0].bounds.x + f.controller.snapshot().triggerOffset.x, 760);
   f.controller.dispose();
 });
 
@@ -127,10 +127,10 @@ test('打开设置时刷新显示器也更新程序坞位置，暂停期间切�
   const d = f.api.getAllDisplays()[0];
   d.workArea = { ...d.workArea, x: -1600, width: 1600 }; d.bounds = { ...d.bounds, x: -1600, width: 1600 };
   await f.controller.settings();
-  assert.equal(f.wins[0].bounds.x, -840);
+  assert.equal(f.wins[0].bounds.x + f.controller.snapshot().triggerOffset.x, -840);
   f.controller.pause(); d.workArea = { ...d.workArea, x: 0, width: 1200 };
   f.controller.start();
-  assert.equal(f.wins.findLast(w => w.url.endsWith('surface=trigger')).bounds.x, 560);
+  assert.equal(f.wins.findLast(w => w.url.endsWith('surface=trigger')).bounds.x + f.controller.snapshot().triggerOffset.x, 560);
   f.controller.dispose();
 });
 

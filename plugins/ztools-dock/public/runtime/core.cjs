@@ -16,16 +16,18 @@ function defaults() {
     ['home', '用户目录', 'House'], ['desktop', '桌面', 'Monitor'], ['downloads', '下载', 'Download'],
     ['documents', '文档', 'FileText'], ['pictures', '图片', 'Image'], ['music', '音乐', 'Music'], ['videos', '视频', 'Video']
   ].map(([target, name, icon], i) => ({ id: `system-${target}`, categoryId: 'folders', name, type: 'system', target, icon, color: ['#087fe7', '#0c9c83', '#08a7cd'][i % 3] }));
-  return { version: 1, settings: { enabled: true, searchEnabled: false, triggerTheme: 'bar', iconSize: 'medium', material: 'solid', panelOpacity: 1, displayId: 'primary', openDelay: 180, closeDelay: 450, triggerWidth: 80, triggerHeight: 5, triggerOpacity: 0.75, accent: '#087fe7', columns: 3, cardSize: 100, theme: 'system', lastCategoryId: 'folders' }, categories, entries };
+  return { version: 1, settings: { enabled: true, searchEnabled: false, dockEdge: 'top', positionMode: 'ratio', positionRatio: 50, positionDistance: 0, positionAnchor: 'start', triggerTheme: 'bar', iconSize: 'medium', material: 'solid', panelOpacity: 1, displayId: 'primary', openDelay: 180, closeDelay: 450, triggerWidth: 80, triggerHeight: 5, triggerOpacity: 0.75, accent: '#087fe7', columns: 3, cardSize: 100, theme: 'system', lastCategoryId: 'folders' }, categories, entries };
 }
 
 /** Validate an entire import before any state is mutated; retain only known fields. */
 function validateConfig(input) {
   if (!input || input.version !== 1) throw new Error('不支持此配置版本，请使用程序坞导出的 JSON 文件');
-  const s = input.settings && { ...input.settings, searchEnabled: input.settings.searchEnabled ?? false, triggerTheme: input.settings.triggerTheme ?? 'bar', iconSize: input.settings.iconSize ?? 'medium', material: input.settings.material ?? 'solid', panelOpacity: input.settings.panelOpacity ?? 1 };
+  const s = input.settings && { ...input.settings, searchEnabled: input.settings.searchEnabled ?? false, triggerTheme: input.settings.triggerTheme ?? 'bar', iconSize: input.settings.iconSize ?? 'medium', material: input.settings.material ?? 'solid', panelOpacity: input.settings.panelOpacity ?? 1, dockEdge: input.settings.dockEdge ?? 'top', positionMode: input.settings.positionMode ?? 'ratio', positionRatio: input.settings.positionRatio ?? 50, positionDistance: input.settings.positionDistance ?? 0, positionAnchor: input.settings.positionAnchor ?? 'start' };
   if (!s || typeof s.enabled !== 'boolean' || !cleanText(s.displayId, 80)) throw new Error('基本设置不完整');
   if (!['bar', 'worm', 'snail'].includes(s.triggerTheme) || !['small', 'medium', 'large'].includes(s.iconSize) || !['solid', 'mica', 'acrylic'].includes(s.material)) throw new Error('外观主题或材质无效');
   if (typeof s.panelOpacity !== 'number' || !Number.isFinite(s.panelOpacity) || s.panelOpacity < 0.1 || s.panelOpacity > 1) throw new Error('面板不透明度超出允许范围');
+  if (!['top','bottom','left','right'].includes(s.dockEdge) || !['ratio','distance'].includes(s.positionMode) || !['start','end'].includes(s.positionAnchor)) throw new Error('停靠位置设置无效');
+  if (!Number.isFinite(s.positionRatio) || s.positionRatio < 0 || s.positionRatio > 100 || !Number.isInteger(s.positionDistance) || s.positionDistance < 0 || s.positionDistance > 20000) throw new Error('位置距离或比例超出允许范围');
   if (typeof s.searchEnabled !== 'boolean') throw new Error('搜索设置无效');
   for (const [key, min, max, label] of [['openDelay', 0, 2000, '展开延迟'], ['closeDelay', 100, 3000, '收起延迟'], ['triggerWidth', 24, 400, '触发条宽度'], ['triggerHeight', 3, 16, '触发条高度'], ['columns', 2, 6, '列数'], ['cardSize', 76, 144, '卡片大小']]) {
     if (!Number.isInteger(s[key]) || s[key] < min || s[key] > max) throw new Error(`${label}超出允许范围`);
@@ -92,17 +94,31 @@ function geometry(settings, displays, primary, categoryCount = 7) {
   const display = displays.find(d => String(d.id) === settings.displayId) || primary || displays[0];
   if (!display) throw new Error('未找到可用显示器');
   const area = display.workArea || display.bounds;
-  const triggerHeight = settings.triggerTheme && settings.triggerTheme !== 'bar' ? 32 : settings.triggerHeight;
-  const triggerWidth = settings.triggerTheme && settings.triggerTheme !== 'bar' ? Math.max(64, settings.triggerWidth) : settings.triggerWidth;
+  const edge = settings.dockEdge || 'top', vertical = edge === 'left' || edge === 'right';
+  const axisLength = vertical ? area.height : area.width;
+  const thickness = Math.min(settings.triggerTheme && settings.triggerTheme !== 'bar' ? 32 : settings.triggerHeight, vertical ? area.width : area.height);
+  const length = Math.min(settings.triggerTheme && settings.triggerTheme !== 'bar' ? Math.max(64, settings.triggerWidth) : settings.triggerWidth, axisLength);
+  const travel = Math.max(0, axisLength - length);
+  const clamp = (v, min, max) => Math.max(min, Math.min(Math.max(min, max), v));
+  const distance = settings.positionMode === 'distance' ? (settings.positionAnchor === 'end' ? travel - settings.positionDistance : settings.positionDistance) : travel * (settings.positionRatio ?? 50) / 100;
+  const offset = Math.round(clamp(distance, 0, travel));
+  const trigger = vertical
+    ? { x: edge === 'left' ? area.x : area.x + area.width - thickness, y: area.y + offset, width: thickness, height: length }
+    : { x: area.x + offset, y: edge === 'top' ? area.y : area.y + area.height - thickness, width: length, height: thickness };
+  // Keep the entire native backing on this monitor: Windows minimum window sizes
+  // otherwise push a thin right/bottom trigger onto a neighbour with a different DPI.
+  const backingWidth = Math.min(area.width, Math.max(128, trigger.width)), backingHeight = Math.min(area.height, Math.max(64, trigger.height));
+  const triggerWindow = { x: Math.round(clamp(trigger.x - (backingWidth - trigger.width) / 2, area.x, area.x + area.width - backingWidth)), y: Math.round(clamp(trigger.y - (backingHeight - trigger.height) / 2, area.y, area.y + area.height - backingHeight)), width: backingWidth, height: backingHeight };
   const trayWidth = settings.columns * 128 + 8;
   const barWidth = Math.max(160, categoryCount * 100 + 32);
-  // The dropdown is centred under the active category, including the first and last tabs.
-  const width = Math.min(Math.max(trayWidth, barWidth + Math.max(0, trayWidth - 100)) + 32, Math.max(240, area.width - 24));
-  const height = Math.min(820, Math.max(180, area.height - triggerHeight - 12));
-  return {
-    displayId: String(display.id),
-    trigger: { x: Math.round(area.x + (area.width - triggerWidth) / 2), y: area.y, width: Math.min(triggerWidth, area.width), height: triggerHeight },
-    panel: { x: Math.round(area.x + (area.width - width) / 2), y: area.y + triggerHeight, width, height }
+  const width = vertical ? Math.min(100 + trayWidth + 32, Math.max(1, area.width - thickness - 12)) : Math.min(Math.max(trayWidth, barWidth + Math.max(0, trayWidth - 100)) + 32, Math.max(1, area.width - 24));
+  const height = Math.min(820, Math.max(1, area.height - (vertical ? 24 : thickness + 12)));
+  const centre = { x: trigger.x + trigger.width / 2, y: trigger.y + trigger.height / 2 };
+  const panel = {
+    x: vertical ? (edge === 'left' ? trigger.x + trigger.width : trigger.x - width) : Math.round(clamp(centre.x - width / 2, area.x, area.x + area.width - width)),
+    y: vertical ? Math.round(clamp(centre.y - height / 2, area.y, area.y + area.height - height)) : (edge === 'top' ? trigger.y + trigger.height : trigger.y - height),
+    width, height
   };
+  return { displayId: String(display.id), trigger, triggerWindow, panel, anchor: { x: centre.x - panel.x, y: centre.y - panel.y } };
 }
 module.exports = { defaults, validateConfig, geometry, resolveEntry, SYSTEM_KEYS, MAX_CONFIG_BYTES, validUrl };
