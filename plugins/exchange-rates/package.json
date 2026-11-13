@@ -1,0 +1,25 @@
+{
+  "name": "exchange-rates",
+  "version": "1.0.0",
+  "private": true,
+  "description": "把一筆基準金額換算成多種貨幣，並查看近 30 個觀測日的變動。",
+  "author": "Kazma258",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "node --experimental-strip-types src/convert.check.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  }
+}

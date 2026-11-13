@@ -1,0 +1,20 @@
+{
+  "name": "exchange-rates",
+  "title": "匯率換算",
+  "description": "把一筆基準金額換算成多種貨幣，並查看近 30 個觀測日的變動。",
+  "author": "Kazma258",
+  "version": "1.0.0",
+  "main": "dist/index.html",
+  "logo": "public/logo.png",
+  "preload": "public/preload.js",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "convert",
+      "explain": "一對多匯率換算",
+      "cmds": ["匯率", "貨幣", "錢", "money"]
+    }
+  ]
+}
