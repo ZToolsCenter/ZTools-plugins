@@ -1,7 +1,7 @@
 import { searchPasteItems, type PasteItem } from "@pasteboard-pro/core";
 import { applyListOrder } from "../src/list-order";
 import { isSmartPinboardId, matchesSmartPinboard } from "../src/smart-pinboards";
-import { storedRecord, type CanonicalClipboardRecord } from "./clipboard-store";
+import { recordActivityTime, storedRecord, type CanonicalClipboardRecord } from "./clipboard-store";
 import type { HistoryPage, HistoryRequest } from "./history-page";
 
 /** Lives exclusively in the worker. Cursors address a versioned result snapshot. */
@@ -11,6 +11,7 @@ export class HistorySearchIndex {
   private orderedSearchItems: PasteItem[] | undefined;
   private readonly searchable = new Map<string, PasteItem>();
   private readonly originals = new WeakMap<PasteItem, PasteItem>();
+  private readonly activityTimes = new WeakMap<PasteItem, number>();
   private sequence = 0;
   private readonly snapshots = new Map<string, { key: string; items: PasteItem[] }>();
 
@@ -32,6 +33,7 @@ export class HistorySearchIndex {
         const normalized = normalizedSearchItem(record.item);
         this.searchable.set(id, normalized);
         this.originals.set(normalized, record.item);
+        this.activityTimes.set(normalized, recordActivityTime(record));
       }
     }
     this.orderedSearchItems = undefined;
@@ -66,9 +68,14 @@ export class HistorySearchIndex {
       // Stable tie order matches listRecords; the shared query function preserves
       // substring matching, Chinese text, quoted phrases, OCR and all filters.
       this.orderedSearchItems ??= [...this.searchable.values()].sort((a, b) =>
-        Date.parse(b.copiedAt) - Date.parse(a.copiedAt) || a.id.localeCompare(b.id));
-      const matched = searchPasteItems(this.orderedSearchItems, request.query ?? "")
-        .map(item => this.originals.get(item)!);
+        (this.activityTimes.get(b) ?? Date.parse(b.copiedAt)) -
+        (this.activityTimes.get(a) ?? Date.parse(a.copiedAt)) ||
+        a.id.localeCompare(b.id));
+      const matched = searchPasteItems(
+        this.orderedSearchItems,
+        request.query ?? "",
+        { recencyTimestamp: (item) => this.activityTimes.get(item) ?? Date.parse(item.copiedAt) },
+      ).map(item => this.originals.get(item)!);
       const scope = request.pinboardId;
       const scoped = scope === undefined ? matched : matched.filter(item =>
         isSmartPinboardId(scope) ? matchesSmartPinboard(item, scope) : item.pinboardId === scope);

@@ -69,6 +69,26 @@ describe("worker history index", () => {
     expect(first.items[0]?.id).toBe("item-118");
     expect(index.page({ pinboardId: "work", orderedIds: reordered, cursor: first.nextCursor! }).items).toHaveLength(10);
   });
+
+  it("orders search index results by record activityAt ahead of older copiedAt", () => {
+    const index = new HistorySearchIndex();
+    const older = item(10);
+    const newer = item(1);
+    index.replace([
+      doc(newer),
+      {
+        _id: `pasteboard-pro:record:${older.contentFingerprint}`,
+        type: "pasteboard-pro-record",
+        record: {
+          item: older,
+          origin: { host: "sync", remoteAvailable: true },
+          activityAt: new Date(1_900_000_000_000).toISOString(),
+        },
+      },
+    ]);
+    expect(index.page({ limit: 10 }).items.map(value => value.id)).toEqual(["item-10", "item-1"]);
+    expect(index.page({ query: "Clipboard", limit: 10 }).items.map(value => value.id)).toEqual(["item-10", "item-1"]);
+  });
 });
 
 describe("history pager", () => {

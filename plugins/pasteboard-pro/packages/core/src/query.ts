@@ -11,6 +11,7 @@ export type PasteQuery = {
 
 export type SearchPasteOptions = {
   now?: Date | string | number;
+  recencyTimestamp?: (item: PasteItem) => number;
 };
 
 type QueryFilter = Exclude<keyof PasteQuery, "text">;
@@ -115,11 +116,13 @@ export function searchPasteItems(
     matches.push({ item, index, score });
   }
 
+  const timestampFor = options.recencyTimestamp ?? ((item: PasteItem) => Date.parse(item.copiedAt));
+
   return matches
     .sort(
       (left, right) =>
         right.score - left.score ||
-        Date.parse(right.item.copiedAt) - Date.parse(left.item.copiedAt) ||
+        timestampFor(right.item) - timestampFor(left.item) ||
         left.index - right.index,
     )
     .map(({ item }) => item);
