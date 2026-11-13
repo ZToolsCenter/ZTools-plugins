@@ -42,6 +42,7 @@ declare global {
     helloOverlay(mode: string): void
     onMessage(fn: (entry: NoticeEntry) => void): void
     reportListHeight(height: number): void
+    setListClickable(on: boolean): void
     pingOverlay(mode: string): void
     bumpOverlays(): void
     ensureOverlays(): void
@@ -53,6 +54,7 @@ declare global {
 
   interface Window {
     services: Services
+    ztools: typeof ztools
   }
 }
 

@@ -4,7 +4,7 @@
   "title": "通知美化（弹幕/卡片）",
   "description": "把 Windows 系统通知重新展示为跨屏弹幕或角落卡片，支持按应用静音/接管原生横幅、历史留存与导出",
   "author": "咖啡八杯",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "categories": ["productivity", "system"],
   "main": "dist/index.html",
   "preload": "preload/services.js",
