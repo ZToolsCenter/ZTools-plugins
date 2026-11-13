@@ -8,6 +8,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { checkFixes } from './check-fixes.mjs';
 import { checkStyle } from './check-style.mjs';
 import { checkAddition } from './check-addition.mjs';
+import { checkNames } from './check-names.mjs';
 import { checkPosition } from './check-position.mjs';
 import { checkAppearance } from './check-appearance.mjs';
 import { checkReset } from './check-reset.mjs';
@@ -117,6 +118,7 @@ try {
   check('native trigger region clipped; hover panel does not steal focus');
   await checkAppearance({app,evaluate,screenshot,native,check});
   await checkPosition({app,evaluate,screenshot,native,check});
+  await checkNames({app,evaluate,screenshot,check});
   await checkFixes({app,evaluate,screenshot,native,triggerHandle,check});
   await checkStyle({app,evaluate,screenshot,native,check});
   await checkAddition({app,main,evaluate,screenshot,native,temp,check});

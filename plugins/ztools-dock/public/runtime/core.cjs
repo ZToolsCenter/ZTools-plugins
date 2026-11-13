@@ -16,18 +16,19 @@ function defaults() {
     ['home', '用户目录', 'House'], ['desktop', '桌面', 'Monitor'], ['downloads', '下载', 'Download'],
     ['documents', '文档', 'FileText'], ['pictures', '图片', 'Image'], ['music', '音乐', 'Music'], ['videos', '视频', 'Video']
   ].map(([target, name, icon], i) => ({ id: `system-${target}`, categoryId: 'folders', name, type: 'system', target, icon, color: ['#087fe7', '#0c9c83', '#08a7cd'][i % 3] }));
-  return { version: 1, settings: { enabled: true, searchEnabled: false, dockEdge: 'top', positionMode: 'ratio', positionRatio: 50, positionDistance: 0, positionAnchor: 'start', triggerTheme: 'bar', iconSize: 'medium', material: 'solid', panelOpacity: 1, displayId: 'primary', openDelay: 180, closeDelay: 450, triggerWidth: 80, triggerHeight: 5, triggerOpacity: 0.75, accent: '#087fe7', columns: 3, cardSize: 100, theme: 'system', lastCategoryId: 'folders' }, categories, entries };
+  return { version: 1, settings: { enabled: true, searchEnabled: false, showCategoryNames: true, showEntryNames: true, dockEdge: 'top', positionMode: 'ratio', positionRatio: 50, positionDistance: 0, positionAnchor: 'start', triggerTheme: 'bar', iconSize: 'medium', material: 'solid', panelOpacity: 1, displayId: 'primary', openDelay: 180, closeDelay: 450, triggerWidth: 80, triggerHeight: 5, triggerOpacity: 0.75, accent: '#087fe7', columns: 3, cardSize: 100, theme: 'system', lastCategoryId: 'folders' }, categories, entries };
 }
 
 /** Validate an entire import before any state is mutated; retain only known fields. */
 function validateConfig(input) {
   if (!input || input.version !== 1) throw new Error('不支持此配置版本，请使用程序坞导出的 JSON 文件');
-  const s = input.settings && { ...input.settings, searchEnabled: input.settings.searchEnabled ?? false, triggerTheme: input.settings.triggerTheme ?? 'bar', iconSize: input.settings.iconSize ?? 'medium', material: input.settings.material ?? 'solid', panelOpacity: input.settings.panelOpacity ?? 1, dockEdge: input.settings.dockEdge ?? 'top', positionMode: input.settings.positionMode ?? 'ratio', positionRatio: input.settings.positionRatio ?? 50, positionDistance: input.settings.positionDistance ?? 0, positionAnchor: input.settings.positionAnchor ?? 'start' };
+  const s = input.settings && { ...input.settings, searchEnabled: input.settings.searchEnabled ?? false, showCategoryNames: input.settings.showCategoryNames === undefined ? true : input.settings.showCategoryNames, showEntryNames: input.settings.showEntryNames === undefined ? true : input.settings.showEntryNames, triggerTheme: input.settings.triggerTheme ?? 'bar', iconSize: input.settings.iconSize ?? 'medium', material: input.settings.material ?? 'solid', panelOpacity: input.settings.panelOpacity ?? 1, dockEdge: input.settings.dockEdge ?? 'top', positionMode: input.settings.positionMode ?? 'ratio', positionRatio: input.settings.positionRatio ?? 50, positionDistance: input.settings.positionDistance ?? 0, positionAnchor: input.settings.positionAnchor ?? 'start' };
   if (!s || typeof s.enabled !== 'boolean' || !cleanText(s.displayId, 80)) throw new Error('基本设置不完整');
   if (!['bar', 'worm', 'snail'].includes(s.triggerTheme) || !['small', 'medium', 'large'].includes(s.iconSize) || !['solid', 'mica', 'acrylic'].includes(s.material)) throw new Error('外观主题或材质无效');
   if (typeof s.panelOpacity !== 'number' || !Number.isFinite(s.panelOpacity) || s.panelOpacity < 0.1 || s.panelOpacity > 1) throw new Error('面板不透明度超出允许范围');
   if (!['top','bottom','left','right'].includes(s.dockEdge) || !['ratio','distance'].includes(s.positionMode) || !['start','end'].includes(s.positionAnchor)) throw new Error('停靠位置设置无效');
   if (!Number.isFinite(s.positionRatio) || s.positionRatio < 0 || s.positionRatio > 100 || !Number.isInteger(s.positionDistance) || s.positionDistance < 0 || s.positionDistance > 20000) throw new Error('位置距离或比例超出允许范围');
+  if (typeof s.showCategoryNames !== 'boolean' || typeof s.showEntryNames !== 'boolean') throw new Error('名称显示设置无效');
   if (typeof s.searchEnabled !== 'boolean') throw new Error('搜索设置无效');
   for (const [key, min, max, label] of [['openDelay', 0, 2000, '展开延迟'], ['closeDelay', 100, 3000, '收起延迟'], ['triggerWidth', 24, 400, '触发条宽度'], ['triggerHeight', 3, 16, '触发条高度'], ['columns', 2, 6, '列数'], ['cardSize', 76, 144, '卡片大小']]) {
     if (!Number.isInteger(s[key]) || s[key] < min || s[key] > max) throw new Error(`${label}超出允许范围`);

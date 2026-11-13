@@ -7,7 +7,7 @@ export async function checkReset({evaluate,screenshot,check}) {
  const custom=structuredClone(before);
  custom.categories.push({id:'reset-preserved',name:'重置保留分类',icon:'Folder',color:'#123456'});
  custom.entries.reverse();custom.entries.push({id:'reset-entry',categoryId:'reset-preserved',name:'重置保留网址',type:'url',target:'https://example.com',icon:'Globe',color:'#123456'});
- Object.assign(custom.settings,{lastCategoryId:'reset-preserved',accent:'#123456',theme:'dark',columns:6,cardSize:144,searchEnabled:true,openDelay:600,closeDelay:1300,triggerWidth:200,triggerHeight:12,triggerOpacity:0.4});
+ Object.assign(custom.settings,{showCategoryNames:false,showEntryNames:false,lastCategoryId:'reset-preserved',accent:'#123456',theme:'dark',columns:6,cardSize:144,searchEnabled:true,openDelay:600,closeDelay:1300,triggerWidth:200,triggerHeight:12,triggerOpacity:0.4});
  try {
   await evaluate(`window.dock.call('save',${JSON.stringify(custom)})`);
   await evaluate('document.querySelectorAll(".settings-tabs button")[2].click()');

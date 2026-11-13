@@ -105,8 +105,8 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); doc
     <div ref="bar" class="dock-bar" @mouseenter="command('expand')">
       <nav class="dock-categories" aria-label="程序坞分类" @scroll.passive="scheduleLayout" @wheel.prevent="scrollCategories">
         <span v-if="!categories.length" class="dock-no-categories">暂无快捷入口</span>
-        <button v-for="category in categories" :key="category.id" class="dock-category" :class="{ selected: selected === category.id }" :style="{ '--category-color': category.color }" :aria-pressed="selected === category.id" :title="category.name" @mouseenter="select(category.id)" @click="select(category.id)">
-          <Icon :name="category.icon" :image="category.image" :size="Math.round(iconPixels * 25 / 29)" /><span>{{ category.name }}</span>
+        <button v-for="category in categories" :key="category.id" class="dock-category" :class="{ selected: selected === category.id }" :style="{ '--category-color': category.color }" :aria-pressed="selected === category.id" :title="category.name" :aria-label="category.name" @mouseenter="select(category.id)" @click="select(category.id)">
+          <Icon :name="category.icon" :image="category.image" :size="Math.round(iconPixels * 25 / 29)" /><span v-if="state.config.settings.showCategoryNames" class="dock-category-name">{{ category.name }}</span>
         </button>
       </nav>
       <button class="dock-menu-toggle" :class="{ active: state.pinned }" :aria-pressed="state.pinned" :title="state.pinned ? '取消钉住导航条' : '钉住导航条'" :aria-label="state.pinned ? '取消钉住导航条' : '钉住导航条'" @click="command('pin')"><Icon name="Pin" :size="18" /></button>
@@ -118,9 +118,9 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); doc
       </div>
       <div v-if="state.error" class="inline-error" role="alert">{{ state.error }}</div>
       <div class="dock-grid" :style="{ gridTemplateColumns: `repeat(${state.config.settings.columns}, minmax(0, 1fr))` }">
-        <button v-for="entry in entries" :key="entry.id" class="launch-card" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
+        <button v-for="entry in entries" :key="entry.id" class="launch-card" :aria-label="entry.name" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
           <span class="launch-icon" :style="{ color: entry.color }"><Icon :name="entry.icon" :image="entry.image" :size="iconPixels" /></span>
-          <span class="launch-name">{{ entry.name }}</span>
+          <span v-if="state.config.settings.showEntryNames" class="launch-name">{{ entry.name }}</span>
         </button>
         <div v-if="!entries.length" class="dock-empty"><Icon :name="query ? 'Search' : current?.icon || 'Plus'" :size="28" /><p>{{ query ? '没有找到匹配的入口' : '这个分类还没有入口' }}</p><button v-if="!query" class="button" @click="command('settings')">添加入口</button></div>
       </div>
