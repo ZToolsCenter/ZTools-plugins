@@ -1,9 +1,9 @@
 {
   "name": "ctf-toolbox",
   "title": "网安 CTF 工具箱",
-  "description": "CTF / 授权安全测试用编码转换、哈希、JWT 解析、古典密码与公开 Payload 速查。",
+  "description": "CTF / 授权安全测试用编码转换、哈希、JWT 解析与签名伪造、古典密码与公开 Payload 速查。",
   "author": "海湾上的北辰",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "main": "index.html",
   "preload": "preload.js",
   "logo": "logo.png",
@@ -69,10 +69,11 @@
     },
     {
       "code": "jwt",
-      "explain": "解析 JWT Header / Payload",
+      "explain": "解析 JWT Header / Payload，none / HS* / RS* 伪造签名",
       "cmds": [
         "jwt",
         "jwt解码",
+        "jwt伪造",
         {
           "type": "regex",
           "label": "解析 JWT",

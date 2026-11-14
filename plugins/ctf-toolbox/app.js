@@ -186,23 +186,81 @@
     return JSON.stringify(obj, null, 2);
   }
 
+  function setJwtStatus(text, kind) {
+    var el = $("jwt-status");
+    el.textContent = text || "";
+    el.classList.toggle("ok", kind === "ok");
+    el.classList.toggle("warn", kind === "warn");
+  }
+
+  function fillJwtEditors(parsed) {
+    $("jwt-header").value = parsed.header.json ? pretty(parsed.header.json) : parsed.header.raw;
+    $("jwt-payload").value = parsed.payload.json ? pretty(parsed.payload.json) : parsed.payload.raw;
+    var alg = parsed.header.json && parsed.header.json.alg;
+    if (alg) {
+      var sel = $("jwt-alg");
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === alg) {
+          sel.value = alg;
+          break;
+        }
+      }
+    }
+  }
+
   function renderJwt() {
     var token = $("jwt-in").value.trim();
     if (!token) {
-      $("jwt-header").textContent = "";
-      $("jwt-payload").textContent = "";
       $("jwt-sig").textContent = "";
+      setJwtStatus("", "");
+      forgeJwt();
       return;
     }
     try {
       var parsed = window.CtfCodec.jwtSplit(token);
-      $("jwt-header").textContent = parsed.header.json ? pretty(parsed.header.json) : parsed.header.raw;
-      $("jwt-payload").textContent = parsed.payload.json ? pretty(parsed.payload.json) : parsed.payload.raw;
+      fillJwtEditors(parsed);
       $("jwt-sig").textContent = parsed.signature || "(无签名)";
+      forgeJwt();
     } catch (err) {
-      $("jwt-header").textContent = "错误：" + err.message;
-      $("jwt-payload").textContent = "";
-      $("jwt-sig").textContent = "";
+      $("jwt-sig").textContent = "错误：" + err.message;
+      $("jwt-forged").textContent = "";
+      setJwtStatus("", "");
+    }
+  }
+
+  async function forgeJwt() {
+    var header = $("jwt-header").value;
+    var payload = $("jwt-payload").value;
+    var secret = $("jwt-secret").value;
+    var alg = $("jwt-alg").value;
+    if (!header.trim() && !payload.trim()) {
+      $("jwt-forged").textContent = "";
+      if (!$("jwt-in").value.trim()) setJwtStatus("", "");
+      return;
+    }
+    try {
+      var forged = await window.CtfCodec.jwtForge(header, payload, { alg: alg, secret: secret });
+      $("jwt-forged").textContent = forged.token;
+      var token = $("jwt-in").value.trim();
+      if (token && secret) {
+        try {
+          var parsed = window.CtfCodec.jwtSplit(token);
+          var origAlg = parsed.header.json && parsed.header.json.alg;
+          if (origAlg && /^HS(256|384|512)$/.test(origAlg)) {
+            var ok = await window.CtfCodec.jwtVerify(token, secret);
+            setJwtStatus(ok ? "原签名匹配" : "原签名不匹配", ok ? "ok" : "warn");
+          } else {
+            setJwtStatus(/^none$/i.test(alg) ? "none 空签名" : "", "");
+          }
+        } catch (e) {
+          setJwtStatus(/^none$/i.test(alg) ? "none 空签名" : "", "");
+        }
+      } else {
+        setJwtStatus(/^none$/i.test(alg) ? "none 空签名" : "", "");
+      }
+    } catch (err) {
+      $("jwt-forged").textContent = "错误：" + (err && err.message ? err.message : err);
+      setJwtStatus("", "");
     }
   }
 
@@ -322,7 +380,12 @@
     $("hash-in").addEventListener("input", function () { runHash(); });
     $("hmac-key").addEventListener("input", function () { runHash(); });
     $("jwt-in").addEventListener("input", renderJwt);
-    $("jwt-copy-payload").addEventListener("click", function () { copyText($("jwt-payload").textContent); });
+    ["jwt-header", "jwt-payload", "jwt-secret", "jwt-alg"].forEach(function (id) {
+      $(id).addEventListener("input", forgeJwt);
+      $(id).addEventListener("change", forgeJwt);
+    });
+    $("jwt-copy-payload").addEventListener("click", function () { copyText($("jwt-payload").value); });
+    $("jwt-copy-forged").addEventListener("click", function () { copyText($("jwt-forged").textContent); });
     ["cipher-in", "cipher-shift", "rail-count"].forEach(function (id) {
       $(id).addEventListener("input", runCipher);
     });

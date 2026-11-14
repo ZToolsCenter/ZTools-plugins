@@ -154,7 +154,13 @@ body {
   gap: 8px;
   min-height: 0;
 }
-.jwt-stack textarea { min-height: 72px; max-height: 110px; }
+.jwt-stack .split textarea { min-height: 72px; max-height: 110px; }
+.jwt-grid textarea {
+  margin-top: 6px;
+  flex: 1;
+  min-height: 88px;
+  resize: none;
+}
 
 .toolbar, .row {
   display: flex;
@@ -267,14 +273,21 @@ textarea:focus, input:focus, select:focus { border-color: var(--accent); }
   min-height: 0;
   overflow: auto;
 }
+.jwt-grid .hash-item {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 .jwt-grid pre {
   margin-top: 6px;
-  max-height: 240px;
+  max-height: 140px;
   overflow: auto;
   font-family: "SF Mono", Menlo, Consolas, monospace;
   white-space: pre-wrap;
   word-break: break-all;
 }
+#jwt-status.ok { color: var(--ok); }
+#jwt-status.warn { color: var(--warn); }
 
 .toast {
   position: fixed;
