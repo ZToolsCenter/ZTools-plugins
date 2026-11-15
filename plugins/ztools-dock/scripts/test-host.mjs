@@ -18,6 +18,7 @@ import { checkDockDimensions } from './check-dock-dimensions.mjs';
 import { checkSettingsLayout } from './check-settings-layout.mjs';
 import { checkAppearance } from './check-appearance.mjs';
 import { checkReset } from './check-reset.mjs';
+import { checkPluginSelection } from './check-plugin-selection.mjs';
 
 const executablePath = process.env.ZTOOLS_EXECUTABLE;
 if (!executablePath) throw new Error('Set ZTOOLS_EXECUTABLE to an Electron-compatible test executable; set ZTOOLS_APP when loading an installed app.asar.');
@@ -96,6 +97,7 @@ try {
   }));
   await app.evaluate(async ({ ipcMain, BrowserWindow }, zip) => { const sender = BrowserWindow.getAllWindows().find(w => w.getTitle() === 'ZTools').webContents; return ipcMain._invokeHandlers.get('install-plugin-from-path')({ sender }, zip); }, fixtureZip);
   await openSettings(main);
+  await checkPluginSelection({app,evaluate,screenshot,temp,check});
   const state = await evaluate('window.dock.call("snapshot")');
   assert.equal(state.config.entries.length, 7);
   await screenshot('settings.png');
@@ -127,7 +129,7 @@ try {
   await checkDockDimensions({app,evaluate,screenshot,check});
   await checkSettingsLayout({app,evaluate,screenshot,check});
   await checkPosition({app,evaluate,screenshot,native,check});
-  if(!await checkCompositor({app,evaluate,native,check}))evidence.blockedChecks=['Windows locked or material unsupported: compositor check unavailable'];
+  if(!await checkCompositor({app,evaluate,native,check}))evidence.blockedChecks=['Desktop compositor unavailable: lock screen, unsupported material or missing capture baseline; see compositor-result.json'];
   await checkCardScale({app,evaluate,screenshot,check});
   await checkPinAdaptive({app,evaluate,screenshot,check});
   await checkNames({app,evaluate,screenshot,check});

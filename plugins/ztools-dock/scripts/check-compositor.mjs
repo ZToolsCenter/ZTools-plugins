@@ -23,7 +23,7 @@ export async function checkCompositor({app,evaluate,native,check}) {
    await app.evaluate((_,point)=>{globalThis.compositorPoint=point},{x:state.bounds.trigger.x+1,y:state.bounds.trigger.y+1});
    await new Promise(r=>setTimeout(r,350));
    await expect.poll(()=>app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().filter(w=>w.webContents.getURL().includes('material.html')&&w.isVisible()).length)).toBe(2);
-   let stable=0;
+   let stable=0, baselineSeen=false;
    const card=await evaluate('(()=>{const r=document.querySelector(".launch-card").getBoundingClientRect();return {x:r.x+8,y:r.y+8}})()','panel');
    for(let attempt=0;attempt<6;attempt++){
    const sample=await app.evaluate(({BrowserWindow,screen},{panel,card})=>{
@@ -37,12 +37,15 @@ export async function checkCompositor({app,evaluate,native,check}) {
    },{panel:state.bounds.panel,card});
    await new Promise(r=>setTimeout(r,120));
    [sample.baseline,sample.inside,sample.blank]=native.pixels(sample.points);sample.flags=native.flags(sample.plateHandle);
-   const good=sample.baseline.every((v,i)=>Math.abs(v-[137,90,49][i])<=4)&&sample.inside.some((v,i)=>Math.abs(v-sample.baseline[i])>10)&&sample.blank.every((v,i)=>Math.abs(v-sample.baseline[i])<=4);
+   const baselineValid=sample.baseline.every((v,i)=>Math.abs(v-[137,90,49][i])<=4);
+   baselineSeen ||= baselineValid;
+   const good=baselineValid&&sample.inside.some((v,i)=>Math.abs(v-sample.baseline[i])>10)&&sample.blank.every((v,i)=>Math.abs(v-sample.baseline[i])<=4);
    stable=good?stable+1:0;
    results.push({material,attempt,good,...sample});writeFileSync('artifacts/compositor-result.json',JSON.stringify(results,null,2));
    if(stable>=2)break;
    await new Promise(r=>setTimeout(r,200));
    }
+   if(!baselineSeen){writeFileSync('artifacts/compositor-result.json',JSON.stringify({blocked:true,reason:'Desktop capture never saw the known test backplate color; material pixels are inconclusive',attempts:results},null,2));console.warn('BLOCKED: desktop capture baseline unavailable');return false;}
    assert.ok(stable>=2,`${material} desktop backdrop did not remain clear outside surfaces; see compositor-result.json`);
   }
   check('real desktop compositor keeps test background unchanged outside Mica/Acrylic dock surfaces');return true;

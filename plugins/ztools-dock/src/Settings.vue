@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import type { Category, Config, Entry, EntryType, Settings as DockSettings, State } from './types';
 import Icon from './Icon.vue';
 import AppearanceSettings from './AppearanceSettings.vue';
+import PluginEntryFields from './PluginEntryFields.vue';
 import './settings.css';
 import { command, toast } from './bridge';
 const props = defineProps<{ state: State }>();
@@ -35,6 +36,7 @@ async function setting(key: keyof DockSettings, val: any) { const next = clone()
 function openCategory(item?: Category) { isNew.value = !item; draft.value = item ? { ...item } : { id: uid(), name: '', icon: 'Folder', color: colors[config.value.categories.length % colors.length] }; editor.value = 'category'; }
 function openEntry(item?: Entry) { pendingCategories.value=[]; isNew.value = !item; draft.value = item ? { ...item } : { id: uid(), categoryId: selected.value, name: '', type: 'app', target: '', plugin: '', icon: 'AppWindow', color: category.value?.color || colors[0] }; editor.value = 'entry'; }
 async function submit() {
+  if (editor.value === 'entry' && draft.value.type === 'plugin' && (!draft.value.plugin || !draft.value.target)) { toast('请选择插件和指令', true); return; }
   if (saving.value) return; saving.value = true;
   try {
     const next = clone(); if(editor.value==='entry') next.categories.push(...pendingCategories.value.filter(c=>c.id===draft.value.categoryId&&!next.categories.some(existing=>existing.id===c.id)).map((c:Category)=>({...c})));
@@ -61,7 +63,30 @@ async function pick() { const picked = await command('pick', draft.value.type); 
 async function pickIcon() { iconGeneration++;fetchingIcon.value=false; const image = await command('icon'); if (image) draft.value.image = image; }
 function selectIcon(icon:string) {iconGeneration++;fetchingIcon.value=false;draft.value.icon=icon;delete draft.value.image;}
 function removeImage() {iconGeneration++;fetchingIcon.value=false;delete draft.value.image;}
-watch([editor, () => draft.value.target, () => draft.value.type, () => draft.value.id], () => { iconGeneration++; fetchingIcon.value=false; });
+function selectPluginCommand(target: string) {
+  if (!draft.value.name || draft.value.name === draft.value.target) draft.value.name = target.slice(0, 60);
+  draft.value.target = target;
+}
+async function selectPlugin(plugin: { id: string; title: string; commands: string[] }) {
+  const autoName = !draft.value.name || draft.value.name === draft.value.plugin || draft.value.name === draft.value.target;
+  draft.value.plugin = plugin.title; draft.value.target = plugin.commands[0] || '';
+  if (autoName) draft.value.name = (draft.value.target || plugin.title).slice(0, 60);
+  draft.value.icon = 'Box'; delete draft.value.image;
+  await nextTick();
+  const generation = ++iconGeneration, id = draft.value.id;
+  fetchingIcon.value = true;
+  try {
+    const source = await window.dock.call('plugin-icon', plugin.id);
+    if (!source) throw new Error('未找到可用的插件图标，可手动选择图片');
+    const image = new window.Image(); image.src = source; await image.decode();
+    const canvas = document.createElement('canvas'), scale = Math.min(1, 64 / Math.max(image.naturalWidth, image.naturalHeight));
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
+    if (generation === iconGeneration && editor.value === 'entry' && draft.value.id === id) draft.value.image = canvas.toDataURL('image/png');
+  } catch (e) { if (generation === iconGeneration) toast(e instanceof Error ? e.message : String(e), true); }
+  finally { if (generation === iconGeneration) fetchingIcon.value = false; }
+}
+watch([editor, () => draft.value.type === 'url' ? draft.value.target : '', () => draft.value.plugin, () => draft.value.type, () => draft.value.id], () => { iconGeneration++; fetchingIcon.value=false; });
 async function fetchWebsiteIcon() {
   const generation=++iconGeneration, target=draft.value.target, id=draft.value.id; fetchingIcon.value=true;
   try {
@@ -82,7 +107,7 @@ watch(() => props.state.additionId, async id => {
     const next=clone();next.categories.push(...incoming.categories.filter((c:Category)=>!next.categories.some(existing=>existing.id===c.id)).map((c:Category)=>({...c})));next.entries.push(...incoming.entries);await save(next,`已添加 ${incoming.entries.length} 个入口`);
   });
 }, {immediate:true});
-function changeType() { draft.value.target = draft.value.type === 'system' ? 'desktop' : ''; delete draft.value.image; draft.value.icon = ({ app: 'AppWindow', folder: 'Folder', file: 'FileText', url: 'Globe', plugin: 'Box', system: 'Monitor' } as any)[draft.value.type]; }
+function changeType() { draft.value.plugin = ''; draft.value.target = draft.value.type === 'system' ? 'desktop' : ''; delete draft.value.image; draft.value.icon = ({ app: 'AppWindow', folder: 'Folder', file: 'FileText', url: 'Globe', plugin: 'Box', system: 'Monitor' } as any)[draft.value.type]; }
 function drag(event: DragEvent, kind: 'entry' | 'category', id: string) { event.dataTransfer?.setData('application/x-dock', JSON.stringify({ kind, id })); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'; }
 async function drop(event: DragEvent, categoryId = selected.value, beforeId?: string) {
   event.preventDefault(); draggingOver.value = false;
@@ -159,7 +184,7 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
         <details><summary>钉住后为什么卡片还会收起？</summary><p>图钉只固定菜单导航。鼠标离开后卡片收起，移回菜单再次展开。右键程序坞可打开设置。</p></details>
         <details><summary>换电脑后需要调整什么？</summary><p>导入备份后，本地路径仍指向原位置，失效入口需要重新选择。仅支持 Windows 单个显示屏停靠；暂不支持全屏自动避让，管理员窗口兼容性尚未保证。</p></details>
       </div>
-      <div class="reset-row"><span>程序坞 <b>0.1.15</b></span></div>
+      <div class="reset-row"><span>程序坞 <b>0.1.16</b></span></div>
     </section>
     <div v-if="editor" class="modal-overlay" @click.self="editor = null" @keydown.esc="editor = null">
       <form class="editor-modal" @submit.prevent="submit">
@@ -169,8 +194,8 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
           <label class="field">名称<input v-model="draft.name" required maxlength="60" placeholder="例如：工作文档" autofocus></label>
           <template v-if="editor === 'entry'">
             <div class="field-pair"><label class="field">类型<select v-model="draft.type" @change="changeType"><option v-for="(name, key) in typeNames" :value="key">{{ name }}</option></select></label><label class="field">所属分类<select v-model="draft.categoryId"><option v-for="item in categoryOptions" :value="item.id">{{ item.name }}</option></select></label></div>
-            <label v-if="draft.type === 'plugin'" class="field">插件名称<input v-model="draft.plugin" required maxlength="100" placeholder="填写 ZTools 中显示的完整插件名称"><small class="subtle">请使用唯一的插件名称。同名插件无法区分；是否找到指令由 ZTools 提示。</small></label>
-            <label class="field">{{ draft.type === 'plugin' ? '插件指令' : draft.type === 'url' ? '网址' : draft.type === 'system' ? '系统目录' : '目标路径' }}
+            <PluginEntryFields v-if="draft.type === 'plugin'" :plugin="draft.plugin || ''" :target="draft.target" @select="selectPlugin" @command="selectPluginCommand" />
+            <label v-else class="field">{{ draft.type === 'url' ? '网址' : draft.type === 'system' ? '系统目录' : '目标路径' }}
               <select v-if="draft.type === 'system'" v-model="draft.target"><option v-for="(name, key) in systemNames" :value="key">{{ name }}</option></select>
               <div v-else class="input-with-button"><input v-model="draft.target" required maxlength="4096" :placeholder="draft.type === 'url' ? 'https://example.com' : draft.type === 'plugin' ? '填写可在 ZTools 搜索到的指令' : '选择或拖入应用、快捷方式、文件夹'"><button v-if="draft.type==='url'" type="button" class="button" :disabled="fetchingIcon || !draft.target.trim()" @click="fetchWebsiteIcon">{{fetchingIcon?'获取中…':'获取图标'}}</button><button v-if="['app','file','folder'].includes(draft.type)" type="button" class="button" @click="pick">选择</button></div>
             </label>
@@ -180,7 +205,7 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
           <div class="field">颜色<div class="color-picker"><button v-for="color in colors" type="button" class="color-choice" :style="{ background: color }" :class="{ selected: color === draft.color }" :title="color" @click="draft.color = color"><Icon v-if="color === draft.color" name="Check" :size="15" /></button><input type="color" v-model="draft.color" aria-label="自定义颜色"></div></div>
           <div v-if="editor === 'category' && !isNew" class="category-editor-tools"><button type="button" class="button small" @click="reorder(draft.id, -1, 'category')">上移分类</button><button type="button" class="button small" @click="reorder(draft.id, 1, 'category')">下移分类</button><button type="button" class="text-button danger-text" :disabled="config.categories.length === 1" @click="removeCategory(draft)">删除分类</button></div>
         </div>
-        <footer class="modal-footer"><button v-if="editor === 'entry'" type="button" class="button ghost" @click="command('test', draft, '已发送打开请求')"><Icon name="ExternalLink" :size="15" />测试打开</button><span class="spacer"></span><button type="button" class="button" @click="editor = null">取消</button><button type="submit" class="button primary" :disabled="saving">{{ saving ? '保存中…' : '保存' }}</button></footer>
+        <footer class="modal-footer"><button v-if="editor === 'entry'" type="button" class="button ghost" :disabled="draft.type === 'plugin' && (!draft.plugin || !draft.target)" @click="command('test', draft, '已发送打开请求')"><Icon name="ExternalLink" :size="15" />测试打开</button><span class="spacer"></span><button type="button" class="button" @click="editor = null">取消</button><button type="submit" class="button primary" :disabled="saving || fetchingIcon">{{ saving ? '保存中…' : fetchingIcon ? '读取图标…' : '保存' }}</button></footer>
       </form>
     </div>
     <div v-if="confirmation" class="modal-overlay" @keydown.esc="confirmation = undefined"><div class="confirm-modal" role="alertdialog" aria-modal="true"><h2>{{ confirmation.title }}</h2><p>{{ confirmation.detail }}</p><footer class="modal-footer"><span class="spacer"></span><button class="button" @click="confirmation = undefined">取消</button><button class="button primary" @click="accept">确认</button></footer></div></div>
