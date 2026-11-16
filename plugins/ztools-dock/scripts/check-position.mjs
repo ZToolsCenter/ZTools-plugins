@@ -14,6 +14,9 @@ export async function checkPosition({app,evaluate,screenshot,native,check}) {
   await expect.poll(()=>evaluate(`window.dock.call('snapshot').then(s=>s.config.settings.${key})`)).toBe(value);
  };
  const read=script=>evaluate(script,'panel');
+ // Layout checks control selection explicitly. Window movement beneath the real
+ // desktop pointer must not synthesize unrelated category hover selections.
+ await read(`(()=>{const s=document.createElement('style');s.id='position-input-guard';s.textContent='.dock-category{pointer-events:none!important}';document.head.append(s)})()`);
  const layout=()=>read(`(()=>{const rect=s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};return {bar:rect('.dock-bar'),tray:rect('.dock-tray'),width:innerWidth,height:innerHeight,edge:document.querySelector('.dock-panel').dataset.edge}})()`);
  try {
   await evaluate('document.querySelectorAll(".settings-tabs button")[1].click()');
@@ -91,6 +94,7 @@ export async function checkPosition({app,evaluate,screenshot,native,check}) {
   }
 
  }finally{
+  await read('document.getElementById("position-input-guard")?.remove()');
   await evaluate(`window.dock.call('save',${JSON.stringify(before)})`);
   await evaluate(`(async()=>{if((await window.dock.call('snapshot')).pinned!==${original.pinned})await window.dock.call('pin');await window.dock.call('${original.expanded?'expand':'collapse'}')})()`);
   await expect.poll(()=>read('document.querySelector(".dock-panel")?.dataset.edge').catch(()=>false)).toBe(before.settings.dockEdge);

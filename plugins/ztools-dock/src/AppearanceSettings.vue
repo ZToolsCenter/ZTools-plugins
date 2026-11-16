@@ -20,13 +20,12 @@ async function setting(key: keyof DockSettings, val: any) { const next=clone(); 
 const sections = [{"id":"position","title":"停靠位置","icon":"Monitor"},{"id":"trigger","title":"边缘触发区","icon":"Zap"},{"id":"navigation","title":"菜单导航","icon":"LayoutGrid"},{"id":"cards","title":"卡片弹窗","icon":"AppWindow"},{"id":"material","title":"材质与颜色","icon":"Sun"},{"id":"behavior","title":"展开与收起","icon":"SlidersHorizontal"}];
 const preferences = ref<HTMLElement>();
 function jump(id: string) { preferences.value?.querySelector<HTMLElement>('#preference-'+id)?.scrollIntoView({block:'start'}); }
-const materialSaving = ref(false);
-async function setMaterial(material: DockSettings['material']) {
-  if (materialSaving.value) return;
-  materialSaving.value = true;
-  try { const next = clone(); next.settings.material = material; if (material !== 'solid' && next.settings.panelOpacity === 1) next.settings.panelOpacity = 0.55; await save(next); }
-  finally { materialSaving.value = false; }
+const pickingBackground = ref(false);
+async function pickBackground() {
+ if(pickingBackground.value)return; pickingBackground.value=true;
+ try {const image=await command('background-image');if(image){const next=clone();next.settings.backgroundImage=image;next.settings.material='solid';await save(next);}}finally{pickingBackground.value=false;}
 }
+async function removeBackground() {const next=clone();next.settings.backgroundImage='';next.settings.material='solid';await save(next);}
 async function pickTrigger() { pickingTrigger.value=true;try{const image=await command('trigger-image');if(image){const next=clone();next.settings.triggerImage=image;next.settings.triggerTheme='custom';await save(next);}}finally{pickingTrigger.value=false;} }
 async function removeTrigger() { const next=clone();next.settings.triggerImage='';if(next.settings.triggerTheme==='custom')next.settings.triggerTheme='bar';await save(next); }
 </script>
@@ -66,8 +65,8 @@ async function removeTrigger() { const next=clone();next.settings.triggerImage='
    <SettingSection id="material" title="材质与颜色" description="为菜单和入口选择玻璃质感，背景独立调整。" icon="Sun">
     <TileMaterialPicker :model-value="config.settings.tileMaterial" :strength="config.settings.tileStrength" @select="setting('tileMaterial', $event)" @strength="setting('tileStrength', $event)" />
     <label class="setting-row"><span><strong>颜色模式</strong></span><select aria-label="颜色模式" :value="config.settings.theme" @change="setting('theme', value($event))"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
-    <div class="setting-row"><span><strong>外层背景材质</strong><small>{{state.materialsSupported ? '仅影响导航条与弹窗的外层背景' : '云母、亚克力需要 Windows 11 22H2 或更新版本'}}</small></span><div class="material-choices" role="group" aria-label="面板材质"><button v-for="material in [{id:'solid',name:'纯色'},{id:'mica',name:'云母'},{id:'acrylic',name:'亚克力'}]" :key="material.id" type="button" :data-material="material.id" :aria-pressed="config.settings.material === material.id" :disabled="materialSaving || (material.id !== 'solid' && !state.materialsSupported)" @click="setMaterial(material.id as DockSettings['material'])">{{ material.name }}</button></div></div>
-    <label class="setting-row"><span><strong>背景不透明度</strong><small>调整外层背景底色，不改变上方卡片的材质强度</small></span><div class="range-control"><input aria-label="背景不透明度" type="range" min="0.1" max="1" step="0.05" :value="config.settings.panelOpacity" @change="setting('panelOpacity', +value($event))"><output>{{Math.round(config.settings.panelOpacity * 100)}}%</output></div></label>
+    <div class="setting-row background-image-setting"><span><strong>背景图片</strong><small>应用于导航条和卡片弹窗，居中裁剪铺满；PNG、JPG、WebP，最大5MB</small></span><div class="background-image-actions"><img v-if="config.settings.backgroundImage" :src="config.settings.backgroundImage" alt="当前背景图片" class="background-image-preview"><button class="button" aria-label="上传背景图片" :disabled="pickingBackground" @click="pickBackground">{{pickingBackground?'读取中…':config.settings.backgroundImage?'更换图片':'上传图片'}}</button><button v-if="config.settings.backgroundImage" class="button danger-text" :disabled="pickingBackground" @click="removeBackground">移除背景</button></div></div>
+    <label class="setting-row"><span><strong>背景不透明度</strong><small>调整背景图片与底色的透明度，名称和图标保持清晰</small></span><div class="range-control"><input aria-label="背景不透明度" type="range" min="0.1" max="1" step="0.05" :value="config.settings.panelOpacity" @change="setting('panelOpacity', +value($event))"><output>{{Math.round(config.settings.panelOpacity * 100)}}%</output></div></label>
     <label class="setting-row"><span><strong>主题色</strong></span><input type="color" :value="config.settings.accent" @change="setting('accent', value($event))"></label>
    </SettingSection>
    <SettingSection id="behavior" title="展开与收起" description="按鼠标停留时间响应，减少误触。" icon="SlidersHorizontal">

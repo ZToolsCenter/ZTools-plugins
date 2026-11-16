@@ -28,6 +28,11 @@ function fixture(exists = false, options = {}) {
   return { controller, api, wins, callbacks, calls, messages, setFail: () => { fail = true; } };
 }
 
+test('默认运行停用旧原生背景，导入旧云母设置也不再创建材质窗口',()=>{
+ const f=fixture(),c=defaults();c.settings.material='mica';f.controller.save(c);f.controller.expand();
+ assert.equal(f.controller.snapshot().material,'solid');assert.equal(f.controller.snapshot().materialsSupported,false);
+ assert.equal(f.wins.filter(w=>w.url.includes('material.html')).length,0);f.controller.dispose();
+});
 test('原生材质仅创建贴合组件的背景窗，主画布保持透明并复用；不支持系统回退纯色',()=>{
  const f=fixture(false,{materialsSupported:true});f.controller.init();f.controller.expand();f.controller.pin();
  const panel=f.wins[1],c=f.controller.snapshot().config;c.settings.material='mica';f.controller.save(c);

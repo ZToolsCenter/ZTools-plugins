@@ -49,7 +49,7 @@ export async function checkAppearance({app,evaluate,screenshot,native,check}) {
   await expect.poll(()=>evaluate('window.dock.call("snapshot").then(s=>s.config.settings.panelOpacity)')).toBe(0.35);
   const opacity=await evaluate('(()=>{const p=getComputedStyle(document.querySelector(".dock-panel")),t=getComputedStyle(document.querySelector(".launch-name"));return {opacity:p.opacity,text:t.opacity,bg:getComputedStyle(document.querySelector(".dock-tray")).backgroundColor}})()','panel');
   assert.equal(opacity.opacity,'1');assert.equal(opacity.text,'1');assert.match(opacity.bg, /0\.35/);
-  await evaluate('document.querySelector("[aria-label=面板材质]").scrollIntoView({block:"center"})');
+  await evaluate('document.querySelector("[aria-label=上传背景图片]").scrollIntoView({block:"center"})');
   await screenshot('appearance-options.png');await screenshot('dock-large-icons.png','panel',true);
   check('background opacity control affects surface tint only; panel and text stay fully opaque');
  } finally {

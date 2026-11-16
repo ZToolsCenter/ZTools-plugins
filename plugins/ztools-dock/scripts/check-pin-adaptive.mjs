@@ -44,7 +44,7 @@ export async function checkPinAdaptive({app,evaluate,screenshot,check}){
   await expect.poll(()=>read('document.querySelector(".dock-tray").getBoundingClientRect().width')).toBe(264);
   await screenshot('dock-adaptive-width.png','panel',true);
   await evaluate('document.querySelector("[aria-label=启用钉住功能]").scrollIntoView({block:"center"})');await screenshot('pin-setting.png');
-  check('search result counts resize tray and native Acrylic backdrop together; empty search remains usable; two-entry preview has no empty columns');
+  check('search result counts resize tray together; empty search remains usable; two-entry preview has no empty columns');
  }finally{
   await evaluate(`window.dock.call('save',${JSON.stringify(original.config)})`);
   await evaluate(`(async()=>{if((await window.dock.call('snapshot')).pinned!==${original.pinned})await window.dock.call('pin');await window.dock.call('${original.expanded?'expand':'collapse'}')})()`);

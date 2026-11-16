@@ -21,6 +21,7 @@ import { checkReset } from './check-reset.mjs';
 import { checkPluginSelection } from './check-plugin-selection.mjs';
 import { checkHoverStability } from './check-hover-stability.mjs';
 import { checkTileMaterials } from './check-tile-materials.mjs';
+import { checkBackgroundImage } from './check-background-image.mjs';
 
 const executablePath = process.env.ZTOOLS_EXECUTABLE;
 if (!executablePath) throw new Error('Set ZTOOLS_EXECUTABLE to an Electron-compatible test executable; set ZTOOLS_APP when loading an installed app.asar.');
@@ -117,6 +118,7 @@ try {
   await evaluate('window.dock.call("expand")');
   await checkHoverStability({app,evaluate,native,check});
   await checkTileMaterials({app,evaluate,screenshot,check});
+  await checkBackgroundImage({app,evaluate,screenshot,temp,check});
   await evaluate('window.dock.call("pin")');
   await expect.poll(() => evaluate('document.querySelectorAll(".launch-card").length', 'panel'), { timeout: 15000 }).toBe(7);
   await screenshot('dock.png', 'panel');
@@ -133,10 +135,12 @@ try {
   await checkDockDimensions({app,evaluate,screenshot,check});
   await checkSettingsLayout({app,evaluate,screenshot,check});
   await checkPosition({app,evaluate,screenshot,native,check});
-  if(!await checkCompositor({app,evaluate,native,check}))evidence.blockedChecks=['Desktop compositor unavailable: lock screen, unsupported material or missing capture baseline; see compositor-result.json'];
+  // Native background materials have been replaced by uploaded pictures.
   await checkCardScale({app,evaluate,screenshot,check});
   await checkPinAdaptive({app,evaluate,screenshot,check});
   await checkNames({app,evaluate,screenshot,check});
+  await evaluate('window.dock.call("settings")','panel');
+  await waitDock();
   await checkFixes({app,evaluate,screenshot,native,triggerHandle,check});
   await checkStyle({app,evaluate,screenshot,native,check});
   await checkAddition({app,main,evaluate,screenshot,native,temp,check});
