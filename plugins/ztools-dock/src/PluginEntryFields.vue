@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import { toast } from './bridge';
-type Plugin = { id: string; title: string; commands: string[]; unavailable: string };
+import RichSelect from './RichSelect.vue';
+type Plugin = { id: string; title: string; commands: string[]; unavailable: string; iconVersion?: string };
 const props = defineProps<{ plugin: string; target: string }>();
 const emit = defineEmits<{ select: [plugin: Plugin]; command: [target: string]; manage: [] }>();
 const accepted = ref<string[]>([]);
@@ -9,6 +10,11 @@ const accessItems = [{id:'internal:get-plugins',name:'读取插件名称、指�
 const plugins = ref<Plugin[]>([]), loading = ref(false), authorized = ref(false), error = ref('');
 const selected = computed(() => plugins.value.find(p => p.title === props.plugin));
 const legacyPlugin = computed(() => props.plugin && !selected.value);
+const pluginOptions = computed(() => [
+ ...(legacyPlugin.value ? [{value:'__legacy',label:props.plugin,disabled:true,detail:'原配置，当前不可用',icon:'Box'}] : []),
+ ...plugins.value.map(p=>({value:p.id,label:p.title,pluginId:p.id,iconVersion:p.iconVersion,disabled:!!p.unavailable||!p.commands.length,detail:p.unavailable||(!p.commands.length?'没有可直接打开的指令':'')}))
+]);
+const commandOptions = computed(() => [...(legacyCommand.value ? [{value:props.target,label:props.target,disabled:true,detail:'原配置，当前不可用'}] : []), ...(selected.value?.commands || []).map(value=>({value,label:value}))]);
 const legacyCommand = computed(() => props.target && !selected.value?.commands.includes(props.target));
 async function load() {
   if (loading.value) return;
@@ -27,8 +33,8 @@ async function authorize() {
   finally { loading.value = false; }
   await load();
 }
-function select(event: Event) {
-  const plugin = plugins.value.find(p => p.id === (event.target as HTMLSelectElement).value);
+function select(id: string | number) {
+  const plugin = plugins.value.find(p => p.id === id);
   if (plugin && !plugin.unavailable && plugin.commands.length) emit('select', plugin);
 }
 function permissionsChanged(){accepted.value=[];void load();}
@@ -39,11 +45,7 @@ onBeforeUnmount(()=>window.removeEventListener('dock-permissions-changed',permis
   <div class="field">
     <label for="dock-plugin-select">插件名称</label>
     <div class="input-with-button">
-      <select id="dock-plugin-select" :value="selected?.id || (legacyPlugin ? '__legacy' : '')" required :disabled="loading || !authorized" @change="select">
-        <option value="" disabled>{{ loading ? '正在读取插件…' : '选择已安装的插件' }}</option>
-        <option v-if="legacyPlugin" value="__legacy" disabled>{{ plugin }}（原配置，当前不可用）</option>
-        <option v-for="item in plugins" :key="item.id" :value="item.id" :disabled="!!item.unavailable || !item.commands.length">{{ item.title }}{{ item.unavailable ? `（${item.unavailable}）` : !item.commands.length ? '（没有可直接打开的指令）' : '' }}</option>
-      </select>
+      <RichSelect id="dock-plugin-select" label="插件名称" :model-value="selected?.id || (legacyPlugin ? '__legacy' : '')" :options="pluginOptions" :placeholder="loading?'正在读取插件…':'选择已安装的插件'" :disabled="loading || !authorized" required searchable @change="select" />
       <button type="button" class="button" :disabled="loading" @click="load">刷新列表</button>
     </div>
     <div v-if="!authorized && !loading && !error" class="plugin-consent">
@@ -57,10 +59,6 @@ onBeforeUnmount(()=>window.removeEventListener('dock-permissions-changed',permis
     <small v-if="legacyPlugin || legacyCommand" class="subtle">原入口会保留。重新选择插件后，指令和图标会一并更新。</small>
   </div>
   <label class="field">插件指令
-    <select aria-label="插件指令" :value="target" required :disabled="loading || !selected || !!selected.unavailable" @change="emit('command', ($event.target as HTMLSelectElement).value)">
-      <option value="" disabled>选择插件指令</option>
-      <option v-if="legacyCommand" :value="target" disabled>{{ target }}（原配置，当前不可用）</option>
-      <option v-for="item in selected?.commands || []" :key="item" :value="item">{{ item }}</option>
-    </select>
+    <RichSelect label="插件指令" :model-value="target" :options="commandOptions" placeholder="选择插件指令" :disabled="loading || !selected || !!selected.unavailable" required :searchable="commandOptions.length>8" @change="emit('command',String($event))" />
   </label>
 </template>

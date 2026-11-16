@@ -38,3 +38,10 @@ test('two exact consents required; stopping blocks catalog and icons even while 
  stopCatalog(api);assert.equal((await catalogPermissions(api)).reading,false);assert.ok((await catalogPermissions(api)).permissions.every(p=>p.granted));
  const before=reads;assert.equal((await pluginCatalog(api)).authorized,false);await assert.rejects(pluginIcon(api,'a'),/授权/);assert.equal(reads,before);
 });
+
+test('icon lookups reuse catalog descriptors instead of enumerating installed plugins per row',async()=>{
+ let lists=0;const plugins=Array.from({length:12},(_,i)=>({name:'perf-'+i,title:'测试'+i,logo:'data:image/png;base64,YQ==',features:[{cmds:['run']}]}));
+ const api={dbStorage:{getItem:()=>true},getInternalApiPermissions:async()=>({granted:PERMISSIONS}),internal:{getPlugins:async()=>{lists++;return plugins},getDisabledPlugins:async()=>[]}};
+ await pluginCatalog(api);for(const p of plugins)assert.equal(await pluginIcon(api,p.name),p.logo);assert.equal(lists,1);
+ stopCatalog({...api,dbStorage:{getItem:()=>false,setItem(){}}});
+});

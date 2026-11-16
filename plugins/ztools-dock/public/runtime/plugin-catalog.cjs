@@ -1,6 +1,8 @@
 'use strict';
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const {createHash}=require('node:crypto');
+const descriptors=new Map();
 const PERMISSIONS = ['internal:get-plugins', 'internal:get-disabled-plugins'];
 const CONSENT_KEY = 'dock-plugin-consent-v1';
 function hasConsent(api) { return api.dbStorage?.getItem(CONSENT_KEY) === true; }
@@ -13,7 +15,7 @@ async function catalogPermissions(api) {
   const state=await api.getInternalApiPermissions();
   return { reading:hasConsent(api), fullAccess:!!state.fullAccess, permissions:PERMISSIONS.map(id=>({id,granted:!!state.fullAccess||!!state.granted?.includes(id),pending:!!state.pending?.includes(id)})) };
 }
-function stopCatalog(api) { setConsent(api,false); return true; }
+function stopCatalog(api) { setConsent(api,false); descriptors.clear(); return true; }
 
 // Electron's isolated preload can reject Node's cross-realm fileURLToPath
 // implementation. Decode the Windows file URL without crossing VM realms.
@@ -38,6 +40,7 @@ function normalizePlugins(plugins, disabled = []) {
   rows.forEach(p => counts.set(p.title, (counts.get(p.title) || 0) + 1));
   return rows.map(p => ({
     id: p.name, title: p.title,
+    iconVersion: createHash('sha256').update(`${p.version || ''}:${p.path || ''}:${p.logo || ''}`).digest('hex').slice(0,16),
     commands: [...new Set((p.features || []).flatMap(f => Array.isArray(f.cmds) ? f.cmds.filter(c => typeof c === 'string' && c.trim()) : []))],
     unavailable: disabled.includes(p.path) || disabled.includes(p.name) ? '已停用' : counts.get(p.title) > 1 ? '同名插件无法区分' : ''
   })).sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
@@ -45,6 +48,7 @@ function normalizePlugins(plugins, disabled = []) {
 async function pluginCatalog(api) {
   if (!await permission(api)) return { authorized: false, plugins: [] };
   const [plugins, disabled] = await Promise.all([api.internal.getPlugins(), api.internal.getDisabledPlugins()]);
+  descriptors.clear();plugins.forEach(p=>descriptors.set(p.name,p));
   return { authorized: true, plugins: normalizePlugins(plugins, disabled) };
 }
 async function requestCatalog(api, accepted) {
@@ -59,8 +63,8 @@ async function requestCatalog(api, accepted) {
 }
 async function pluginIcon(api, id) {
   if (typeof id !== 'string' || !await permission(api)) throw new Error('请先授权读取插件列表');
-  const plugins = await api.internal.getPlugins();
-  const plugin = plugins.find(p => p.name === id);
+  let plugin=descriptors.get(id);
+  if(!plugin){const plugins=await api.internal.getPlugins();plugin=plugins.find(p=>p.name===id);if(plugin)descriptors.set(id,plugin);}
   if (!plugin) throw new Error('插件已卸载，请刷新列表');
   const logo = plugin.logo;
   if (typeof logo !== 'string') return null;

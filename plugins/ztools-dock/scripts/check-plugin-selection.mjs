@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 import { writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { zipSync, strToU8 } from 'fflate';
+import {checkDropdowns} from './check-dropdowns.mjs';
 
 export async function checkPluginSelection({app,evaluate,screenshot,temp,check}) {
   const before=(await evaluate('window.dock.call("snapshot")')).config;
@@ -51,9 +52,9 @@ export async function checkPluginSelection({app,evaluate,screenshot,temp,check})
     await expect(page.locator('#dock-plugin-select')).toBeEnabled();
     await page.locator('.editor-modal input').first().fill('');
     await page.locator('#dock-plugin-select').selectOption('dock-select-fixture');
-    const commands=page.getByLabel('插件指令',{exact:true});
+    const commands=page.locator('.rich-select').filter({has:page.getByRole('combobox',{name:'插件指令',exact:true})}).locator('select');
     await expect(commands).toHaveValue('打开工具');
-    assert.deepEqual(await commands.locator('option').allTextContents(),['选择插件指令','打开工具','工具设置']);
+    assert.deepEqual(await commands.locator('option').allTextContents(),['打开工具','工具设置']);
     try { await expect(page.locator('.custom-icon-preview img')).toBeVisible(); }
     catch(e) { console.log('icon diagnostic',await page.locator('.toast').allTextContents(),await evaluate('window.dock.call("plugin-icon","dock-select-fixture").then(x=>({length:x?.length,prefix:x?.slice(0,45)})).catch(e=>({error:e.stack}))','host'));throw e; }
     const svgIcon=await page.locator('.custom-icon-preview img').getAttribute('src');
@@ -74,10 +75,11 @@ export async function checkPluginSelection({app,evaluate,screenshot,temp,check})
     await expect(commands).toHaveValue('验证跳转');
     await expect(page.locator('.custom-icon-preview img')).toBeVisible();
     assert.notEqual(await page.locator('.custom-icon-preview img').getAttribute('src'),svgIcon);
-    assert.equal(await commands.locator('option').count(),2);
+    assert.equal(await commands.locator('option').count(),1);
     await page.getByTitle('关闭编辑',{exact:true}).click();
     assert.equal((await evaluate('window.dock.call("snapshot")')).config.entries.at(-1).image,svgIcon);
     check('editing preserves saved icon; switching plugin replaces commands and icon; cancelling preserves saved entry');
+    await checkDropdowns({app,evaluate,screenshot,check,page});
     const legacy={...saved,id:'legacy-plugin',name:'旧插件入口',plugin:'已卸载的旧插件',target:'旧指令'};
     await evaluate(`(async()=>{const s=await window.dock.call('snapshot');s.config.entries.push(${JSON.stringify(legacy)});await window.dock.call('save',s.config)})()`);
     await page.getByTitle('编辑旧插件入口',{exact:true}).click();

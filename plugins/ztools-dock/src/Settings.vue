@@ -5,6 +5,8 @@ import Icon from './Icon.vue';
 import AppearanceSettings from './AppearanceSettings.vue';
 import PluginEntryFields from './PluginEntryFields.vue';
 import PluginPermissions from './PluginPermissions.vue';
+import RichSelect from './RichSelect.vue';
+import {pluginIcon as cachedPluginIcon} from './plugin-icons';
 const permissionOpen = ref(false);
 function permissionsChanged(){iconGeneration++;window.dispatchEvent(new Event('dock-permissions-changed'));}
 import './settings.css';
@@ -23,6 +25,7 @@ const isNew = ref(false), saving = ref(false), draggingOver = ref(false);
 const confirmation = ref<{ title: string; detail: string; action: () => Promise<void> }>();
 const icons = ['Folder', 'BriefcaseBusiness', 'FilePenLine', 'CodeXml', 'Bot', 'SlidersHorizontal', 'Zap', 'House', 'Monitor', 'Download', 'FileText', 'Image', 'Music', 'Video', 'AppWindow', 'Globe', 'Box', 'Search', 'Pin', 'Keyboard', 'LayoutGrid', 'Package'];
 const colors = ['#087fe7', '#0c9c83', '#08a7cd', '#ef9309', '#6475e8', '#855ce7', '#e64960', '#61778b'];
+const typeIcons:Record<string,string>={app:'AppWindow',folder:'Folder',file:'FileText',url:'Globe',plugin:'Box',system:'Monitor'};
 const typeNames: Record<EntryType, string> = { app: '应用', folder: '文件夹', file: '文件', url: '网址', plugin: 'ZTools 插件', system: '系统目录' };
 const systemNames: Record<string, string> = { home: '用户目录', desktop: '桌面', downloads: '下载', documents: '文档', pictures: '图片', music: '音乐', videos: '视频' };
 const config = computed(() => props.state.config);
@@ -70,7 +73,7 @@ function selectPluginCommand(target: string) {
   if (!draft.value.name || draft.value.name === draft.value.target) draft.value.name = target.slice(0, 60);
   draft.value.target = target;
 }
-async function selectPlugin(plugin: { id: string; title: string; commands: string[] }) {
+async function selectPlugin(plugin: { id: string; title: string; commands: string[]; iconVersion?:string }) {
   const autoName = !draft.value.name || draft.value.name === draft.value.plugin || draft.value.name === draft.value.target;
   draft.value.plugin = plugin.title; draft.value.target = plugin.commands[0] || '';
   if (autoName) draft.value.name = (draft.value.target || plugin.title).slice(0, 60);
@@ -79,13 +82,9 @@ async function selectPlugin(plugin: { id: string; title: string; commands: strin
   const generation = ++iconGeneration, id = draft.value.id;
   fetchingIcon.value = true;
   try {
-    const source = await window.dock.call('plugin-icon', plugin.id);
-    if (!source) throw new Error('未找到可用的插件图标，可手动选择图片');
-    const image = new window.Image(); image.src = source; await image.decode();
-    const canvas = document.createElement('canvas'), scale = Math.min(1, 64 / Math.max(image.naturalWidth, image.naturalHeight));
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
-    if (generation === iconGeneration && editor.value === 'entry' && draft.value.id === id) draft.value.image = canvas.toDataURL('image/png');
+    const image=await cachedPluginIcon(plugin);
+    if(!image)throw new Error('未找到可用的插件图标，可手动选择图片');
+    if(generation===iconGeneration && editor.value==='entry' && draft.value.id===id)draft.value.image=image;
   } catch (e) { if (generation === iconGeneration) toast(e instanceof Error ? e.message : String(e), true); }
   finally { if (generation === iconGeneration) fetchingIcon.value = false; }
 }
@@ -188,7 +187,7 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
         <details><summary>钉住后为什么卡片还会收起？</summary><p>图钉只固定菜单导航。鼠标离开后卡片收起，移回菜单再次展开。右键程序坞可打开设置。</p></details>
         <details><summary>换电脑后需要调整什么？</summary><p>导入备份后，本地路径仍指向原位置，失效入口需要重新选择。仅支持 Windows 单个显示屏停靠；暂不支持全屏自动避让，管理员窗口兼容性尚未保证。</p></details>
       </div>
-      <div class="reset-row"><span>程序坞 <b>0.1.20</b></span></div>
+      <div class="reset-row"><span>程序坞 <b>0.1.21</b></span></div>
     </section>
     <div v-if="editor" class="modal-overlay" @click.self="editor = null" @keydown.esc="editor = null">
       <form class="editor-modal" @submit.prevent="submit">
@@ -197,10 +196,10 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
           <h3 class="form-section-title">基本信息</h3>
           <label class="field">名称<input v-model="draft.name" required maxlength="60" placeholder="例如：工作文档" autofocus></label>
           <template v-if="editor === 'entry'">
-            <div class="field-pair"><label class="field">类型<select v-model="draft.type" @change="changeType"><option v-for="(name, key) in typeNames" :value="key">{{ name }}</option></select></label><label class="field">所属分类<select v-model="draft.categoryId"><option v-for="item in categoryOptions" :value="item.id">{{ item.name }}</option></select></label></div>
+            <div class="field-pair"><label class="field">类型<RichSelect label="类型" v-model="draft.type" :options="Object.entries(typeNames).map(([value,label])=>({value,label,icon:typeIcons[value]}))" @change="changeType" /></label><label class="field">所属分类<RichSelect label="所属分类" v-model="draft.categoryId" :options="categoryOptions.map(item=>({value:item.id,label:item.name,icon:item.icon,image:item.image,color:item.color}))" :searchable="categoryOptions.length>8" required /></label></div>
             <PluginEntryFields v-if="draft.type === 'plugin'" :plugin="draft.plugin || ''" :target="draft.target" @select="selectPlugin" @command="selectPluginCommand" @manage="permissionOpen=true" />
             <label v-else class="field">{{ draft.type === 'url' ? '网址' : draft.type === 'system' ? '系统目录' : '目标路径' }}
-              <select v-if="draft.type === 'system'" v-model="draft.target"><option v-for="(name, key) in systemNames" :value="key">{{ name }}</option></select>
+              <RichSelect v-if="draft.type==='system'" label="系统目录" v-model="draft.target" :options="Object.entries(systemNames).map(([value,label])=>({value,label,icon:'Folder'}))" required />
               <div v-else class="input-with-button"><input v-model="draft.target" required maxlength="4096" :placeholder="draft.type === 'url' ? 'https://example.com' : draft.type === 'plugin' ? '填写可在 ZTools 搜索到的指令' : '选择或拖入应用、快捷方式、文件夹'"><button v-if="draft.type==='url'" type="button" class="button" :disabled="fetchingIcon || !draft.target.trim()" @click="fetchWebsiteIcon">{{fetchingIcon?'获取中…':'获取图标'}}</button><button v-if="['app','file','folder'].includes(draft.type)" type="button" class="button" @click="pick">选择</button></div>
             </label>
           </template>
