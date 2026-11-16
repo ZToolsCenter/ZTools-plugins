@@ -62,9 +62,9 @@ async function toggleTheme() {
 
 <style scoped>
 .header {
-  height: 52px; flex-shrink: 0;
+  height: 44px; flex-shrink: 0;
   display: flex; align-items: center;
-  gap: 16px; padding: 0 20px;
+  gap: 12px; padding: 0 12px;
   background: var(--pf-bg-elevated);
   border-bottom: 1px solid var(--pf-border);
   transition: background 0.3s, border-color 0.3s;
@@ -72,7 +72,7 @@ async function toggleTheme() {
 .nav-left { display: flex; gap: 2px; flex-shrink: 0; }
 .nav-btn {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 14px;
+  height: 32px; padding: 0 12px;
   border-radius: var(--pf-radius-sm);
   font-size: 13px; font-weight: 500;
   color: var(--pf-text-muted);
@@ -89,7 +89,7 @@ async function toggleTheme() {
 
 .nav-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
 .icon-btn {
-  width: 34px; height: 34px;
+  width: 30px; height: 30px;
   border-radius: var(--pf-radius-sm);
   display: flex; align-items: center; justify-content: center;
   color: var(--pf-text-muted);
@@ -98,8 +98,9 @@ async function toggleTheme() {
 .icon-btn:hover { background: var(--pf-surface-raised); color: var(--pf-text); }
 .theme-toggle:hover { color: var(--pf-accent); }
 
-@media (max-width: 620px) {
-  .header { gap: 8px; padding: 0 8px; }
-  .nav-btn { width: 38px; padding: 6px; justify-content: center; font-size: 0; }
+@media (max-width: 700px) {
+  .header { gap: 6px; padding: 0 8px; }
+  .nav-btn { width: 36px; padding: 0; justify-content: center; font-size: 0; }
+  .nav-btn svg { opacity: 0.8; }
 }
 </style>

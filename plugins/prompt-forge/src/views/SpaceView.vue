@@ -261,10 +261,10 @@ onUnmounted(() => {
 /* 顶栏 */
 .space-topbar {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 16px; flex-shrink: 0;
+  padding: 8px 12px; flex-shrink: 0;
   border-bottom: 1px solid var(--pf-border);
   background: var(--pf-bg-elevated);
-  height: 48px;
+  height: 44px;
 }
 .topbar-search {
   flex: 1; height: 32px;

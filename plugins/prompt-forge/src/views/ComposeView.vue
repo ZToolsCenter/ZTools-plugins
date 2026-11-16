@@ -7,6 +7,7 @@ import { useAppSettings } from '../stores/app'
 import { extractVariables, getMissingRequiredVariables, renderVariables, resolveVariableValues, generateId } from '../utils/index'
 import { copyText, showNotification, hideMainWindow } from '../utils/platform'
 import { useModal } from '../composables/useModal'
+import { usePanelWidth } from '../composables/usePanelWidth'
 import type { PromptItem } from '../types'
 
 interface CanvasItem {
@@ -22,6 +23,10 @@ const selectedBaseId = ref('')
 const canvasFrags = ref<CanvasItem[]>([])
 const varOverrides = ref<Record<string, string>>({})
 const rightTab = ref<'snippet' | 'constraint'>('snippet')
+const resourceOpen = ref(false)
+
+const basePanel = usePanelWidth('compose-base', { defaultWidth: 190, min: 140, max: 320, handleEdge: 'right' })
+const resourcePanel = usePanelWidth('compose-resource', { defaultWidth: 190, min: 140, max: 320, handleEdge: 'left' })
 
 const basePrompts = computed(() => promptStore.liveItems.value.filter(i => i.type === 'prompt'))
 const snippets = computed(() => promptStore.liveItems.value.filter(i => i.type === 'snippet'))
@@ -64,6 +69,7 @@ const renderedText = computed(() => {
 function addFrag(f: PromptItem, position: 'front' | 'back' = 'back') {
   if (canvasFrags.value.some(x => x.item.id === f.id)) { showNotification('已在画布中'); return }
   canvasFrags.value.push({ item: f, position })
+  if (window.innerWidth <= 1000) resourceOpen.value = false
 }
 function removeFrag(i: number) { canvasFrags.value.splice(i, 1) }
 function moveFrag(i: number, dir: 'up' | 'down') {
@@ -110,10 +116,16 @@ async function saveAsNew() {
 </script>
 
 <template>
-  <div class="compose">
+  <div class="compose" :style="{ '--pf-compose-left-w': basePanel.width.value + 'px', '--pf-compose-right-w': resourcePanel.width.value + 'px' }">
+    <div class="compose-tools">
+      <select v-model="selectedBaseId" class="base-select" aria-label="选择基础提示词">
+        <option v-for="p in basePrompts" :key="p.id" :value="p.id">{{ p.title }}</option>
+      </select>
+      <button class="btn" @click="resourceOpen = true">添加片段 / 约束</button>
+    </div>
     <div class="compose-body">
       <!-- 左：基础 -->
-      <div class="col base-col"><div class="ch">基础提示词</div><div class="cl"><div v-for="p in basePrompts" :key="p.id" :class="['mini-card', { active: p.id === selectedBaseId }]" @click="selectedBaseId = p.id"><div class="ct">{{ p.title }}</div><div class="cd">{{ p.content }}</div></div></div></div>
+      <div class="col base-col"><div class="ch">基础提示词</div><div class="cl"><div v-for="p in basePrompts" :key="p.id" :class="['mini-card', { active: p.id === selectedBaseId }]" @click="selectedBaseId = p.id"><div class="ct">{{ p.title }}</div><div class="cd">{{ p.content }}</div></div></div><div class="pf-resize-handle right" title="拖拽调整宽度，双击恢复默认" @mousedown="basePanel.startResize" @dblclick="basePanel.resetWidth"></div></div>
       <!-- 中：画布 -->
       <div class="canvas">
         <!-- 前置片段 -->
@@ -128,18 +140,21 @@ async function saveAsNew() {
           <div class="cc-h"><span class="cc-label"><Shield v-if="f.item.type === 'constraint'" :size="12" /><Paperclip v-else :size="12" />{{ f.item.type === 'constraint' ? '约束' : '片段' }} {{ i+1 }}</span><span class="moves"><button :disabled="i===0" @click="moveFrag(canvasFrags.indexOf(f),'up')"><ChevronUp :size="12" /></button><button :disabled="i===backFrags.length-1" @click="moveFrag(canvasFrags.indexOf(f),'down')"><ChevronDown :size="12" /></button></span><span class="x" @click="removeFrag(canvasFrags.indexOf(f))"><X :size="13" /></span></div>
           <div class="ct">{{ f.item.title }}</div><div class="cc-b">{{ f.item.content }}</div>
         </div>
-        <div v-if="!canvasFrags.length" class="empty-c">在右侧选择片段或约束添加至此</div>
+        <div v-if="!canvasFrags.length" class="empty-c">从资源面板选择片段或约束添加至此</div>
         <!-- 合成预览 -->
         <div class="cc preview"><div class="cc-h">合成预览</div><div class="cc-b mono">{{ renderedText }}</div>
           <div v-if="composedVars.length" class="vars"><span v-for="v in composedVars" :key="v.name" class="vt">{{ v.name }} <input v-model="varOverrides[v.name]" :placeholder="v.defaultValue||'输入…'" /></span></div>
         </div>
       </div>
       <!-- 右：片段/约束 -->
-      <div class="col resource-col">
+      <button v-if="resourceOpen" class="resource-mask" aria-label="关闭资源面板" @click="resourceOpen = false"></button>
+      <div :class="['col', 'resource-col', { open: resourceOpen }]">
+        <div class="pf-resize-handle left" title="拖拽调整宽度，双击恢复默认" @mousedown="resourcePanel.startResize" @dblclick="resourcePanel.resetWidth"></div>
         <div class="ch">
           <span :class="['tab', { active: rightTab === 'snippet' }]" @click="rightTab = 'snippet'">片段</span>
           <span class="tab-sep">/</span>
           <span :class="['tab', { active: rightTab === 'constraint' }]" @click="rightTab = 'constraint'">约束</span>
+          <button class="resource-close" title="关闭" aria-label="关闭资源面板" @click="resourceOpen = false"><X :size="15" /></button>
         </div>
         <div class="cl">
           <template v-if="rightItems.length">
@@ -165,9 +180,14 @@ async function saveAsNew() {
 </template>
 
 <style scoped>
-.compose { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--pf-bg); overflow: hidden; }
-.compose-body { flex: 1; display: grid; grid-template-columns: 200px 1fr 200px; grid-template-rows: 1fr; min-height: 0; overflow: hidden; }
-.col { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--pf-border); background: var(--pf-bg-elevated); }
+.compose { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--pf-bg); overflow: hidden; position: relative; }
+.compose-tools { display: none; flex-shrink: 0; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--pf-border); background: var(--pf-bg-elevated); }
+.base-select { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); background: var(--pf-surface); color: var(--pf-text); font-size: 12px; }
+.base-select:focus { border-color: var(--pf-accent); outline: none; }
+.compose-tools .btn { height: 32px; flex-shrink: 0; padding: 0 10px; font-size: 12px; }
+.resource-mask, .resource-close { display: none; }
+.compose-body { flex: 1; display: grid; grid-template-columns: var(--pf-compose-left-w, 190px) minmax(0, 1fr) var(--pf-compose-right-w, 190px); grid-template-rows: 1fr; min-height: 0; overflow: hidden; }
+.col { position: relative; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--pf-border); background: var(--pf-bg-elevated); }
 .col:last-child { border-right: 0; border-left: 1px solid var(--pf-border); }
 .ch { padding: 10px 12px 6px; font-size: 11px; font-weight: 600; color: var(--pf-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .cl { flex: 1; overflow-y: auto; padding: 0 8px 10px; }
@@ -206,20 +226,35 @@ async function saveAsNew() {
 .vt { display: inline-flex; align-items: center; gap: 4px; background: var(--pf-accent-soft); color: var(--pf-accent); padding: 2px 6px; border-radius: var(--pf-radius-xs); font-size: 11px; font-weight: 500; }
 .vt input { width: 120px; border: 0; border-bottom: 1px solid var(--pf-border); background: transparent; font-size: 11px; }
 .vt input:focus { border-bottom-color: var(--pf-accent); outline: none; }
-.compose-foot { height: 48px; flex-shrink: 0; border-top: 1px solid var(--pf-border); background: var(--pf-bg-elevated); display: flex; align-items: center; gap: 8px; padding: 0 14px; }
+.compose-foot { height: 44px; flex-shrink: 0; border-top: 1px solid var(--pf-border); background: var(--pf-bg-elevated); display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+.compose-foot .btn { height: 30px; }
 .ok { font-size: 12px; color: var(--pf-success); font-weight: 600; }
 .spacer { flex: 1; }
 
-@media (max-width: 820px) {
-  .compose-body {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: minmax(150px, 38%) minmax(0, 62%);
-  }
-  .base-col { grid-column: 1; grid-row: 1; border-bottom: 1px solid var(--pf-border); }
+@media (max-width: 700px) {
+  .pf-resize-handle { display: none; }
+  .compose-tools { display: flex; }
+  .compose-body { grid-template-columns: minmax(0, 1fr); }
+  .base-col { display: none; }
+  .canvas { grid-column: 1; padding: 12px 16px; }
+  .resource-mask { display: block; position: absolute; z-index: 30; inset: 0; background: rgba(0, 0, 0, 0.2); }
   .resource-col {
-    grid-column: 2; grid-row: 1;
-    border-right: 0; border-bottom: 1px solid var(--pf-border);
+    position: absolute; z-index: 31; inset: 0 0 0 auto;
+    width: min(320px, 88%);
+    border-left: 1px solid var(--pf-border);
+    transform: translateX(102%);
+    transition: transform 0.18s ease;
+    box-shadow: var(--pf-shadow-lg);
   }
-  .canvas { grid-column: 1 / -1; grid-row: 2; }
+  .resource-col.open { transform: translateX(0); }
+  .resource-close { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; width: 24px; height: 24px; border-radius: var(--pf-radius-xs); color: var(--pf-text-muted); }
+  .resource-close:hover { background: var(--pf-surface-hover); color: var(--pf-text); }
+}
+
+@media (max-width: 520px) {
+  .compose-tools { padding: 8px; gap: 6px; }
+  .compose-tools .btn { padding: 0 8px; }
+  .canvas { padding: 10px; }
+  .compose-foot { padding: 0 8px; }
 }
 </style>

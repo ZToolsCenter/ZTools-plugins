@@ -53,11 +53,9 @@ if ($Version) {
         Set-Content $f $content -NoNewline
         Write-Host "  ✓ $f" -ForegroundColor Green
     }
-    # package-lock.json
-    $lock = Get-Content "package-lock.json" -Raw | ConvertFrom-Json
-    $lock.version = $Version
-    if ($lock.packages.'') { $lock.packages.''.version = $Version }
-    $lock | ConvertTo-Json -Depth 10 | Set-Content "package-lock.json" -NoNewline
+    # package-lock.json（独立 node 脚本处理：PS Core 的 ConvertFrom-Json 不支持空属性名 ""，
+    # PowerShell 内联 node -e 的引号转义极易踩坑）
+    node scripts/bump-lock-version.mjs $Version
     Write-Host "  ✓ package-lock.json" -ForegroundColor Green
     # ROADMAP.md
     $roadmap = Get-Content "ROADMAP.md" -Raw

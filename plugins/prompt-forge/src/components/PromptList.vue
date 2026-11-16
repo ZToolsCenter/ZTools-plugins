@@ -120,6 +120,7 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
         </div>
         <div class="card-body">
           <div class="card-title" v-html="highlightText(item.title, query || prompt.query.value)"></div>
+          <div v-if="item.description" class="card-desc">{{ item.description }}</div>
           <div class="card-meta">
             <span class="create-time"><Calendar :size="12" />{{ formatDate(item.createdAt) }}</span>
             <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag">#{{ tag }}</span>
@@ -171,7 +172,8 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
   padding: 12px 16px;
   display: flex; flex-direction: column; gap: 8px;
 }
-.sort-bar { display: flex; align-items: center; gap: 4px; padding-bottom: 4px; }
+.sort-bar { display: flex; align-items: center; gap: 4px; padding-bottom: 4px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.sort-bar::-webkit-scrollbar { display: none; }
 .sort-label { font-size: 11px; color: var(--pf-text-faint); font-weight: 600; margin-right: 4px; }
 .sort-btn { border: 1px solid var(--pf-border); border-radius: var(--pf-radius-xs); background: var(--pf-surface); font-size: 11px; color: var(--pf-text-muted); padding: 3px 8px; cursor: pointer; transition: all 0.12s; }
 .sort-btn:hover { border-color: var(--pf-accent); color: var(--pf-accent); }
@@ -179,7 +181,7 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
 .create-time { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--pf-text-faint); font-family: var(--pf-font-mono); }
 .card {
   display: flex; align-items: center;
-  gap: 14px; padding: 14px 16px;
+  gap: 12px; padding: 11px 14px;
   border-radius: var(--pf-radius-md);
   border: 1px solid var(--pf-border);
   background: var(--pf-surface);
@@ -215,6 +217,12 @@ const sortIcon = computed(() => prompt.sortDir.value === 'desc' ? '↓' : '↑')
   margin-bottom: 4px;
 }
 .card.active .card-title { color: var(--pf-accent); }
+.card-desc {
+  font-size: 12px; line-height: 1.4;
+  color: var(--pf-text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin: -2px 0 4px;
+}
 .card-title :deep(mark) {
   background: #fde68a;
   color: #92400e;

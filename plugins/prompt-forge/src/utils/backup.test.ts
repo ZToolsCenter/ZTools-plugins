@@ -73,6 +73,22 @@ describe('备份导入校验', () => {
   })
 })
 
+  it('保留合法的面板宽度设置，剔除非法值', () => {
+    const parsed = parseBackup({
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      exportedAt: Date.now(),
+      prompts: [],
+      projects: [],
+      settings: { panelWidths: { 'manage-sidebar': 260, bad: 'wide' }, evil: 1 },
+      history: [],
+    })
+
+    expect(parsed?.settings.panelWidths).toEqual({ 'manage-sidebar': 260 })
+    expect(parsed?.settings).not.toHaveProperty('evil')
+    expect(parsed?.skipped.settings).toBe(1)
+  })
+
 describe('备份合并', () => {
   it('跳过重复 ID，并把悬空项目提示词转为资产', () => {
     const existing: BackupSource = {

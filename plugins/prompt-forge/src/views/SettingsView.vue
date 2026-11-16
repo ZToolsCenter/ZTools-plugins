@@ -58,6 +58,9 @@ function applyImportedSettings(settings: Record<string, any>) {
   if (typeof settings.autoFocus === 'boolean') appSettings.settings.value.autoFocus = settings.autoFocus
   if (typeof settings.maxHistory === 'number' && settings.maxHistory > 0) appSettings.settings.value.maxHistory = settings.maxHistory
   if (settings.theme === 'dark' || settings.theme === 'light') theme.set(settings.theme)
+  if (settings.panelWidths && typeof settings.panelWidths === 'object') {
+    appSettings.settings.value.panelWidths = settings.panelWidths
+  }
 }
 
 function exportJson() {

@@ -17,6 +17,7 @@ const content = computed(() => router.quickSaveContent.value || '')
 const source = computed(() => router.quickSaveSource.value === 'selected' ? '选中文本' : '剪贴板')
 const detectedVars = computed(() => extractVariables(content.value))
 const title = ref('')
+const description = ref('')
 const tags = ref<string[]>([])
 const dupPhase = ref<'normal' | 'exact' | 'similar'>('normal')
 const similarItems = ref<Array<{ id: string; score: number }>>([])
@@ -42,7 +43,7 @@ async function handleKey(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveNew() }
   if (e.key === 'Escape') {
     e.preventDefault()
-    const hasInput = title.value.trim() || tags.value.length > 0 || selectedProjectId.value
+    const hasInput = title.value.trim() || description.value.trim() || tags.value.length > 0 || selectedProjectId.value
     if (hasInput && !await modal.confirm('放弃本次保存？已填写的内容将丢失。')) return
     router.navigateTo('space')
   }
@@ -57,6 +58,7 @@ async function saveNew() {
     const now = Date.now()
     await promptStore.addItem({
       id: generateId(), title: title.value.trim(), content: content.value,
+      description: description.value.trim() || undefined,
       type: 'prompt', tags: tags.value, variables: detectedVars.value,
       favorite: false, usageCount: 0, version: 1, snapshots: [],
       projectId: selectedProjectId.value || undefined,
@@ -96,6 +98,7 @@ async function saveNew() {
       </details>
       <div class="qsv-form">
         <div class="ff span-2"><label>标题 *</label><input v-model="title" :disabled="dupPhase === 'exact'" :class="{ 'has-error': titleError && !title.trim() }" @input="titleError = false" /></div>
+        <div class="ff span-2"><label>描述 <span class="hi">仅自己可见</span></label><textarea v-model="description" rows="2" class="desc-ta" placeholder="这个提示词用在什么场景？需要注意什么？" /></div>
         <div class="ff"><label>归属项目</label>
           <select v-model="selectedProjectId" class="proj-select">
             <option value="">无项目（资产）</option>
@@ -129,6 +132,9 @@ async function saveNew() {
 .ff input { height: 34px; padding: 0 12px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); background: var(--pf-surface); font-size: 13px; }
 .ff input:focus { border-color: var(--pf-accent); outline: none; }
 .ff input.has-error { border-color: var(--pf-danger); }
+.ff textarea { padding: 8px 12px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); background: var(--pf-surface); font-size: 13px; font-family: var(--pf-font); line-height: 1.5; color: var(--pf-text); resize: vertical; min-height: 52px; max-height: 140px; }
+.ff textarea:focus { border-color: var(--pf-accent); outline: none; }
+.hi { font-size: 10px; font-weight: 400; color: var(--pf-text-faint); text-transform: none; letter-spacing: 0; }
 .similar-banner { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: var(--pf-radius-sm); background: var(--pf-warning-soft); color: var(--pf-warning-strong); border: 1px solid var(--pf-warning-strong); font-size: 12.5px; }
 .similar-details { margin-top: 6px; font-size: 12px; }
 .similar-details summary { cursor: pointer; color: var(--pf-accent); padding: 4px 0; }

@@ -101,6 +101,23 @@ html, body {
 ::-webkit-scrollbar-thumb:hover { background: var(--pf-text-muted); }
 
 button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* ========= 面板宽度拖拽手柄 ========= */
+.pf-resize-handle {
+  position: absolute; top: 0; bottom: 0;
+  width: 7px; cursor: col-resize; z-index: 6;
+  touch-action: none;
+}
+.pf-resize-handle.right { right: -3px; }
+.pf-resize-handle.left { left: -3px; }
+.pf-resize-handle::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 2px; transform: translateX(-50%);
+  background: transparent; transition: background 0.12s;
+}
+.pf-resize-handle:hover::after { background: var(--pf-accent); }
+body.pf-panel-resizing { cursor: col-resize; user-select: none; }
+body.pf-panel-resizing * { cursor: col-resize !important; }
 input, textarea, select { font: inherit; color: inherit; background: none; border: none; outline: none; }
 
 button:focus-visible,

@@ -2,8 +2,10 @@
 import { computed } from 'vue'
 import { List, Clock, Star, History, Folder, Package, BarChart3, Trash2 } from 'lucide-vue-next'
 import { usePromptStore } from '../stores/prompt'
+import { usePanelWidth } from '../composables/usePanelWidth'
 
 const prompt = usePromptStore()
+const { width: sidebarWidth, startResize, resetWidth } = usePanelWidth('space-sidebar', { defaultWidth: 136, min: 96, max: 260 })
 
 const sideNav = computed(() => [
   { key: 'all' as const, label: '全部', icon: List },
@@ -28,7 +30,7 @@ function switchTab(key: typeof prompt.spaceTab.value) {
 </script>
 
 <template>
-  <aside class="space-sidebar">
+  <aside class="space-sidebar" :style="{ '--pf-space-sidebar-w': sidebarWidth + 'px' }">
     <button v-for="nav in sideNav" :key="nav.key" type="button"
       :class="['side-btn', { active: prompt.spaceTab.value === nav.key }]"
       :aria-current="prompt.spaceTab.value === nav.key ? 'page' : undefined"
@@ -53,12 +55,19 @@ function switchTab(key: typeof prompt.spaceTab.value) {
         <span class="side-tag-name">{{ tag }}</span>
       </button>
     </div>
+    <div
+      class="pf-resize-handle right"
+      title="拖拽调整宽度，双击恢复默认"
+      @mousedown="startResize"
+      @dblclick="resetWidth"
+    ></div>
   </aside>
 </template>
 
 <style scoped>
 .space-sidebar {
-  width: 150px; flex-shrink: 0;
+  width: var(--pf-space-sidebar-w, 136px); flex-shrink: 0;
+  position: relative;
   background: var(--pf-bg-elevated);
   border-right: 1px solid var(--pf-border);
   display: flex; flex-direction: column;
@@ -85,7 +94,8 @@ function switchTab(key: typeof prompt.spaceTab.value) {
 .side-tag-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 700px) {
-  .space-sidebar { width: 58px; }
+  .space-sidebar { width: 52px; }
+  .space-sidebar .pf-resize-handle { display: none; }
   .side-btn { justify-content: center; padding: 9px; margin: 0 6px; width: calc(100% - 12px); }
   .side-label, .side-count, .side-tags { display: none; }
   .side-icon { width: auto; }
