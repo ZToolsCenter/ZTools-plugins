@@ -1,8 +1,8 @@
 'use strict';
 const { defaults, validateConfig, geometry, resolveEntry, SYSTEM_KEYS } = require('./core.cjs');
-const { supportsMaterials, roundedRegions } = require('./appearance.cjs');
+const { roundedRegions } = require('./appearance.cjs');
 const { createMaterialSurfaces } = require('./material-surfaces.cjs');
-const { validateTriggerImage } = require('./file-actions.cjs');
+const { validateTriggerImage, validateBackgroundImage } = require('./file-actions.cjs');
 const nativeTimers = require('node:timers');
 const { randomUUID } = require('node:crypto');
 
@@ -12,7 +12,7 @@ function createController(api, options = {}) {
   const exists = options.exists || require('node:fs').existsSync;
   let config = defaults(), error = '', expanded = false, trayVisible = false, pinned = false, disposed = false;
   let trigger = null, panel = null, editor = null, openTimer = null, closeTimer = null, pollTimer = null, topmostTimer = null;
-  const materialsSupported = options.materialsSupported ?? supportsMaterials();
+  const materialsSupported = options.materialsSupported ?? false; // Native backgrounds retired; old material values remain import-compatible;
   let panelMaterial = 'solid';
   const materialSurfaces = createMaterialSurfaces(api);
   const effectiveMaterial = () => materialsSupported ? config.settings.material : 'solid';
@@ -22,7 +22,7 @@ function createController(api, options = {}) {
   let addition = null, additionId = '';
   let monitorSignature = '', displayCache = [], primaryDisplay, displayInfo = [], maintenanceTicks = 0;
   let dark = Boolean(api.isDarkColors());
-  try { const stored = api.dbStorage.getItem('dock-config-v1'); if (stored) { const valid = validateConfig(stored); validateTriggerImage(valid.settings); config = valid; } }
+  try { const stored = api.dbStorage.getItem('dock-config-v1'); if (stored) { const valid = validateConfig(stored); validateTriggerImage(valid.settings); validateBackgroundImage(valid.settings); config = valid; } }
   catch (e) { error = `配置读取失败：${e.message}。可从设置导入备份或恢复默认。`; config.settings.enabled = false; }
 
   function live(win) { return win && !win.isDestroyed(); }
@@ -109,12 +109,21 @@ function createController(api, options = {}) {
       trigger.showInactive(); maintainTopmost();
     }
     const material = effectiveMaterial();
+    const previousMaterial = panelMaterial;
     panelMaterial = material;
     if (!live(panel)) {
       panel = api.createBrowserWindow('index.html?surface=panel', { ...common, ...bounds.panel, transparent: true, backgroundColor: '#00000000', hasShadow: false });
       resetPanelShape();
     }
-    if (materialSurfaces.setMaterial(material,common)) { panelRegions=[];lastPanelShape=''; }
+    if (materialSurfaces.setMaterial(material,common)) {
+      // Native-to-native switches have identical geometry. Restore backgrounds now,
+      // even when the renderer is hidden/throttled and cannot report a new layout yet.
+      if (previousMaterial !== 'solid' && material !== 'solid') {
+        materialSurfaces.layout(panelRegions, bounds.panel, expanded, trayVisible);
+        maintainTopmost();
+      } else panelRegions=[];
+      lastPanelShape='';
+    }
     if (topmostTimer === null) topmostTimer = timers.setInterval(() => {
       try {
         maintainTopmost();
@@ -129,6 +138,7 @@ function createController(api, options = {}) {
   function save(next) {
     const valid = validateConfig(next);
     if (valid.settings.triggerImage !== config.settings.triggerImage) validateTriggerImage(valid.settings);
+    if (valid.settings.backgroundImage !== config.settings.backgroundImage) validateBackgroundImage(valid.settings);
     persist(valid);
     config = valid; error = '';
     if (config.settings.enabled) ensureWindows(); else stopWindows();
@@ -172,8 +182,8 @@ function createController(api, options = {}) {
     }
     if (!config.settings.enabled || disposed) start(); else ensureWindows();
     expanded = true; trayVisible = true;
-    panel.showInactive();
     materialSurfaces.layout(panelRegions,bounds.panel,true,true);
+    panel.showInactive();
     maintainTopmost();
     startCursorPolling();
     notify('runtime'); return true;

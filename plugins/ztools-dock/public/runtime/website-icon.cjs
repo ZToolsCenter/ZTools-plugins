@@ -44,4 +44,4 @@ async function websiteIcon(target) {
     throw new Error('未获取到网站图标，可重试或选择本地图片');
   }finally {clearTimeout(timer);}
 }
-module.exports={websiteIcon,iconLinks};
+module.exports={websiteIcon,iconLinks,download};

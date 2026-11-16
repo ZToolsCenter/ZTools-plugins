@@ -87,7 +87,7 @@ export async function checkStyle({ app, evaluate, screenshot, native, check }) {
     await app.evaluate(({screen})=>{screen.getCursorScreenPoint=()=>({x:-100000,y:-100000})});
     await expect.poll(()=>read('window.dock.call("snapshot").then(s=>s.trayVisible)'),{timeout:4000}).toBe(false);
     assert.equal((await read('window.dock.call("snapshot")')).expanded,true);
-    assert.equal(await read('getComputedStyle(document.querySelector(".dock-tray")).display'),'none');
+    assert.equal(await read('getComputedStyle(document.querySelector(".dock-tray")).visibility'),'hidden');
     await read('document.querySelector(".dock-bar").dispatchEvent(new MouseEvent("mouseenter"))');
     await expect.poll(()=>read('window.dock.call("snapshot").then(s=>s.trayVisible)')).toBe(true);
     await read('document.querySelector(".dock-menu-toggle").click()');

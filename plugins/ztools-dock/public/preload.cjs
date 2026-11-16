@@ -1,6 +1,7 @@
 'use strict';
 const { ipcRenderer, clipboard } = require('electron');
 const { prepareAddition } = require('./runtime/addition.cjs');
+const { pluginCatalog, requestCatalog, pluginIcon, catalogPermissions, stopCatalog } = require('./runtime/plugin-catalog.cjs');
 const { FILE_ACTIONS, fileAction } = require('./runtime/file-actions.cjs');
 const { createController } = require('./runtime/controller.cjs');
 const { mergeState } = require('./runtime/state.cjs');
@@ -16,6 +17,16 @@ async function dispatch(op, payload) {
   switch (op) {
     case 'snapshot': return controller.snapshot();
     case 'take-addition': return controller.takeAddition();
+    case 'plugin-catalog': return pluginCatalog(api);
+    case 'plugin-authorize': return requestCatalog(api, payload);
+    case 'plugin-permissions': return catalogPermissions(api);
+    case 'plugin-stop-reading': return stopCatalog(api);
+    case 'plugin-permissions-settings': {
+      if(api.redirect(['设置','通用设置'])===false)throw new Error('无法打开 ZTools 设置，请在 ZTools 搜索“通用设置”');
+      controller.windows().find(win=>controller.isSettingsSender(win.webContents.id))?.hide();
+      await api.showMainWindow();return true;
+    }
+    case 'plugin-icon': return pluginIcon(api, payload);
     case 'panel-layout': return controller.panelLayout(payload);
     case 'save': return controller.save(payload);
     case 'expand': return controller.expand();
@@ -48,7 +59,7 @@ function initialize() {
   if (!window.ztools) { setTimeout(initialize, 30); return; }
   controller = createController(window.ztools, { onChange: emit });
   const childOps = new Set(['snapshot', 'expand', 'collapse', 'pin', 'focus', 'hover', 'select', 'run', 'settings']);
-  const editorOps = new Set(['save', 'pause', 'test', 'reset', 'take-addition']);
+  const editorOps = new Set(['save', 'pause', 'test', 'reset', 'take-addition', 'plugin-catalog', 'plugin-authorize', 'plugin-icon', 'plugin-permissions', 'plugin-stop-reading', 'plugin-permissions-settings']);
   ipcRenderer.on('dock:request', async (event, request) => {
     if (!request) return;
     const child = controller.windows().find(w => w.webContents.id === request.sender && event.senderId === request.sender);

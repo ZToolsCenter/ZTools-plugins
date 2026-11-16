@@ -28,8 +28,9 @@ export async function checkAppearance({app,evaluate,screenshot,native,check}) {
   await expect.poll(()=>evaluate('(()=>{const c=document.querySelector(".launch-card").getBoundingClientRect(),i=document.querySelector(".launch-icon").getBoundingClientRect(),n=document.querySelector(".launch-name").getBoundingClientRect();return i.top>=c.top && n.bottom<=c.bottom})()','panel')).toBe(true);
   check('real 50/100/150 percent slider scales whole card width/height and tray together; text remains inside minimum-height cards');
   if((await evaluate('window.dock.call("snapshot")')).materialsSupported) {
-   for(const [material,code] of [['mica',2],['acrylic',3]]) {
-    await evaluate(`(()=>{const s=document.querySelector('[aria-label="面板材质"]');s.value='${material}';s.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+   for(const [material,code] of [['mica',2],['acrylic',3],['mica',2],['acrylic',3]]) {
+    const settingsPage=app.windows().find(page=>page.url().includes('surface=settings'));
+    await settingsPage.locator(`[data-material="${material}"]`).click();
     await expect.poll(()=>evaluate('window.dock.call("snapshot").then(s=>s.material)')).toBe(material);
     await expect.poll(()=>evaluate('Boolean(document.querySelector(".dock-panel.material-native"))','panel').catch(()=>false)).toBe(true);
     await evaluate('window.dock.call("expand")');
@@ -48,7 +49,7 @@ export async function checkAppearance({app,evaluate,screenshot,native,check}) {
   await expect.poll(()=>evaluate('window.dock.call("snapshot").then(s=>s.config.settings.panelOpacity)')).toBe(0.35);
   const opacity=await evaluate('(()=>{const p=getComputedStyle(document.querySelector(".dock-panel")),t=getComputedStyle(document.querySelector(".launch-name"));return {opacity:p.opacity,text:t.opacity,bg:getComputedStyle(document.querySelector(".dock-tray")).backgroundColor}})()','panel');
   assert.equal(opacity.opacity,'1');assert.equal(opacity.text,'1');assert.match(opacity.bg, /0\.35/);
-  await evaluate('document.querySelector("[aria-label=面板材质]").scrollIntoView({block:"center"})');
+  await evaluate('document.querySelector("[aria-label=上传背景图片]").scrollIntoView({block:"center"})');
   await screenshot('appearance-options.png');await screenshot('dock-large-icons.png','panel',true);
   check('background opacity control affects surface tint only; panel and text stay fully opaque');
  } finally {

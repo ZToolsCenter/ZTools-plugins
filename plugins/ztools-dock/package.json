@@ -1,6 +1,6 @@
 {
   "name": "ztools-dock",
-  "version": "0.1.14",
+  "version": "0.1.21",
   "private": true,
   "description": "程序坞 · Windows 桌面分类启动器",
   "type": "module",
@@ -12,7 +12,8 @@
     "test:host": "node scripts/test-host.mjs",
     "bench:host": "node scripts/benchmark-host.mjs",
     "pack": "npm run build && node scripts/package.mjs",
-    "market:prepare": "node scripts/prepare-market.mjs"
+    "market:prepare": "node scripts/prepare-market.mjs",
+    "test:smoke": "node scripts/test-smoke.mjs"
   },
   "dependencies": {
     "lucide-vue-next": "0.468.0",

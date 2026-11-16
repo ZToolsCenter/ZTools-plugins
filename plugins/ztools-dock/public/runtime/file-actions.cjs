@@ -3,7 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { validateConfig, MAX_CONFIG_BYTES } = require('./core.cjs');
 const { websiteIcon } = require('./website-icon.cjs');
-const FILE_ACTIONS = new Set(['describe', 'pick', 'icon', 'import', 'export', 'website-icon', 'trigger-image']);
+const {normalizeBackground,validateBackgroundImage}=require('./background-image.cjs');
+const FILE_ACTIONS = new Set(['describe', 'pick', 'icon', 'import', 'export', 'website-icon', 'trigger-image', 'background-image']);
 
 function validateTriggerImage(settings) {
   if (!settings.triggerImage) return;
@@ -28,6 +29,10 @@ function describeFile(filename, api) {
 /** Dialogs belong to the visible settings window, including focus restoration. */
 async function fileAction(op, payload, api, getConfig) {
   switch (op) {
+    case 'background-image': {
+      const selected=api.showOpenDialog({title:'上传背景图片',properties:['openFile'],filters:[{name:'背景图片',extensions:['png','jpg','jpeg','webp']}]});
+      return selected?.[0]?normalizeBackground(selected[0]):null;
+    }
     case 'website-icon': return websiteIcon(payload);
     case 'describe':
       if (!Array.isArray(payload) || payload.length > 100) throw new Error('一次最多添加 100 个文件');
@@ -69,6 +74,7 @@ async function fileAction(op, payload, api, getConfig) {
       if (fs.statSync(selected[0]).size > MAX_CONFIG_BYTES) throw new Error('配置文件过大，最大支持 8 MB');
       const config = validateConfig(JSON.parse(fs.readFileSync(selected[0], 'utf8').replace(/^\uFEFF/, '')));
       validateTriggerImage(config.settings);
+      validateBackgroundImage(config.settings);
       return config;
     }
     case 'export': {
@@ -79,4 +85,4 @@ async function fileAction(op, payload, api, getConfig) {
     default: throw new Error('不支持的文件操作');
   }
 }
-module.exports = { FILE_ACTIONS, fileAction, describeFile, validateTriggerImage };
+module.exports = { FILE_ACTIONS, fileAction, describeFile, validateTriggerImage, validateBackgroundImage };

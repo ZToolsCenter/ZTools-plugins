@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { State } from './types';
 import Icon from './Icon.vue';
 import { command } from './bridge';
+import './tile-materials.css';
 const props = defineProps<{ state: State }>();
 const query = ref('');
 const selected = ref(props.state.config.settings.lastCategoryId);
@@ -17,8 +18,16 @@ const entries = computed(() => {
 });
 const current = computed(() => categories.value.find(c => c.id === selected.value));
 const vertical = computed(() => ['left','right'].includes(props.state.config.settings.dockEdge));
+// A fully collapsed native window is already hidden. Keep its last complete
+// layout ready for the next show; only pinned navigation hides the tray itself.
+const trayPrepared = computed(() => !props.state.expanded || props.state.trayVisible);
 const iconPixels = computed(() => ({ small: 24, medium: 29, large: 36 })[props.state.config.settings.iconSize]);
 const viewportWidth = ref(0), scrollbarWidth = ref(0);
+const navWidth = computed(() => props.state.config.settings.dockWidth || (vertical.value ? 100 : categories.value.length ? categories.value.length * 100 + 6 + (props.state.config.settings.pinEnabled ? 26 : 0) : 160));
+const navHeight = computed(() => props.state.config.settings.dockHeight || (vertical.value ? Math.max(76, categories.value.length * 66 + 10 + (props.state.config.settings.pinEnabled ? 26 : 0)) : 66));
+const actualNavWidth = ref(100), actualNavHeight = ref(66);
+const categoryIconPixels = computed(() => Math.min(Math.round(iconPixels.value * 25 / 29), vertical.value ? 36 : Math.max(12, actualNavHeight.value - (props.state.config.settings.showCategoryNames ? 25 : 8))));
+
 const cardRatio = computed(() => props.state.config.settings.cardScale / 100);
 const cardIconPixels = computed(() => Math.round(iconPixels.value * cardRatio.value));
 const cardFont = computed(() => Math.max(10, 12 * cardRatio.value));
@@ -26,11 +35,13 @@ const cardHeight = computed(() => Math.ceil(Math.max(props.state.config.settings
   cardIconPixels.value + 12 * cardRatio.value + 2 + (props.state.config.settings.showEntryNames ? cardFont.value * 1.5 + 6 * cardRatio.value : 0))));
 const gridColumns = computed(() => {
   const width = viewportWidth.value || props.state.bounds?.panel.width || 1000;
-  const available = width - (vertical.value ? 100 : 32) - scrollbarWidth.value;
+  const room = width - (vertical.value ? actualNavWidth.value : 32);
+  const requested = props.state.config.settings.popupWidth;
+  const available = Math.min(room, requested ? Math.max(requested, 134 * cardRatio.value + 2) : room) - scrollbarWidth.value;
   const fitting = Math.max(1, Math.floor(((available - 2) / cardRatio.value - 6) / 128));
   return Math.min(props.state.config.settings.columns, entries.value.length || 2, fitting);
 });
-const dimensions = computed(() => ({ '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${Math.max(160, categories.value.length * 100 + 32)}px`, '--tray-width': `${(gridColumns.value * 128 + 6) * cardRatio.value + 2 + scrollbarWidth.value}px`, '--card-height': `${cardHeight.value}px`, '--card-padding': `${6 * cardRatio.value}px`, '--card-gap': `${6 * cardRatio.value}px`, '--card-font': `${cardFont.value}px`, '--grid-gap': `${8 * cardRatio.value}px`, '--tray-padding': `${7 * cardRatio.value}px`, '--card-radius': `${Math.max(4, 7 * cardRatio.value)}px` }));
+const dimensions = computed(() => ({ '--background-image': props.state.config.settings.backgroundImage ? `url("${props.state.config.settings.backgroundImage}")` : 'none', '--glass-strength': props.state.config.settings.tileStrength / 100, '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${navWidth.value}px`, '--nav-width': `${actualNavWidth.value}px`, '--nav-height': `${actualNavHeight.value}px`, '--category-padding': !vertical.value && actualNavHeight.value < 60 ? '2px 8px' : '6px 8px', '--category-gap': !vertical.value && actualNavHeight.value < 60 ? '2px' : '4px', '--category-basis': props.state.config.settings.dockWidth ? '60px' : '92px', '--tray-width': `${props.state.config.settings.popupWidth ? Math.max(props.state.config.settings.popupWidth, 134 * cardRatio.value + 2 + scrollbarWidth.value) : (gridColumns.value * 128 + 6) * cardRatio.value + 2 + scrollbarWidth.value}px`, '--tray-height': props.state.config.settings.popupHeight ? `${props.state.config.settings.popupHeight}px` : 'auto', '--card-height': `${cardHeight.value}px`, '--card-padding': `${6 * cardRatio.value}px`, '--card-gap': `${6 * cardRatio.value}px`, '--card-font': `${cardFont.value}px`, '--grid-gap': `${8 * cardRatio.value}px`, '--tray-padding': `${7 * cardRatio.value}px`, '--card-radius': `${Math.max(4, 7 * cardRatio.value)}px` }));
 let observer: ResizeObserver | undefined, frame = 0, lastShape = '';
 
 function scheduleLayout() {
@@ -45,8 +56,9 @@ function updateLayout() {
   const edge = props.state.config.settings.dockEdge;
   const anchor = props.state.bounds?.anchor || { x: width / 2, y: height / 2 };
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(Math.max(min, max), value));
-  const barWidth = vertical.value ? Math.min(100, width) : Math.min(Math.max(160, categories.value.length * 100 + 32), Math.max(1, width - 32));
-  const barHeight = vertical.value ? Math.min(Math.max(92, categories.value.length * 66 + 26), Math.max(66, height - 32)) : 66;
+  const barWidth = Math.min(navWidth.value, Math.max(1, width - (vertical.value ? Math.min(width - 1, 100) : 32)));
+  const barHeight = Math.min(navHeight.value, Math.max(1, height - (vertical.value ? 32 : 100)));
+  actualNavWidth.value = barWidth; actualNavHeight.value = barHeight;
   const barX = vertical.value ? (edge === 'left' ? 0 : width - barWidth) : clamp(anchor.x - barWidth / 2, 16, width - barWidth - 16);
   const barY = vertical.value ? clamp(anchor.y - barHeight / 2, 16, height - barHeight - 16) : edge === 'bottom' ? height - barHeight : 0;
   Object.assign(bar.value.style, { left: `${Math.round(barX)}px`, top: `${Math.round(barY)}px`, width: `${barWidth}px`, height: `${barHeight}px` });
@@ -58,7 +70,7 @@ function updateLayout() {
   const trayY = vertical.value ? clamp(centreY - trayHeight / 2, 16, height - trayHeight - 16) : edge === 'bottom' ? barY - trayHeight : barY + barHeight;
   // Drawing and native hit regions use the same final placement.
   Object.assign(tray.value.style, { left: `${Math.round(trayX)}px`, top: `${Math.round(trayY)}px` });
-  const regions = [bar.value, ...(props.state.trayVisible ? [tray.value] : [])].map(el => {
+  const regions = [bar.value, ...(trayPrepared.value ? [tray.value] : [])].map(el => {
     const rect = el.getBoundingClientRect(), shadow = props.state.material && props.state.material !== 'solid' ? 0 : 14;
     const x = Math.max(0, Math.floor(rect.x - shadow)), y = Math.max(0, Math.floor(rect.y - shadow));
     return { x, y, width: Math.min(width, Math.ceil(rect.right + shadow)) - x, height: Math.min(height, Math.ceil(rect.bottom + shadow)) - y };
@@ -80,7 +92,7 @@ watch([categories, () => props.state.config.settings.lastCategoryId], ([list, id
 watch(selected, revealSelected);
 watch(() => props.state.material, () => { lastShape = ''; scheduleLayout(); });
 watch(() => props.state.config.settings.dockEdge, async () => { await nextTick(); updateLayout(); await revealSelected(); });
-watch([() => props.state.expanded, () => props.state.trayVisible, dimensions, () => props.state.config.settings.dockEdge, () => props.state.bounds?.anchor.x, () => props.state.bounds?.anchor.y, () => props.state.material, () => entries.value.length, () => props.state.config.settings.searchEnabled, query], async () => { await nextTick(); scheduleLayout(); });
+watch([() => props.state.expanded, () => props.state.trayVisible, dimensions, navHeight, () => props.state.config.settings.dockEdge, () => props.state.bounds?.anchor.x, () => props.state.bounds?.anchor.y, () => props.state.material, () => entries.value.length, () => props.state.config.settings.searchEnabled, query], async () => { await nextTick(); scheduleLayout(); });
 function select(id: string) {
   if (!props.state.trayVisible) command('expand');
   query.value = '';
@@ -117,24 +129,24 @@ onMounted(() => {
 onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibility); });
 </script>
 <template>
-  <main ref="shell" class="dock-panel" :data-edge="state.config.settings.dockEdge" :class="{ 'material-native': state.material && state.material !== 'solid' }" :style="dimensions" @keydown="keydown" @contextmenu.prevent="command('settings')">
+  <main ref="shell" class="dock-panel" :data-edge="state.config.settings.dockEdge" :data-tile-material="state.config.settings.tileMaterial" :class="{ 'material-native': state.material && state.material !== 'solid' }" :style="dimensions" @keydown="keydown" @contextmenu.prevent="command('settings')">
     <div ref="bar" class="dock-bar" @mouseenter="command('expand')">
       <nav class="dock-categories" aria-label="程序坞分类" @scroll.passive="scheduleLayout" @wheel.prevent="scrollCategories">
         <span v-if="!categories.length" class="dock-no-categories">暂无快捷入口</span>
-        <button v-for="category in categories" :key="category.id" class="dock-category" :class="{ selected: selected === category.id }" :style="{ '--category-color': category.color }" :aria-pressed="selected === category.id" :title="category.name" :aria-label="category.name" @mouseenter="select(category.id)" @click="select(category.id)">
-          <Icon :name="category.icon" :image="category.image" :size="Math.round(iconPixels * 25 / 29)" /><span v-if="state.config.settings.showCategoryNames" class="dock-category-name">{{ category.name }}</span>
+        <button v-for="category in categories" :key="category.id" class="dock-category tile-material" :class="{ selected: selected === category.id }" :style="{ '--category-color': category.color }" :aria-pressed="selected === category.id" :title="category.name" :aria-label="category.name" @mouseenter="select(category.id)" @click="select(category.id)">
+          <Icon :name="category.icon" :image="category.image" :size="categoryIconPixels" /><span v-if="state.config.settings.showCategoryNames" class="dock-category-name">{{ category.name }}</span>
         </button>
       </nav>
       <button v-if="state.config.settings.pinEnabled" class="dock-menu-toggle" :class="{ active: state.pinned }" :aria-pressed="state.pinned" :title="state.pinned ? '取消钉住导航条' : '钉住导航条'" :aria-label="state.pinned ? '取消钉住导航条' : '钉住导航条'" @click="command('pin')"><Icon name="Pin" :size="18" /></button>
     </div>
-    <section v-show="state.trayVisible" ref="tray" class="dock-tray" :aria-label="query ? '搜索结果' : current?.name">
+    <section ref="tray" class="dock-tray" :class="{ 'tray-hidden': !trayPrepared }" :inert="!trayPrepared" :aria-hidden="!trayPrepared" :aria-label="query ? '搜索结果' : current?.name">
       <div v-if="state.config.settings.searchEnabled" class="dock-tools">
         <label class="dock-search"><Icon name="Search" :size="16" /><input v-model="query" placeholder="搜索所有入口" aria-label="搜索所有入口" @focus="command('focus')"></label>
 
       </div>
       <div v-if="state.error" class="inline-error" role="alert">{{ state.error }}</div>
       <div class="dock-grid" :style="{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, ${120 * cardRatio}px))` }">
-        <button v-for="entry in entries" :key="entry.id" class="launch-card" :aria-label="entry.name" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
+        <button v-for="entry in entries" :key="entry.id" class="launch-card tile-material" :aria-label="entry.name" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
           <span class="launch-icon" :style="{ color: entry.color }"><Icon :name="entry.icon" :image="entry.image" :size="cardIconPixels" /></span>
           <span v-if="state.config.settings.showEntryNames" class="launch-name">{{ entry.name }}</span>
         </button>
