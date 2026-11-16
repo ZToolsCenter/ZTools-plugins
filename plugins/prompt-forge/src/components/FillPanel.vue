@@ -95,6 +95,7 @@ function onTextareaInput(name: string, e: Event) {
             <button :class="['mode-btn', { active: previewMode === 'markdown' }]" @click="previewMode = 'markdown'">Markdown</button>
           </div>
         </div>
+        <div v-if="unit?.description" class="preview-desc">{{ unit.description }}</div>
         <div v-if="previewMode === 'text'" class="preview-body">{{ preview }}</div>
         <div v-else class="preview-body markdown-body" v-html="markdownHtml"></div>
       </div>
@@ -207,8 +208,8 @@ function onTextareaInput(name: string, e: Event) {
 }
 .var-textarea::placeholder { color: var(--pf-text-faint); }
 .form-actions {
-  height: 52px; min-height: 52px;
-  padding: 12px 20px;
+  height: 46px; min-height: 46px;
+  padding: 8px 16px;
   display: flex; align-items: center; gap: 10px;
   border-top: 1px solid var(--pf-border);
   background: var(--pf-bg-elevated);
@@ -234,6 +235,16 @@ function onTextareaInput(name: string, e: Event) {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .preview-meta { display: flex; gap: 4px; flex-shrink: 0; }
+.preview-desc {
+  flex-shrink: 0;
+  padding: 8px 20px;
+  font-size: 12px; line-height: 1.5;
+  color: var(--pf-text-muted);
+  background: var(--pf-surface-raised);
+  border-bottom: 1px solid var(--pf-border);
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 84px; overflow-y: auto;
+}
 .tag {
   font-size: 10px; font-weight: 500;
   padding: 2px 7px; border-radius: var(--pf-radius-pill);
@@ -257,7 +268,7 @@ function onTextareaInput(name: string, e: Event) {
   line-height: 1.7;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 560px) {
   .fill-body:not(.single) {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(180px, 1fr) minmax(180px, 1fr);

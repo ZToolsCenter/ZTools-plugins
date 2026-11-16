@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { FolderInput, Trash2, Check, ArrowLeft } from 'lucide-vue-next'
 import { usePromptStore } from '../stores/prompt'
 import { useProjectStore } from '../stores/project'
@@ -10,6 +10,8 @@ const prompt = usePromptStore()
 const projectStore = useProjectStore()
 
 const showNewProject = ref(false)
+const projectListOpen = ref(false)
+const currentProjectName = computed(() => projectStore.items.value.find(p => p.id === prompt.filterProjectId.value)?.name || '全部项目提示词')
 const newProjectName = ref('')
 const newProjectGroup = ref<ProjectGroup>('开发')
 const newProjectDesc = ref('')
@@ -29,6 +31,12 @@ function onProjectContextMenu(e: MouseEvent, project: Project) {
 function closeCtxMenu() {
   ctxMenu.value.visible = false
   showMoveGroup.value = false
+}
+
+function selectProject(id: string) {
+  prompt.filterProjectId.value = id
+  prompt.keyboardIndex.value = 0
+  projectListOpen.value = false
 }
 
 async function createProject() {
@@ -76,7 +84,8 @@ defineExpose({ closeCtxMenu })
 
 <template>
   <div class="project-layout">
-    <div class="project-panel">
+    <button v-if="projectListOpen" class="project-mask" aria-label="关闭项目列表" @click="projectListOpen = false"></button>
+    <div :class="['project-panel', { open: projectListOpen }]">
       <div class="project-header">
         <span class="ph-title">项目</span>
         <button class="btn" @click="showNewProject = !showNewProject">+ 新建</button>
@@ -92,7 +101,7 @@ defineExpose({ closeCtxMenu })
             <div class="group-label">{{ group }}</div>
             <div v-for="p in projectStore.groupedProjects.value[group]" :key="p.id"
               :class="['project-item', { active: prompt.filterProjectId.value === p.id }]"
-              @click="prompt.filterProjectId.value = p.id; prompt.keyboardIndex.value = 0"
+              @click="selectProject(p.id)"
               @contextmenu="onProjectContextMenu($event, p)">
               <span class="pi-name">{{ p.name }}</span>
               <span class="pi-count">{{ prompt.liveItems.value.filter(i => i.projectId === p.id).length }}</span>
@@ -101,13 +110,20 @@ defineExpose({ closeCtxMenu })
         </div>
         <div
           :class="['project-item', { active: !prompt.filterProjectId.value }]"
-          @click="prompt.filterProjectId.value = ''; prompt.keyboardIndex.value = 0">
+          @click="selectProject('')">
           <span class="pi-name">全部项目提示词</span>
           <span class="pi-count">{{ prompt.liveItems.value.filter(i => i.projectId).length }}</span>
         </div>
       </div>
     </div>
     <div class="project-content">
+      <div class="project-compact-bar">
+        <button class="project-picker" @click="projectListOpen = true">
+          <FolderInput :size="14" />
+          <span>{{ currentProjectName }}</span>
+          <span class="picker-action">切换</span>
+        </button>
+      </div>
       <slot />
     </div>
 
@@ -133,9 +149,9 @@ defineExpose({ closeCtxMenu })
 </template>
 
 <style scoped>
-.project-layout { flex: 1; min-height: 0; display: flex; overflow: hidden; }
+.project-layout { flex: 1; min-height: 0; display: flex; overflow: hidden; position: relative; }
 .project-panel {
-  width: 200px; flex-shrink: 0;
+  width: 180px; flex-shrink: 0;
   display: flex; flex-direction: column;
   border-right: 1px solid var(--pf-border);
   background: var(--pf-bg-elevated);
@@ -148,6 +164,11 @@ defineExpose({ closeCtxMenu })
 .np-select { height: 32px; padding: 0 8px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); background: var(--pf-surface); font-size: 12px; }
 .project-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
 .project-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.project-compact-bar { display: none; flex-shrink: 0; padding: 8px 12px 0; }
+.project-picker { width: 100%; height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--pf-border); border-radius: var(--pf-radius-sm); background: var(--pf-surface); color: var(--pf-text-secondary); font-size: 12px; }
+.project-picker span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.picker-action { color: var(--pf-accent); font-size: 11px; }
+.project-mask { display: none; }
 .group-label { font-size: 10.5px; font-weight: 700; color: var(--pf-text-faint); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 4px 4px; }
 .project-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: var(--pf-radius-sm); cursor: pointer; transition: all 0.12s; }
 .project-item:hover { background: var(--pf-surface-hover); }
@@ -164,11 +185,17 @@ defineExpose({ closeCtxMenu })
 .ctx-menu-item.danger { color: var(--pf-danger, #ef4444); }
 .ctx-menu-item.danger:hover { background: rgba(239, 68, 68, 0.08); }
 
-@media (max-width: 700px) {
-  .project-panel { width: 150px; }
-  .project-header, .new-project-form { padding: 8px; }
-  .project-header .btn { padding: 0 8px; }
-  .project-list { padding: 4px; }
-  .project-item { padding: 7px 6px; }
+@media (max-width: 900px) {
+  .project-compact-bar { display: block; }
+  .project-panel {
+    position: absolute; z-index: 20; inset: 0 auto 0 0;
+    width: min(260px, 82%);
+    transform: translateX(-102%);
+    transition: transform 0.18s ease;
+    box-shadow: var(--pf-shadow-lg);
+  }
+  .project-panel.open { transform: translateX(0); }
+  .project-mask { display: block; position: absolute; z-index: 19; inset: 0; background: rgba(0, 0, 0, 0.2); }
+  .project-header, .new-project-form { padding: 8px 12px; }
 }
 </style>

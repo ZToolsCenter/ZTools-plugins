@@ -1,7 +1,7 @@
 import type { Variable } from '../types'
 
 /** 判断变量是否应使用 textarea */
-const TEXTAREA_KEYWORDS = ['描述', '内容', '上下文', '正文', '摘要', '备注', '说明', '详情',
+const TEXTAREA_KEYWORDS = ['描述', '内容', '上下文', '正文', '摘要', '备注', '说明', '详情', '提示词', '原文',
   'prompt', 'content', 'context', 'description', 'body', 'text', 'input', 'output', 'message', 'summary']
 
 const VARIABLE_NAME_PATTERN = '[\\u4e00-\\u9fff\\u3400-\\u4dbfa-zA-Z0-9_-]+'

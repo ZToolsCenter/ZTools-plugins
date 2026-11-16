@@ -73,9 +73,10 @@ export function usePromptStore() {
     if (!fuseIndex.value) {
       fuseIndex.value = new Fuse(spaceItems.value, {
         keys: [
-          { name: 'title', weight: 0.5 },
-          { name: 'content', weight: 0.3 },
-          { name: 'tags', weight: 0.2 },
+          { name: 'title', weight: 0.45 },
+          { name: 'description', weight: 0.15 },
+          { name: 'content', weight: 0.25 },
+          { name: 'tags', weight: 0.15 },
         ],
         threshold: 0.4,
         includeScore: true,

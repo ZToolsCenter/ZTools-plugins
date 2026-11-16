@@ -14,6 +14,7 @@ const projectStore = useProjectStore()
 const step = ref(1)
 const content = ref('')
 const title = ref('')
+const description = ref('')
 const tags = ref<string[]>([])
 const selectedProjectId = ref('')
 const selectedType = ref<'prompt' | 'snippet' | 'template' | 'constraint'>('prompt')
@@ -50,6 +51,7 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
     })
     const item: PromptItem = {
       id: generateId(), title: autoTitle.value || '未命名', content: content.value.trim(),
+      description: description.value.trim() || undefined,
       type: type || selectedType.value, tags: tags.value, variables: vars,
       favorite: false, usageCount: 0, version: 1, snapshots: [],
       projectId: selectedProjectId.value || undefined,
@@ -81,6 +83,7 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
       <div v-if="step === 2" class="pane">
         <h2>基本信息</h2>
         <div class="field"><label>标题 <span class="hi">默认：{{ autoTitle }}</span></label><input v-model="title" placeholder="如：PRD 评审建议" /></div>
+        <div class="field"><label>描述 <span class="hi">仅自己可见，记录用途或使用场景</span></label><textarea v-model="description" class="desc-ta" placeholder="如：给后端做接口评审时用，重点让 AI 关注错误码与幂等" /></div>
         <div class="field"><label>标签 <span class="hi">回车添加</span></label><TagsInput v-model="tags" /></div>
         <div class="field"><label>类型</label>
           <div class="type-grid">
@@ -146,6 +149,7 @@ async function save(type?: 'prompt' | 'snippet' | 'template' | 'constraint') {
 .field input, .field textarea { width: 100%; border: 1px solid var(--pf-border); background: var(--pf-surface); border-radius: var(--pf-radius-sm); padding: 10px 14px; font-size: 13.5px; }
 .field input:focus, .field textarea:focus { border-color: var(--pf-accent); outline: none; box-shadow: 0 0 0 3px var(--pf-accent-soft); }
 .ta { min-height: 200px; resize: vertical; font-family: var(--pf-font-mono); line-height: 1.6; }
+.desc-ta { min-height: 64px; max-height: 140px; resize: vertical; line-height: 1.5; font-family: var(--pf-font); }
 .err { padding: 8px 12px; border: 1px solid var(--pf-danger); background: var(--pf-danger-soft); color: var(--pf-danger); border-radius: var(--pf-radius-sm); font-size: 12px; margin-bottom: 12px; }
 .detected { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--pf-accent-soft); border-radius: var(--pf-radius-md); flex-wrap: wrap; }
 .dl { font-size: 12px; font-weight: 700; color: var(--pf-accent); }

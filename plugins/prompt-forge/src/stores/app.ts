@@ -5,6 +5,8 @@ export interface AppSettings {
   closeAfterCopy: boolean
   autoFocus: boolean
   maxHistory: number
+  /** 用户拖拽调节后的面板宽度（px），按面板 key 存储 */
+  panelWidths?: Record<string, number>
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -23,6 +25,13 @@ export function useAppSettings() {
         if (typeof saved.closeAfterCopy === 'boolean') settings.value.closeAfterCopy = saved.closeAfterCopy
         if (typeof saved.autoFocus === 'boolean') settings.value.autoFocus = saved.autoFocus
         if (typeof saved.maxHistory === 'number' && saved.maxHistory > 0) settings.value.maxHistory = saved.maxHistory
+        if (saved.panelWidths && typeof saved.panelWidths === 'object') {
+          const widths: Record<string, number> = {}
+          for (const [key, value] of Object.entries(saved.panelWidths)) {
+            if (typeof value === 'number' && Number.isFinite(value) && value > 0) widths[key] = value
+          }
+          settings.value.panelWidths = widths
+        }
       }
     } catch (e) {
       console.error('Failed to load settings:', e)

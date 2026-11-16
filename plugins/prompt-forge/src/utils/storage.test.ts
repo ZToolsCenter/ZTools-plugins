@@ -43,6 +43,33 @@ describe('本地存储', () => {
     await expect(loadPrompts()).resolves.toEqual([])
   })
 
+  it('老用户升级时补齐新增的内置提示词', async () => {
+    storage.set('prompts', [{ id: 'welcome' }])
+
+    const items = await loadPrompts()
+
+    expect(items.map(item => item.id)).toContain('template-optimizer')
+    expect(items.filter(item => item.id === 'welcome')).toHaveLength(1)
+    expect(storage.get('seedVersion')).toBe(2)
+  })
+
+  it('种子版本已是最新时不再注入', async () => {
+    storage.set('prompts', [{ id: 'welcome' }])
+    storage.set('seedVersion', 2)
+
+    const items = await loadPrompts()
+
+    expect(items).toEqual([{ id: 'welcome' }])
+  })
+
+  it('用户删除过的内置提示词不会重复注入', async () => {
+    storage.set('prompts', [{ id: 'welcome' }, { id: 'template-optimizer', deleted: true }])
+
+    const items = await loadPrompts()
+
+    expect(items.filter(item => item.id === 'template-optimizer')).toHaveLength(1)
+  })
+
   it('读取失败时向调用方报告错误而不是回退到种子数据', async () => {
     failNextReadFor = 'prompts'
 
