@@ -1,0 +1,43 @@
+{
+  "name": "ztools-shukuaikuai",
+  "title": "鼠快快",
+  "version": "0.5.9",
+  "description": "一划一点，快捷随手。自定义鼠标轮盘与手势工具。",
+  "main": "index.html",
+  "preload": "preload.cjs",
+  "logo": "logo-mouse.png",
+  "platform": [
+    "win32"
+  ],
+  "pluginSetting": {
+    "backgroundRunning": true
+  },
+  "features": [
+    {
+      "code": "settings",
+      "explain": "设置轮盘、鼠标手势与快捷动作",
+      "cmds": [
+        "鼠快快",
+        "鼠标轮盘",
+        "鼠标手势",
+        "鼠快快设置"
+      ]
+    },
+    {
+      "code": "pause",
+      "explain": "暂停鼠快快",
+      "cmds": [
+        "暂停鼠快快"
+      ]
+    },
+    {
+      "code": "start",
+      "explain": "启用鼠快快",
+      "cmds": [
+        "启用鼠快快"
+      ]
+    }
+  ],
+  "author": "jiang66-so",
+  "homepage": "https://github.com/jiang66-so/ztools-shukuaikuai"
+}

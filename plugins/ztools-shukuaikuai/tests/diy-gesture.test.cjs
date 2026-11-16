@@ -1,0 +1,7 @@
+const{test}=require('node:test');const a=require('node:assert/strict');const m=require('../public/core.cjs');
+const circle=(scale=100,dx=0,dy=0)=>[Array.from({length:65},(_,i)=>({x:dx+Math.cos(i/64*Math.PI*2)*scale,y:dy+Math.sin(i/64*Math.PI*2)*scale}))];
+const cross=[[{x:0,y:0},{x:100,y:100}],[{x:100,y:0},{x:0,y:100}]];
+test('DIY O recognizes scaled and translated recordings',()=>{const match=m.matchShape(circle(60,200,120),[{id:'o',kind:'shape',name:'O',strokes:circle(),enabled:true}],.82);a.equal(match?.id,'o')});
+test('DIY multi-stroke X supports reversed stroke order',()=>{const copy=cross.slice().reverse().map(s=>s.slice().reverse().map(p=>({x:p.x*2+30,y:p.y*2+60})));a.equal(m.matchShape(copy,[{id:'x',kind:'shape',strokes:cross,enabled:true}],.82)?.id,'x');a.equal(m.matchShape(circle(),[{id:'x',kind:'shape',strokes:cross,enabled:true}],.82),null)});
+test('O does not match open C or a straight line',()=>{const open=[circle()[0].slice(0,45)];const rule=[{id:'o',kind:'shape',strokes:circle(),enabled:true}];a.equal(m.matchShape(open,rule,.82),null);a.equal(m.matchShape([[{x:0,y:0},{x:100,y:0}]],rule,.82),null)});
+test('shape rules can be saved without a direction pattern',()=>{const c=m.defaults();c.gestures.push({id:'o',name:'画 O',kind:'shape',strokes:circle(),actionId:'copy',enabled:true});a.deepEqual(m.validate(c),[]);c.gestures.at(-1).strokes=[[]];a.ok(m.validate(c).some(e=>e.includes('图形')))});
