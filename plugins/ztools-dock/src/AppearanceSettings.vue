@@ -5,6 +5,7 @@ import Icon from './Icon.vue';
 import TriggerArt from './TriggerArt.vue';
 import SettingSection from './SettingSection.vue';
 import DimensionField from './DimensionField.vue';
+import TileMaterialPicker from './TileMaterialPicker.vue';
 import { command } from './bridge';
 const props = defineProps<{ state: State }>();
 const emit = defineEmits<{ reset: [] }>();
@@ -62,10 +63,11 @@ async function removeTrigger() { const next=clone();next.settings.triggerImage='
     <label class="setting-row"><span><strong>显示入口名称</strong><small>关闭后入口卡片只显示图标，悬停仍可查看名称</small></span><input class="switch" type="checkbox" aria-label="显示入口名称" :checked="config.settings.showEntryNames" @change="setting('showEntryNames', ($event.target as HTMLInputElement).checked)"></label>
     <label class="setting-row"><span><strong>显示搜索框</strong><small>在卡片面板中搜索所有入口，默认关闭</small></span><input class="switch" type="checkbox" :checked="config.settings.searchEnabled" aria-label="显示搜索框" @change="setting('searchEnabled', ($event.target as HTMLInputElement).checked)"></label>
    </SettingSection>
-   <SettingSection id="material" title="材质与颜色" description="设置明暗、背景质感和主题色。" icon="Sun">
+   <SettingSection id="material" title="材质与颜色" description="为菜单和入口选择玻璃质感，背景独立调整。" icon="Sun">
+    <TileMaterialPicker :model-value="config.settings.tileMaterial" :strength="config.settings.tileStrength" @select="setting('tileMaterial', $event)" @strength="setting('tileStrength', $event)" />
     <label class="setting-row"><span><strong>颜色模式</strong></span><select aria-label="颜色模式" :value="config.settings.theme" @change="setting('theme', value($event))"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
-    <div class="setting-row"><span><strong>面板材质</strong><small>{{state.materialsSupported ? '点击直接切换，背景不透明度控制着色浓度' : '云母、亚克力需要 Windows 11 22H2 或更新版本'}}</small></span><div class="material-choices" role="group" aria-label="面板材质"><button v-for="material in [{id:'solid',name:'纯色'},{id:'mica',name:'云母'},{id:'acrylic',name:'亚克力'}]" :key="material.id" type="button" :data-material="material.id" :aria-pressed="config.settings.material === material.id" :disabled="materialSaving || (material.id !== 'solid' && !state.materialsSupported)" @click="setMaterial(material.id as DockSettings['material'])">{{ material.name }}</button></div></div>
-    <label class="setting-row"><span><strong>背景不透明度</strong><small>只调整底色浓度；文字、图标保持清晰</small></span><div class="range-control"><input aria-label="背景不透明度" type="range" min="0.1" max="1" step="0.05" :value="config.settings.panelOpacity" @change="setting('panelOpacity', +value($event))"><output>{{Math.round(config.settings.panelOpacity * 100)}}%</output></div></label>
+    <div class="setting-row"><span><strong>外层背景材质</strong><small>{{state.materialsSupported ? '仅影响导航条与弹窗的外层背景' : '云母、亚克力需要 Windows 11 22H2 或更新版本'}}</small></span><div class="material-choices" role="group" aria-label="面板材质"><button v-for="material in [{id:'solid',name:'纯色'},{id:'mica',name:'云母'},{id:'acrylic',name:'亚克力'}]" :key="material.id" type="button" :data-material="material.id" :aria-pressed="config.settings.material === material.id" :disabled="materialSaving || (material.id !== 'solid' && !state.materialsSupported)" @click="setMaterial(material.id as DockSettings['material'])">{{ material.name }}</button></div></div>
+    <label class="setting-row"><span><strong>背景不透明度</strong><small>调整外层背景底色，不改变上方卡片的材质强度</small></span><div class="range-control"><input aria-label="背景不透明度" type="range" min="0.1" max="1" step="0.05" :value="config.settings.panelOpacity" @change="setting('panelOpacity', +value($event))"><output>{{Math.round(config.settings.panelOpacity * 100)}}%</output></div></label>
     <label class="setting-row"><span><strong>主题色</strong></span><input type="color" :value="config.settings.accent" @change="setting('accent', value($event))"></label>
    </SettingSection>
    <SettingSection id="behavior" title="展开与收起" description="按鼠标停留时间响应，减少误触。" icon="SlidersHorizontal">

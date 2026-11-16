@@ -184,7 +184,7 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
         <details><summary>钉住后为什么卡片还会收起？</summary><p>图钉只固定菜单导航。鼠标离开后卡片收起，移回菜单再次展开。右键程序坞可打开设置。</p></details>
         <details><summary>换电脑后需要调整什么？</summary><p>导入备份后，本地路径仍指向原位置，失效入口需要重新选择。仅支持 Windows 单个显示屏停靠；暂不支持全屏自动避让，管理员窗口兼容性尚未保证。</p></details>
       </div>
-      <div class="reset-row"><span>程序坞 <b>0.1.17</b></span></div>
+      <div class="reset-row"><span>程序坞 <b>0.1.18</b></span></div>
     </section>
     <div v-if="editor" class="modal-overlay" @click.self="editor = null" @keydown.esc="editor = null">
       <form class="editor-modal" @submit.prevent="submit">

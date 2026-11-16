@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { State } from './types';
 import Icon from './Icon.vue';
 import { command } from './bridge';
+import './tile-materials.css';
 const props = defineProps<{ state: State }>();
 const query = ref('');
 const selected = ref(props.state.config.settings.lastCategoryId);
@@ -40,7 +41,7 @@ const gridColumns = computed(() => {
   const fitting = Math.max(1, Math.floor(((available - 2) / cardRatio.value - 6) / 128));
   return Math.min(props.state.config.settings.columns, entries.value.length || 2, fitting);
 });
-const dimensions = computed(() => ({ '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${navWidth.value}px`, '--nav-width': `${actualNavWidth.value}px`, '--nav-height': `${actualNavHeight.value}px`, '--category-padding': !vertical.value && actualNavHeight.value < 60 ? '2px 8px' : '6px 8px', '--category-gap': !vertical.value && actualNavHeight.value < 60 ? '2px' : '4px', '--category-basis': props.state.config.settings.dockWidth ? '60px' : '92px', '--tray-width': `${props.state.config.settings.popupWidth ? Math.max(props.state.config.settings.popupWidth, 134 * cardRatio.value + 2 + scrollbarWidth.value) : (gridColumns.value * 128 + 6) * cardRatio.value + 2 + scrollbarWidth.value}px`, '--tray-height': props.state.config.settings.popupHeight ? `${props.state.config.settings.popupHeight}px` : 'auto', '--card-height': `${cardHeight.value}px`, '--card-padding': `${6 * cardRatio.value}px`, '--card-gap': `${6 * cardRatio.value}px`, '--card-font': `${cardFont.value}px`, '--grid-gap': `${8 * cardRatio.value}px`, '--tray-padding': `${7 * cardRatio.value}px`, '--card-radius': `${Math.max(4, 7 * cardRatio.value)}px` }));
+const dimensions = computed(() => ({ '--glass-strength': props.state.config.settings.tileStrength / 100, '--panel-opacity': `${props.state.config.settings.panelOpacity * 100}%`, '--card-opacity': `${(0.2 + props.state.config.settings.panelOpacity * 0.8) * 100}%`, '--bar-width': `${navWidth.value}px`, '--nav-width': `${actualNavWidth.value}px`, '--nav-height': `${actualNavHeight.value}px`, '--category-padding': !vertical.value && actualNavHeight.value < 60 ? '2px 8px' : '6px 8px', '--category-gap': !vertical.value && actualNavHeight.value < 60 ? '2px' : '4px', '--category-basis': props.state.config.settings.dockWidth ? '60px' : '92px', '--tray-width': `${props.state.config.settings.popupWidth ? Math.max(props.state.config.settings.popupWidth, 134 * cardRatio.value + 2 + scrollbarWidth.value) : (gridColumns.value * 128 + 6) * cardRatio.value + 2 + scrollbarWidth.value}px`, '--tray-height': props.state.config.settings.popupHeight ? `${props.state.config.settings.popupHeight}px` : 'auto', '--card-height': `${cardHeight.value}px`, '--card-padding': `${6 * cardRatio.value}px`, '--card-gap': `${6 * cardRatio.value}px`, '--card-font': `${cardFont.value}px`, '--grid-gap': `${8 * cardRatio.value}px`, '--tray-padding': `${7 * cardRatio.value}px`, '--card-radius': `${Math.max(4, 7 * cardRatio.value)}px` }));
 let observer: ResizeObserver | undefined, frame = 0, lastShape = '';
 
 function scheduleLayout() {
@@ -128,11 +129,11 @@ onMounted(() => {
 onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibility); });
 </script>
 <template>
-  <main ref="shell" class="dock-panel" :data-edge="state.config.settings.dockEdge" :class="{ 'material-native': state.material && state.material !== 'solid' }" :style="dimensions" @keydown="keydown" @contextmenu.prevent="command('settings')">
+  <main ref="shell" class="dock-panel" :data-edge="state.config.settings.dockEdge" :data-tile-material="state.config.settings.tileMaterial" :class="{ 'material-native': state.material && state.material !== 'solid' }" :style="dimensions" @keydown="keydown" @contextmenu.prevent="command('settings')">
     <div ref="bar" class="dock-bar" @mouseenter="command('expand')">
       <nav class="dock-categories" aria-label="程序坞分类" @scroll.passive="scheduleLayout" @wheel.prevent="scrollCategories">
         <span v-if="!categories.length" class="dock-no-categories">暂无快捷入口</span>
-        <button v-for="category in categories" :key="category.id" class="dock-category" :class="{ selected: selected === category.id }" :style="{ '--category-color': category.color }" :aria-pressed="selected === category.id" :title="category.name" :aria-label="category.name" @mouseenter="select(category.id)" @click="select(category.id)">
+        <button v-for="category in categories" :key="category.id" class="dock-category tile-material" :class="{ selected: selected === category.id }" :style="{ '--category-color': category.color }" :aria-pressed="selected === category.id" :title="category.name" :aria-label="category.name" @mouseenter="select(category.id)" @click="select(category.id)">
           <Icon :name="category.icon" :image="category.image" :size="categoryIconPixels" /><span v-if="state.config.settings.showCategoryNames" class="dock-category-name">{{ category.name }}</span>
         </button>
       </nav>
@@ -145,7 +146,7 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); doc
       </div>
       <div v-if="state.error" class="inline-error" role="alert">{{ state.error }}</div>
       <div class="dock-grid" :style="{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, ${120 * cardRatio}px))` }">
-        <button v-for="entry in entries" :key="entry.id" class="launch-card" :aria-label="entry.name" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
+        <button v-for="entry in entries" :key="entry.id" class="launch-card tile-material" :aria-label="entry.name" :title="entry.name + '\n' + (entry.type === 'system' ? '系统目录' : entry.target)" @click="command('run', entry.id)">
           <span class="launch-icon" :style="{ color: entry.color }"><Icon :name="entry.icon" :image="entry.image" :size="cardIconPixels" /></span>
           <span v-if="state.config.settings.showEntryNames" class="launch-name">{{ entry.name }}</span>
         </button>

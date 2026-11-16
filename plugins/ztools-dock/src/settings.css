@@ -81,3 +81,18 @@
 
 .plugin-access { display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:12px; color:var(--muted); }
 .input-with-button > select { flex:1; min-width:0; }
+.tile-material-picker{padding-top:20px}
+.tile-material-heading strong{font-size:14px}.tile-material-heading p{font-size:12px;color:var(--muted);margin:6px 0 16px}
+.tile-material-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tile-material-option{padding:6px 6px 12px;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);min-width:0}
+.tile-material-option[aria-pressed=true]{border-color:var(--accent);outline:1px solid var(--accent)}
+.tile-material-option>strong,.tile-material-option>small{display:block;padding:0 7px}.tile-material-option>strong{font-size:12px;margin:10px 0 4px}.tile-material-option>small{font-size:10px;color:var(--muted);line-height:1.5}
+.tile-material-sample{position:relative;display:flex;align-items:center;justify-content:center;height:110px;border-radius:8px;background:radial-gradient(ellipse at 15% 15%,#c1e5e8,transparent 65%),linear-gradient(120deg,#a6b5c8,#8195ad);--glass-ink:#203444;--glass-fill:240 249 255;--glass-shade:40 69 91}
+.tile-material-sample>.tile-material{width:100px;height:80px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;font-size:11px;color:#087fe7}
+.tile-material-sample>.tile-material>span{color:var(--glass-ink)}
+.material-selected-mark{position:absolute;right:7px;top:7px;color:#fff;background:var(--accent);padding:2px;box-sizing:content-box;border-radius:50%}
+:root[data-theme=dark] .tile-material-sample{background:radial-gradient(ellipse at 15% 15%,#466d7b,transparent 65%),linear-gradient(120deg,#253547,#101b2b)}
+:root[data-theme=dark] .tile-material-sample[data-tile-material=plain]>.tile-material{background:#33373f}
+@media(max-width:620px){.tile-material-options{grid-template-columns:repeat(2,minmax(0,1fr))}.tile-material-sample{height:100px}}
+
+.tile-material-sample[data-tile-material=plain]>.tile-material{background:#fff;border-radius:8px}

@@ -1,0 +1,54 @@
+/* The surface belongs to each button. No extra native windows or animated filters. */
+[data-tile-material]{--glass-strength:.7;--glass-ink:#203444;--glass-fill:240 249 255;--glass-shade:40 69 91;--glass-white:255 255 255}
+:root[data-theme=dark] [data-tile-material]{--glass-ink:#eff8ff;--glass-fill:54 75 92;--glass-shade:0 8 18}
+:where([data-tile-material]:not([data-tile-material=plain])) .tile-material{
+ position:relative;isolation:isolate;overflow:hidden;
+ border:1px solid rgb(var(--glass-white) / calc(.12 + .5 * var(--glass-strength)));
+ border-radius:12px;color:var(--glass-ink);
+ background:linear-gradient(135deg,rgb(var(--glass-white) / calc(.16 + .23 * var(--glass-strength))),transparent 55%),rgb(var(--glass-fill) / .48);
+ box-shadow:inset 0 1px 1px rgb(var(--glass-white) / calc(.8 * var(--glass-strength))),inset 0 -1px 2px rgb(var(--glass-white) / calc(.35 * var(--glass-strength))),0 2px 4px rgb(var(--glass-shade) / calc(.18 * var(--glass-strength)));
+}
+.tile-material::before,.tile-material::after{pointer-events:none}
+:where([data-tile-material]:not([data-tile-material=plain])) .tile-material>span,
+:where([data-tile-material]:not([data-tile-material=plain])) .tile-material>svg{position:relative;z-index:1}
+:where([data-tile-material]:not([data-tile-material=plain])) .dock-category:not(.selected){color:var(--category-color)}
+:where([data-tile-material]:not([data-tile-material=plain])) .dock-category span{color:var(--glass-ink)}
+:where([data-tile-material]:not([data-tile-material=plain])) .dock-category{margin:3px 1px}
+:where([data-tile-material]:not([data-tile-material=plain])) .dock-category.selected{
+ color:var(--accent);outline:2px solid var(--accent);outline-offset:-3px;
+}
+:where([data-tile-material]:not([data-tile-material=plain])) .dock-category.selected span{color:var(--glass-ink)}
+:where([data-tile-material]:not([data-tile-material=plain])) .tile-material:hover{border-color:var(--accent)}
+:where([data-tile-material]:not([data-tile-material=plain])) .tile-material:active{outline:2px solid var(--accent);outline-offset:-3px}
+:where([data-tile-material]:not([data-tile-material=plain])) .tile-material:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+
+/* Ice: a blue cut edge, deep inner rim and broad lower reflection. */
+[data-tile-material=ice] .tile-material{
+ border-color:rgb(53 115 141 / calc(.75 * var(--glass-strength)));
+ background:linear-gradient(110deg,rgb(53 151 183 / calc(.4 * var(--glass-strength))),rgb(201 243 253 / .32) 60%,rgb(236 254 255 / .65));
+ box-shadow:inset 2px 3px 1px rgb(236 255 255 / calc(.9 * var(--glass-strength))),inset 5px 9px 0 rgb(29 102 128 / calc(.4 * var(--glass-strength))),inset -5px -9px 1px rgb(242 255 255 / calc(.9 * var(--glass-strength))),0 3px 4px rgb(31 61 80 / calc(.35 * var(--glass-strength)));
+}
+/* Frost: soft diffuse rim and restrained pearlescent corners. */
+[data-tile-material=frosted] .tile-material{
+ background:linear-gradient(145deg,rgb(var(--glass-white) / .42),rgb(var(--glass-fill) / .7));
+ box-shadow:inset 4px 5px 9px rgb(var(--glass-white) / calc(.8 * var(--glass-strength))),inset -3px -4px 8px rgb(106 139 161 / calc(.35 * var(--glass-strength))),0 3px 5px rgb(var(--glass-shade) / calc(.22 * var(--glass-strength)));
+}
+/* Liquid: a thick curved rim with a clear central body. */
+[data-tile-material=liquid] .tile-material{
+ border-radius:18px;background:linear-gradient(165deg,rgb(var(--glass-white) / .16),rgb(var(--glass-fill) / .35));
+ box-shadow:inset 0 3px 7px rgb(var(--glass-white) / calc(.95 * var(--glass-strength))),inset 3px 0 5px rgb(var(--glass-white) / calc(.65 * var(--glass-strength))),inset 0 -5px 7px rgb(var(--glass-white) / calc(.75 * var(--glass-strength))),inset -2px 0 5px rgb(96 133 158 / calc(.45 * var(--glass-strength))),0 3px 5px rgb(var(--glass-shade) / calc(.2 * var(--glass-strength)));
+}
+[data-tile-material=liquid] .tile-material::before{content:"";position:absolute;inset:5px;border-radius:inherit;border:1px solid rgb(var(--glass-white) / calc(.2 * var(--glass-strength)))}
+/* Clear: sparse polished highlights and a thin dark refraction edge. */
+[data-tile-material=clear] .tile-material{
+ background:rgb(var(--glass-fill) / .2);
+ box-shadow:inset 1px 1px 1px rgb(var(--glass-white) / calc(.95 * var(--glass-strength))),inset -1px -1px 1px rgb(72 100 126 / calc(.55 * var(--glass-strength))),0 1px 3px rgb(var(--glass-shade) / calc(.15 * var(--glass-strength)));
+}
+[data-tile-material=clear] .tile-material::before{content:"";position:absolute;inset:3px;border-radius:inherit;background:linear-gradient(125deg,white,transparent 22%,transparent 80%,white) border-box;border:2px solid transparent;mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);mask-composite:exclude;opacity:var(--glass-strength)}
+/* Iridescence stays at the rim so the app icon keeps its own colors. */
+[data-tile-material=iridescent] .tile-material{
+ border-radius:18px;background:linear-gradient(145deg,rgb(var(--glass-white) / .18),rgb(var(--glass-fill) / .34));
+ box-shadow:inset 0 2px 4px rgb(var(--glass-white) / calc(.9 * var(--glass-strength))),inset 0 -3px 5px rgb(var(--glass-white) / calc(.75 * var(--glass-strength))),0 3px 5px rgb(var(--glass-shade) / calc(.24 * var(--glass-strength)));
+}
+[data-tile-material=iridescent] .tile-material::before{content:"";position:absolute;inset:1px;border-radius:inherit;border:4px solid transparent;background:conic-gradient(from 40deg,#c6ffff,#b1afff,#f5b2ed,#c2fbdb,#fff4ac,#d3faff) border-box;mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);mask-composite:exclude;opacity:var(--glass-strength)}
+[data-tile-material=iridescent] .tile-material::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(165deg,transparent 8%,rgb(255 244 168 / .5) 9%,transparent 20%,transparent 76%,rgb(134 237 221 / .4) 90%,transparent);opacity:var(--glass-strength)}

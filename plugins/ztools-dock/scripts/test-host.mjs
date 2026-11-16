@@ -20,6 +20,7 @@ import { checkAppearance } from './check-appearance.mjs';
 import { checkReset } from './check-reset.mjs';
 import { checkPluginSelection } from './check-plugin-selection.mjs';
 import { checkHoverStability } from './check-hover-stability.mjs';
+import { checkTileMaterials } from './check-tile-materials.mjs';
 
 const executablePath = process.env.ZTOOLS_EXECUTABLE;
 if (!executablePath) throw new Error('Set ZTOOLS_EXECUTABLE to an Electron-compatible test executable; set ZTOOLS_APP when loading an installed app.asar.');
@@ -115,6 +116,7 @@ try {
   });
   await evaluate('window.dock.call("expand")');
   await checkHoverStability({app,evaluate,native,check});
+  await checkTileMaterials({app,evaluate,screenshot,check});
   await evaluate('window.dock.call("pin")');
   await expect.poll(() => evaluate('document.querySelectorAll(".launch-card").length', 'panel'), { timeout: 15000 }).toBe(7);
   await screenshot('dock.png', 'panel');
