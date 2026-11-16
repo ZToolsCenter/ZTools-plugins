@@ -21,6 +21,7 @@ export async function checkPluginSelection({app,evaluate,screenshot,temp,check})
     assert.deepEqual(await evaluate('window.dock.call("plugin-catalog")'),{authorized:false,plugins:[]});
     await assert.rejects(evaluate('window.dock.call("plugin-catalog")','panel'),/此窗口不支持/);
     await page.getByRole('button',{name:'授权读取',exact:true}).click();
+    await expect.poll(()=>evaluate('window.ztools.getInternalApiPermissions().then(s=>s.pending.includes("internal:get-plugins"))','host')).toBe(true);
     const approval=await app.evaluate(async({ipcMain,BrowserWindow})=>ipcMain._invokeHandlers.get('internal:resolve-internal-api-request')({sender:BrowserWindow.getAllWindows().find(w=>w.getTitle()==='ZTools').webContents},'ztools-dock',['internal:get-plugins','internal:get-disabled-plugins']));
     assert.equal(approval.success,true);
     await page.getByRole('button',{name:'刷新列表',exact:true}).click();

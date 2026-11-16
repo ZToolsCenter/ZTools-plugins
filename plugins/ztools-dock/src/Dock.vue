@@ -17,6 +17,9 @@ const entries = computed(() => {
 });
 const current = computed(() => categories.value.find(c => c.id === selected.value));
 const vertical = computed(() => ['left','right'].includes(props.state.config.settings.dockEdge));
+// A fully collapsed native window is already hidden. Keep its last complete
+// layout ready for the next show; only pinned navigation hides the tray itself.
+const trayPrepared = computed(() => !props.state.expanded || props.state.trayVisible);
 const iconPixels = computed(() => ({ small: 24, medium: 29, large: 36 })[props.state.config.settings.iconSize]);
 const viewportWidth = ref(0), scrollbarWidth = ref(0);
 const navWidth = computed(() => props.state.config.settings.dockWidth || (vertical.value ? 100 : categories.value.length ? categories.value.length * 100 + 6 + (props.state.config.settings.pinEnabled ? 26 : 0) : 160));
@@ -66,7 +69,7 @@ function updateLayout() {
   const trayY = vertical.value ? clamp(centreY - trayHeight / 2, 16, height - trayHeight - 16) : edge === 'bottom' ? barY - trayHeight : barY + barHeight;
   // Drawing and native hit regions use the same final placement.
   Object.assign(tray.value.style, { left: `${Math.round(trayX)}px`, top: `${Math.round(trayY)}px` });
-  const regions = [bar.value, ...(props.state.trayVisible ? [tray.value] : [])].map(el => {
+  const regions = [bar.value, ...(trayPrepared.value ? [tray.value] : [])].map(el => {
     const rect = el.getBoundingClientRect(), shadow = props.state.material && props.state.material !== 'solid' ? 0 : 14;
     const x = Math.max(0, Math.floor(rect.x - shadow)), y = Math.max(0, Math.floor(rect.y - shadow));
     return { x, y, width: Math.min(width, Math.ceil(rect.right + shadow)) - x, height: Math.min(height, Math.ceil(rect.bottom + shadow)) - y };
@@ -135,7 +138,7 @@ onBeforeUnmount(() => { observer?.disconnect(); cancelAnimationFrame(frame); doc
       </nav>
       <button v-if="state.config.settings.pinEnabled" class="dock-menu-toggle" :class="{ active: state.pinned }" :aria-pressed="state.pinned" :title="state.pinned ? '取消钉住导航条' : '钉住导航条'" :aria-label="state.pinned ? '取消钉住导航条' : '钉住导航条'" @click="command('pin')"><Icon name="Pin" :size="18" /></button>
     </div>
-    <section v-show="state.trayVisible" ref="tray" class="dock-tray" :aria-label="query ? '搜索结果' : current?.name">
+    <section ref="tray" class="dock-tray" :class="{ 'tray-hidden': !trayPrepared }" :inert="!trayPrepared" :aria-hidden="!trayPrepared" :aria-label="query ? '搜索结果' : current?.name">
       <div v-if="state.config.settings.searchEnabled" class="dock-tools">
         <label class="dock-search"><Icon name="Search" :size="16" /><input v-model="query" placeholder="搜索所有入口" aria-label="搜索所有入口" @focus="command('focus')"></label>
 

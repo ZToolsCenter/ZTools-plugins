@@ -19,6 +19,7 @@ import { checkSettingsLayout } from './check-settings-layout.mjs';
 import { checkAppearance } from './check-appearance.mjs';
 import { checkReset } from './check-reset.mjs';
 import { checkPluginSelection } from './check-plugin-selection.mjs';
+import { checkHoverStability } from './check-hover-stability.mjs';
 
 const executablePath = process.env.ZTOOLS_EXECUTABLE;
 if (!executablePath) throw new Error('Set ZTOOLS_EXECUTABLE to an Electron-compatible test executable; set ZTOOLS_APP when loading an installed app.asar.');
@@ -113,6 +114,7 @@ try {
     screen.getCursorScreenPoint=()=>{const w=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('surface=panel'));const b=w.getBounds();return {x:b.x+b.width/2,y:b.y+20}};
   });
   await evaluate('window.dock.call("expand")');
+  await checkHoverStability({app,evaluate,native,check});
   await evaluate('window.dock.call("pin")');
   await expect.poll(() => evaluate('document.querySelectorAll(".launch-card").length', 'panel'), { timeout: 15000 }).toBe(7);
   await screenshot('dock.png', 'panel');

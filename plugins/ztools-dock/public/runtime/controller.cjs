@@ -181,8 +181,8 @@ function createController(api, options = {}) {
     }
     if (!config.settings.enabled || disposed) start(); else ensureWindows();
     expanded = true; trayVisible = true;
-    panel.showInactive();
     materialSurfaces.layout(panelRegions,bounds.panel,true,true);
+    panel.showInactive();
     maintainTopmost();
     startCursorPolling();
     notify('runtime'); return true;

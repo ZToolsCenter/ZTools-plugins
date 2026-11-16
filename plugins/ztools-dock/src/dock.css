@@ -27,6 +27,7 @@ body[data-surface=trigger] #app,body[data-surface=panel] #app{background:transpa
 .dock-menu-toggle:hover,.dock-menu-toggle.active{background:var(--soft);color:var(--accent)}
 .dock-tray{position:absolute;top:66px;height:var(--tray-height,auto);width:min(var(--tray-width),calc(100% - 32px));max-height:calc(100% - var(--nav-height,66px) - 18px);display:flex;flex-direction:column;padding:var(--tray-padding,7px);background:color-mix(in srgb,var(--dock-surface) var(--panel-opacity,100%),transparent);border:1px solid var(--dock-border);border-radius:8px}
 .dock-grid{display:grid;gap:var(--grid-gap,8px);align-content:start;overflow:auto;min-height:0;flex:0 1 auto;overscroll-behavior:contain}
+.dock-tray.tray-hidden{visibility:hidden;pointer-events:none}
 .launch-card{min-width:0;height:var(--card-height);border:1px solid transparent;border-radius:var(--card-radius,7px);background:color-mix(in srgb,var(--dock-card) var(--card-opacity,100%),transparent);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:var(--card-gap,6px);padding:var(--card-padding,6px);color:var(--dock-text)}
 .launch-card:hover{border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:color-mix(in srgb,var(--accent) 5%,var(--dock-card))}
 .launch-card:active{background:color-mix(in srgb,var(--accent) 12%,var(--dock-card))}

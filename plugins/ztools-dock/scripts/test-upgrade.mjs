@@ -9,7 +9,7 @@ if (!process.env.ZTOOLS_EXECUTABLE) throw new Error('Set ZTOOLS_EXECUTABLE and o
 const temp = mkdtempSync(join(tmpdir(), 'ztools-dock-upgrade-'));
 mkdirSync(join(temp, 'legacy')); mkdirSync('artifacts', { recursive: true });
 const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
-const previousZip = process.env.ZTOOLS_PREVIOUS_ZIP || 'release/程序坞-0.1.15-windows.zip';
+const previousZip = process.env.ZTOOLS_PREVIOUS_ZIP || 'release/程序坞-0.1.16-windows.zip';
 const previousVersion = JSON.parse(strFromU8(unzipSync(readFileSync(previousZip))['plugin.json'])).version;
 const previousSurface = previousVersion === '0.1.0' ? 'host' : 'settings';
 const evidence = { checks: [] };
