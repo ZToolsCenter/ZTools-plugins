@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import { toast } from './bridge';
 type Plugin = { id: string; title: string; commands: string[]; unavailable: string };
 const props = defineProps<{ plugin: string; target: string }>();
-const emit = defineEmits<{ select: [plugin: Plugin]; command: [target: string] }>();
+const emit = defineEmits<{ select: [plugin: Plugin]; command: [target: string]; manage: [] }>();
+const accepted = ref<string[]>([]);
+const accessItems = [{id:'internal:get-plugins',name:'读取插件名称、指令和图标'},{id:'internal:get-disabled-plugins',name:'读取插件停用状态'}];
 const plugins = ref<Plugin[]>([]), loading = ref(false), authorized = ref(false), error = ref('');
 const selected = computed(() => plugins.value.find(p => p.title === props.plugin));
 const legacyPlugin = computed(() => props.plugin && !selected.value);
@@ -18,7 +20,8 @@ async function load() {
 async function authorize() {
   loading.value = true; error.value = '';
   try {
-    const granted = await window.dock.call('plugin-authorize');
+    if(accepted.value.length!==2)return;
+    const granted = await window.dock.call('plugin-authorize', [...accepted.value]);
     if (!granted) toast('请在 ZTools 的授权窗口中确认，然后点击刷新列表');
   } catch (e) { error.value = e instanceof Error ? e.message : String(e); }
   finally { loading.value = false; }
@@ -28,7 +31,9 @@ function select(event: Event) {
   const plugin = plugins.value.find(p => p.id === (event.target as HTMLSelectElement).value);
   if (plugin && !plugin.unavailable && plugin.commands.length) emit('select', plugin);
 }
-onMounted(load);
+function permissionsChanged(){accepted.value=[];void load();}
+onMounted(()=>{load();window.addEventListener('dock-permissions-changed',permissionsChanged);});
+onBeforeUnmount(()=>window.removeEventListener('dock-permissions-changed',permissionsChanged));
 </script>
 <template>
   <div class="field">
@@ -41,7 +46,12 @@ onMounted(load);
       </select>
       <button type="button" class="button" :disabled="loading" @click="load">刷新列表</button>
     </div>
-    <div v-if="!authorized && !loading && !error" class="plugin-access"><span>读取已安装插件需要 ZTools 授权。</span><button type="button" class="button small" @click="authorize">授权读取</button></div>
+    <div v-if="!authorized && !loading && !error" class="plugin-consent">
+      <strong>选择插件需要以下权限</strong>
+      <label v-for="item in accessItems" :key="item.id"><input v-model="accepted" type="checkbox" :value="item.id">{{ item.name }}</label>
+      <div class="plugin-consent-actions"><button type="button" class="button primary small" :disabled="loading || accepted.length!==2" @click="authorize">继续授权</button><button type="button" class="button small" @click="emit('manage')">查看授权</button></div>
+    </div>
+    <button v-if="authorized" type="button" class="text-button permission-entry" @click="emit('manage')">查看与管理授权</button>
     <small v-if="error" class="danger-text" role="alert">{{ error }}</small>
     <small v-else-if="authorized && !plugins.length" class="subtle">还没有其他已安装的插件。安装后刷新列表。</small>
     <small v-if="legacyPlugin || legacyCommand" class="subtle">原入口会保留。重新选择插件后，指令和图标会一并更新。</small>

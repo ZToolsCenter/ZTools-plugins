@@ -13,7 +13,7 @@ function update(event: Event) {
 }
 </script>
 <template>
-  <div class="setting-row dimension-row"><span><strong>{{ label }}</strong><small>{{min}}～{{max}} px，超出屏幕时自动限制</small></span>
+  <div class="setting-row dimension-row"><span><strong>{{ label }}</strong><small>{{min}}～{{max}} px</small></span>
     <div class="dimension-control"><button type="button" :aria-label="`${label}恢复自动`" :aria-pressed="value === 0" @click="emit('change',0)">自动</button><label><input :aria-label="label" type="number" min="0" :max="max" step="1" :value="value || ''" placeholder="自动" @change="update"><span>px</span></label></div>
   </div>
 </template>

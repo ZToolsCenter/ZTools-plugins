@@ -2,6 +2,18 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const PERMISSIONS = ['internal:get-plugins', 'internal:get-disabled-plugins'];
+const CONSENT_KEY = 'dock-plugin-consent-v1';
+function hasConsent(api) { return api.dbStorage?.getItem(CONSENT_KEY) === true; }
+function setConsent(api, value) {
+  api.dbStorage.setItem(CONSENT_KEY, value);
+  if(api.dbStorage.getItem(CONSENT_KEY)!==value)throw new Error('授权选择未能保存');
+}
+async function catalogPermissions(api) {
+  if(!api.getInternalApiPermissions)throw new Error('请升级 ZTools 后使用插件授权');
+  const state=await api.getInternalApiPermissions();
+  return { reading:hasConsent(api), fullAccess:!!state.fullAccess, permissions:PERMISSIONS.map(id=>({id,granted:!!state.fullAccess||!!state.granted?.includes(id),pending:!!state.pending?.includes(id)})) };
+}
+function stopCatalog(api) { setConsent(api,false); return true; }
 
 // Electron's isolated preload can reject Node's cross-realm fileURLToPath
 // implementation. Decode the Windows file URL without crossing VM realms.
@@ -16,6 +28,7 @@ function windowsIconPath(value) {
 
 async function permission(api) {
   if (!api.getInternalApiPermissions || !api.internal?.getPlugins || !api.internal?.getDisabledPlugins) throw new Error('当前 ZTools 不支持插件选择，请升级宿主');
+  if (!hasConsent(api)) return false;
   const state = await api.getInternalApiPermissions();
   return state.fullAccess || PERMISSIONS.every(key => state.granted?.includes(key));
 }
@@ -34,10 +47,14 @@ async function pluginCatalog(api) {
   const [plugins, disabled] = await Promise.all([api.internal.getPlugins(), api.internal.getDisabledPlugins()]);
   return { authorized: true, plugins: normalizePlugins(plugins, disabled) };
 }
-async function requestCatalog(api) {
+async function requestCatalog(api, accepted) {
+  if(!Array.isArray(accepted)||accepted.length!==PERMISSIONS.length||!PERMISSIONS.every(id=>accepted.includes(id)))throw new Error('请勾选两项读取权限');
+  const current=await api.getInternalApiPermissions();
+  if(current.fullAccess||PERMISSIONS.every(id=>current.granted?.includes(id))){setConsent(api,true);return true;}
   if (await permission(api)) return true;
   const result = await api.requestInternalApiPermissions(PERMISSIONS, '选择已安装插件及其指令，并读取所选插件的图标，用于添加程序坞入口。');
   if (!result?.success) throw new Error(result?.error || '无法申请插件列表权限');
+  setConsent(api,true);
   return result.status === 'granted';
 }
 async function pluginIcon(api, id) {
@@ -63,4 +80,4 @@ async function pluginIcon(api, id) {
   if (!mime || (await fs.stat(filename)).size > 2 * 1024 * 1024) return null;
   return `data:image/${mime};base64,${(await fs.readFile(filename)).toString('base64')}`;
 }
-module.exports = { PERMISSIONS, windowsIconPath, normalizePlugins, pluginCatalog, requestCatalog, pluginIcon };
+module.exports = { PERMISSIONS, CONSENT_KEY, catalogPermissions, stopCatalog, windowsIconPath, normalizePlugins, pluginCatalog, requestCatalog, pluginIcon };

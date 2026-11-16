@@ -4,6 +4,9 @@ import type { Category, Config, Entry, EntryType, Settings as DockSettings, Stat
 import Icon from './Icon.vue';
 import AppearanceSettings from './AppearanceSettings.vue';
 import PluginEntryFields from './PluginEntryFields.vue';
+import PluginPermissions from './PluginPermissions.vue';
+const permissionOpen = ref(false);
+function permissionsChanged(){iconGeneration++;window.dispatchEvent(new Event('dock-permissions-changed'));}
 import './settings.css';
 import { command, toast } from './bridge';
 const props = defineProps<{ state: State }>();
@@ -142,7 +145,7 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
 <template>
   <main class="settings-shell" @dragover.prevent @drop.prevent="drop($event)">
     <header class="settings-header">
-      <div class="brand"><span class="brand-icon"><Icon name="LayoutGrid" :size="23" /></span><div><h1>程序坞</h1><span class="subtitle">管理常用入口与桌面外观</span></div></div>
+      <div class="brand"><span class="brand-icon"><Icon name="LayoutGrid" :size="23" /></span><div><h1>程序坞</h1></div></div>
       <div class="header-actions"><button class="button ghost preview" @click="command('expand')"><Icon name="ArrowUpRight" :size="17" />展开预览</button><label class="enable-control"><span>{{ config.settings.enabled ? '已启用' : '已暂停' }}</span><input class="switch" type="checkbox" :checked="config.settings.enabled" aria-label="启用程序坞" @change="setting('enabled', ($event.target as HTMLInputElement).checked)"></label></div>
     </header>
     <nav class="settings-tabs" aria-label="设置页面">
@@ -169,22 +172,23 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
             <span class="type-tag">{{ typeNames[entry.type] }}</span>
             <div class="row-actions"><button class="icon-button" :title="'打开' + entry.name" @click="command('run', entry.id)"><Icon name="ArrowUpRight" :size="17" /></button><button class="icon-button" :title="'编辑' + entry.name" @click="openEntry(entry)"><Icon name="Pencil" :size="15" /></button><button class="icon-button" :title="'上移' + entry.name" @click="reorder(entry.id, -1, 'entry')"><Icon name="ChevronUp" :size="15" /></button><button class="icon-button" :title="'下移' + entry.name" @click="reorder(entry.id, 1, 'entry')"><Icon name="ChevronDown" :size="15" /></button><button class="icon-button danger" :title="'删除' + entry.name" @click="removeEntry(entry)"><Icon name="Trash2" :size="15" /></button></div>
           </div>
-          <div v-if="!entries.length" class="empty-state"><span class="empty-icon"><Icon :name="filter ? 'Search' : 'Folder'" :size="34" /></span><h3>{{ filter ? '没有匹配的入口' : '给这个分类添加一些常用入口' }}</h3><p>{{ filter ? '试试其他名称或路径。' : '拖入应用、快捷方式或文件夹，也可以手动添加网址和插件。' }}</p><button v-if="!filter" class="button" @click="openEntry()"><Icon name="Plus" :size="16" />添加入口</button></div>
+          <div v-if="!entries.length" class="empty-state"><span class="empty-icon"><Icon :name="filter ? 'Search' : 'Folder'" :size="34" /></span><h3>{{ filter ? '没有匹配的入口' : '暂无入口' }}</h3><p>{{ filter ? '试试其他名称或路径。' : '拖入文件，或点击“添加入口”。' }}</p><button v-if="!filter" class="button" @click="openEntry()"><Icon name="Plus" :size="16" />添加入口</button></div>
         </div>
         <div class="drop-hint"><Icon name="Upload" :size="15" /><span>拖入文件即可添加 · 拖到左侧分类可以移动入口</span></div>
       </div>
     </section>
     <AppearanceSettings v-else-if="tab === 'appearance'" :state="state" @reset="reset" />
     <section v-else class="backup-page">
-      <div class="backup-intro"><h2>备份与迁移</h2><p>把分类、入口、图标和外观一起保存。</p></div>
+      <div class="backup-intro"><h2>备份与迁移</h2></div>
       <div class="backup-actions"><button class="backup-action" @click="command('export', undefined, '配置已导出')"><Icon name="Download" :size="25" /><strong>导出配置</strong><span>保存为 JSON 文件</span></button><button class="backup-action" @click="importConfig"><Icon name="Upload" :size="25" /><strong>导入配置</strong><span>检查内容后替换当前配置</span></button></div>
+      <div class="help-block permission-settings-entry"><div><h3>插件授权</h3><p>查看读取权限或前往 ZTools 移除授权。</p></div><button class="button" @click="permissionOpen=true">查看与管理授权</button></div>
       <div class="help-block"><h3>常见问题</h3>
         <details open><summary>怎么打开和添加入口？</summary><p>在 ZTools 输入“程序坞”或“dock”展开，输入“程序坞设置”管理入口。复制网址、应用或文件后，选择“添加到程序坞”。</p></details>
         <details><summary>怎样保持后台运行？</summary><p>在 ZTools 插件管理中关闭“退出即结束”。需要随宿主启动时开启“跟随启动”（若提供）。退出 ZTools 会同时结束程序坞。</p></details>
         <details><summary>钉住后为什么卡片还会收起？</summary><p>图钉只固定菜单导航。鼠标离开后卡片收起，移回菜单再次展开。右键程序坞可打开设置。</p></details>
         <details><summary>换电脑后需要调整什么？</summary><p>导入备份后，本地路径仍指向原位置，失效入口需要重新选择。仅支持 Windows 单个显示屏停靠；暂不支持全屏自动避让，管理员窗口兼容性尚未保证。</p></details>
       </div>
-      <div class="reset-row"><span>程序坞 <b>0.1.19</b></span></div>
+      <div class="reset-row"><span>程序坞 <b>0.1.20</b></span></div>
     </section>
     <div v-if="editor" class="modal-overlay" @click.self="editor = null" @keydown.esc="editor = null">
       <form class="editor-modal" @submit.prevent="submit">
@@ -194,7 +198,7 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
           <label class="field">名称<input v-model="draft.name" required maxlength="60" placeholder="例如：工作文档" autofocus></label>
           <template v-if="editor === 'entry'">
             <div class="field-pair"><label class="field">类型<select v-model="draft.type" @change="changeType"><option v-for="(name, key) in typeNames" :value="key">{{ name }}</option></select></label><label class="field">所属分类<select v-model="draft.categoryId"><option v-for="item in categoryOptions" :value="item.id">{{ item.name }}</option></select></label></div>
-            <PluginEntryFields v-if="draft.type === 'plugin'" :plugin="draft.plugin || ''" :target="draft.target" @select="selectPlugin" @command="selectPluginCommand" />
+            <PluginEntryFields v-if="draft.type === 'plugin'" :plugin="draft.plugin || ''" :target="draft.target" @select="selectPlugin" @command="selectPluginCommand" @manage="permissionOpen=true" />
             <label v-else class="field">{{ draft.type === 'url' ? '网址' : draft.type === 'system' ? '系统目录' : '目标路径' }}
               <select v-if="draft.type === 'system'" v-model="draft.target"><option v-for="(name, key) in systemNames" :value="key">{{ name }}</option></select>
               <div v-else class="input-with-button"><input v-model="draft.target" required maxlength="4096" :placeholder="draft.type === 'url' ? 'https://example.com' : draft.type === 'plugin' ? '填写可在 ZTools 搜索到的指令' : '选择或拖入应用、快捷方式、文件夹'"><button v-if="draft.type==='url'" type="button" class="button" :disabled="fetchingIcon || !draft.target.trim()" @click="fetchWebsiteIcon">{{fetchingIcon?'获取中…':'获取图标'}}</button><button v-if="['app','file','folder'].includes(draft.type)" type="button" class="button" @click="pick">选择</button></div>
@@ -208,6 +212,7 @@ function reset() { confirm('重置外观与行为？', '显示位置、停靠方
         <footer class="modal-footer"><button v-if="editor === 'entry'" type="button" class="button ghost" :disabled="draft.type === 'plugin' && (!draft.plugin || !draft.target)" @click="command('test', draft, '已发送打开请求')"><Icon name="ExternalLink" :size="15" />测试打开</button><span class="spacer"></span><button type="button" class="button" @click="editor = null">取消</button><button type="submit" class="button primary" :disabled="saving || fetchingIcon">{{ saving ? '保存中…' : fetchingIcon ? '读取图标…' : '保存' }}</button></footer>
       </form>
     </div>
+    <PluginPermissions v-if="permissionOpen" @close="permissionOpen=false" @changed="permissionsChanged" />
     <div v-if="confirmation" class="modal-overlay" @keydown.esc="confirmation = undefined"><div class="confirm-modal" role="alertdialog" aria-modal="true"><h2>{{ confirmation.title }}</h2><p>{{ confirmation.detail }}</p><footer class="modal-footer"><span class="spacer"></span><button class="button" @click="confirmation = undefined">取消</button><button class="button primary" @click="accept">确认</button></footer></div></div>
   </main>
 </template>

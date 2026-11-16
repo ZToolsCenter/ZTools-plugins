@@ -18,13 +18,13 @@ const choices: { id: TileMaterial; name: string; detail: string }[] = [
 </script>
 <template>
  <div class="tile-material-picker">
-  <div class="tile-material-heading"><strong>菜单与入口材质</strong><p>每个分类菜单和入口卡片单独呈现质感。</p></div>
+  <div class="tile-material-heading"><strong>菜单与入口材质</strong></div>
   <div class="tile-material-options" role="group" aria-label="菜单与入口材质">
    <button v-for="item in choices" :key="item.id" type="button" class="tile-material-option" :data-tile-choice="item.id" :aria-pressed="modelValue===item.id" @click="emit('select',item.id)">
     <span class="tile-material-sample" :data-tile-material="item.id" :style="{'--glass-strength':localStrength/100}"><span class="tile-material"><Icon name="Folder" :size="25" /><span>文件夹</span></span><Icon v-if="modelValue===item.id" class="material-selected-mark" name="Check" :size="15" /></span>
     <strong>{{ item.name }}</strong><small>{{ item.detail }}</small>
    </button>
   </div>
-  <label class="setting-row"><span><strong>材质强度</strong><small>调节边缘高光、厚度感与投影；图标和名称保持清晰</small></span><div class="range-control"><input type="range" aria-label="材质强度" min="0" max="100" step="1" :disabled="modelValue==='plain'" v-model.number="localStrength" @change="emit('strength',localStrength)"><output>{{localStrength}}%</output></div></label>
+  <label class="setting-row"><span><strong>材质强度</strong><small>调节高光、厚度感和投影</small></span><div class="range-control"><input type="range" aria-label="材质强度" min="0" max="100" step="1" :disabled="modelValue==='plain'" v-model.number="localStrength" @change="emit('strength',localStrength)"><output>{{localStrength}}%</output></div></label>
  </div>
 </template>

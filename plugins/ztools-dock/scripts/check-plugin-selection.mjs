@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';
 import { expect } from '@playwright/test';
-import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { writeFileSync, readFileSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { zipSync, strToU8 } from 'fflate';
 
 export async function checkPluginSelection({app,evaluate,screenshot,temp,check}) {
   const before=(await evaluate('window.dock.call("snapshot")')).config;
+  // The isolated Electron runtime has no bundled settings folder of its own.
+  // Install the unchanged official settings UI from the tested host resources.
+  const settingPresent=await app.evaluate(async({ipcMain,BrowserWindow})=>(await ipcMain._invokeHandlers.get('get-all-plugins')({sender:BrowserWindow.getAllWindows()[0].webContents})).some(p=>p.name==='setting'));
+  if(!settingPresent){
+    const folder=join(dirname(process.env.ZTOOLS_APP),'app.asar.unpacked/internal-plugins/setting'),files={};
+    function collect(dir,prefix=''){for(const e of readdirSync(dir,{withFileTypes:true})){if(e.isDirectory())collect(join(dir,e.name),prefix+e.name+'/');else files[prefix+e.name]=new Uint8Array(readFileSync(join(dir,e.name)));}}
+    collect(folder);const manifest=JSON.parse(Buffer.from(files['plugin.json']).toString());delete manifest.development;files['plugin.json']=strToU8(JSON.stringify(manifest));
+    const zip=join(temp,'official-host-settings.zip');writeFileSync(zip,zipSync(files));
+    const result=await app.evaluate(async({ipcMain,BrowserWindow},zip)=>ipcMain._invokeHandlers.get('install-plugin-from-path')({sender:BrowserWindow.getAllWindows().find(w=>w.getTitle()==='ZTools').webContents},zip),zip);assert.equal(result.success,true);
+  }
+
   const page=app.windows().find(w=>w.url().includes('surface=settings'));
   const fixture=join(temp,'selector-fixture.zip');
   writeFileSync(fixture,zipSync({
@@ -17,10 +28,16 @@ export async function checkPluginSelection({app,evaluate,screenshot,temp,check})
   try {
     await page.getByRole('button',{name:'添加入口',exact:true}).first().click();
     await page.locator('.field-pair select').first().selectOption('plugin');
-    await expect(page.getByRole('button',{name:'授权读取',exact:true})).toBeVisible();
+    const proceed=page.getByRole('button',{name:'继续授权',exact:true});
+    await expect(proceed).toBeDisabled();
+    const boxes=page.locator('.plugin-consent input[type=checkbox]');
+    assert.equal(await boxes.count(),2);await expect(boxes.nth(0)).not.toBeChecked();await expect(boxes.nth(1)).not.toBeChecked();
+    await boxes.nth(0).check();await expect(proceed).toBeDisabled();
+    await boxes.nth(1).check();await expect(proceed).toBeEnabled();
+    await boxes.nth(0).uncheck();await expect(proceed).toBeDisabled();await boxes.nth(0).check();
     assert.deepEqual(await evaluate('window.dock.call("plugin-catalog")'),{authorized:false,plugins:[]});
     await assert.rejects(evaluate('window.dock.call("plugin-catalog")','panel'),/此窗口不支持/);
-    await page.getByRole('button',{name:'授权读取',exact:true}).click();
+    await proceed.click();
     await expect.poll(()=>evaluate('window.ztools.getInternalApiPermissions().then(s=>s.pending.includes("internal:get-plugins"))','host')).toBe(true);
     const approval=await app.evaluate(async({ipcMain,BrowserWindow})=>ipcMain._invokeHandlers.get('internal:resolve-internal-api-request')({sender:BrowserWindow.getAllWindows().find(w=>w.getTitle()==='ZTools').webContents},'ztools-dock',['internal:get-plugins','internal:get-disabled-plugins']));
     assert.equal(approval.success,true);
@@ -71,7 +88,32 @@ export async function checkPluginSelection({app,evaluate,screenshot,temp,check})
     const old=(await evaluate('window.dock.call("snapshot")')).config.entries.at(-1);
     assert.equal(old.plugin,legacy.plugin);assert.equal(old.target,legacy.target);assert.equal(old.image,svgIcon);
     check('unavailable legacy plugin remains editable without losing command or saved icon');
+    await page.locator('.settings-tabs button').nth(2).click();
+    await page.locator('.permission-settings-entry button').click();
+    await expect(page.getByRole('dialog',{name:'插件授权',exact:true})).toBeVisible();
+    await expect(page.locator('.permission-status strong').first()).toHaveText('宿主已授权');
+    await page.getByRole('button',{name:'停止读取',exact:true}).click();
+    await expect(page.locator('.permission-summary')).toHaveText('程序坞已停止读取');
+    assert.equal((await evaluate('window.dock.call("plugin-catalog")')).authorized,false);
+    await assert.rejects(evaluate('window.dock.call("plugin-icon","dock-select-fixture")'),/授权/);
+    await expect(page.locator('.permission-status strong').first()).toHaveText('宿主已授权');
+    await expect(page.locator('.permission-status').first()).toBeVisible();
+    await expect(page.locator('.permission-status').nth(1)).toBeVisible();
+    await screenshot('plugin-permissions.png');
+    await page.getByRole('button',{name:'打开 ZTools 设置',exact:true}).click();
+    await expect.poll(()=>app.evaluate(({webContents})=>webContents.getAllWebContents().some(w=>w.getURL().includes('/setting/index.html')))).toBe(true).catch(async e=>{console.log('host settings diagnostic',await app.evaluate(async({webContents,ipcMain,BrowserWindow})=>({urls:webContents.getAllWebContents().map(w=>w.getURL()),setting:(await ipcMain._invokeHandlers.get('get-all-plugins')({sender:BrowserWindow.getAllWindows()[0].webContents})).filter(p=>p.name==='setting').map(p=>({title:p.title,name:p.name}))})));throw e});
+    const hostSettings=app.windows().find(w=>w.url().includes('/setting/index.html'));
+    await hostSettings.getByText('高级权限',{exact:true}).click();
+    await hostSettings.locator('[data-testid=permission-tab-granted]').click();
+    const grant=hostSettings.locator('[data-testid="permission-grant-card"]').filter({hasText:'ztools-dock'});
+    await grant.locator('.plugin-head').click();
+    await grant.locator('[data-testid="grant-remove-all"]').click();
+    await hostSettings.getByRole('button',{name:'移除',exact:true}).click();
+    await expect.poll(()=>evaluate('window.dock.call("plugin-permissions").then(s=>s.permissions.every(p=>!p.granted))')).toBe(true);
+    check('authorization manager reports host grants; local stop blocks list/icon reads; real host settings removal revokes both grants');
+    await evaluate('window.dock.call("settings")','panel');
   } finally {
+    await evaluate('document.querySelector("button[title=关闭授权管理]")?.click()').catch(()=>{});
     if (await page.getByTitle('关闭编辑',{exact:true}).count()) await page.getByTitle('关闭编辑',{exact:true}).click();
     await evaluate(`window.dock.call('save',${JSON.stringify(before)})`);
   }

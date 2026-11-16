@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { windowsIconPath, normalizePlugins, pluginCatalog, pluginIcon, requestCatalog, PERMISSIONS } = require('../public/runtime/plugin-catalog.cjs');
+const { windowsIconPath, normalizePlugins, pluginCatalog, pluginIcon, requestCatalog, PERMISSIONS, catalogPermissions, stopCatalog } = require('../public/runtime/plugin-catalog.cjs');
 test('Windows logo URLs decode Chinese, spaces and UNC without accepting encoded separators', () => {
   assert.equal(windowsIconPath('file:///C:/插件/hello%20world.png'),'C:\\插件\\hello world.png');
   assert.equal(windowsIconPath('file://server/share/logo.png'),'\\\\server\\share\\logo.png');
@@ -19,14 +19,22 @@ test('plugin choices preserve exact commands, exclude payload matchers and ident
 });
 test('no list or icon read occurs before permission; requests only two read channels', async () => {
   let reads=0;
-  const api={getInternalApiPermissions:async()=>({granted:[]}),internal:{getPlugins:async()=>{reads++;return[]},getDisabledPlugins:async()=>[]},requestInternalApiPermissions:async apis=>{assert.deepEqual(apis,PERMISSIONS);return{success:true,status:'pending'}}};
+  let consent=true; const api={dbStorage:{getItem:()=>consent,setItem:(_k,v)=>{consent=v}},getInternalApiPermissions:async()=>({granted:[]}),internal:{getPlugins:async()=>{reads++;return[]},getDisabledPlugins:async()=>[]},requestInternalApiPermissions:async apis=>{assert.deepEqual(apis,PERMISSIONS);return{success:true,status:'pending'}}};
   assert.deepEqual(await pluginCatalog(api),{authorized:false,plugins:[]});
   await assert.rejects(pluginIcon(api,'a'),/授权/);
-  assert.equal(await requestCatalog(api),false);assert.equal(reads,0);
+  assert.equal(await requestCatalog(api,PERMISSIONS),false);assert.equal(reads,0);
 });
 test('catalog uses granted host list and icon lookup cannot accept arbitrary renderer paths', async () => {
-  const api={getInternalApiPermissions:async()=>({granted:PERMISSIONS}),internal:{getPlugins:async()=>[{name:'a',title:'A',logo:'data:image/png;base64,YQ==',features:[{cmds:['run']}]}],getDisabledPlugins:async()=>[]}};
+  const api={dbStorage:{getItem:()=>true},getInternalApiPermissions:async()=>({granted:PERMISSIONS}),internal:{getPlugins:async()=>[{name:'a',title:'A',logo:'data:image/png;base64,YQ==',features:[{cmds:['run']}]}],getDisabledPlugins:async()=>[]}};
   assert.equal((await pluginCatalog(api)).plugins[0].commands[0],'run');
   assert.equal(await pluginIcon(api,'a'),'data:image/png;base64,YQ==');
   await assert.rejects(pluginIcon(api,'C:\\private.png'),/卸载/);
+});
+
+test('two exact consents required; stopping blocks catalog and icons even while host grants remain',async()=>{
+ let consent=false,reads=0,requests=0;const api={dbStorage:{getItem:()=>consent,setItem:(_k,v)=>{consent=v}},getInternalApiPermissions:async()=>({granted:PERMISSIONS}),requestInternalApiPermissions:async()=>{requests++;return{success:true,status:'granted'}},internal:{getPlugins:async()=>{reads++;return[{name:'a',title:'A',logo:'data:image/png;base64,YQ=='}]},getDisabledPlugins:async()=>[]}};
+ for(const accepted of [undefined,[],[PERMISSIONS[0]],[PERMISSIONS[1]],[PERMISSIONS[0],PERMISSIONS[0]]])await assert.rejects(requestCatalog(api,accepted),/勾选/);
+ assert.equal(reads,0);assert.equal(consent,false);assert.equal(await requestCatalog(api,PERMISSIONS),true);assert.equal(requests,0);assert.equal((await pluginCatalog(api)).authorized,true);
+ stopCatalog(api);assert.equal((await catalogPermissions(api)).reading,false);assert.ok((await catalogPermissions(api)).permissions.every(p=>p.granted));
+ const before=reads;assert.equal((await pluginCatalog(api)).authorized,false);await assert.rejects(pluginIcon(api,'a'),/授权/);assert.equal(reads,before);
 });
