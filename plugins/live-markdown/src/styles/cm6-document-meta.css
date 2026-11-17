@@ -1,0 +1,30 @@
+.cm-frontmatter-card {
+  container: cm-frontmatter / inline-size;
+  display: block;
+  box-sizing: border-box;
+  margin: 0.5em 0 1.25em;
+  padding: 0.9em 1.05em;
+  border: 1px solid var(--border-color, #343a46);
+  border-left: 3px solid var(--primary-color, #4d9cff);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg-color, #20232b) 92%, var(--primary-color, #4d9cff));
+  color: var(--text-color, #e5e8ef);
+  cursor: pointer;
+}
+.cm-frontmatter-title { margin-bottom: 0.55em; color: var(--muted-text-color, #9299a8); font-size: 0.78em; font-weight: 650; letter-spacing: 0.04em; }
+.cm-frontmatter-fields { display: grid; grid-template-columns: fit-content(45%) minmax(0, 1fr); gap: 0.3em 1em; margin: 0; font-size: 0.88em; }
+.cm-frontmatter-fields dt { min-width: 0; overflow-wrap: anywhere; color: var(--muted-text-color, #9299a8); font-weight: 600; }
+.cm-frontmatter-fields dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.cm-frontmatter-raw, .cm-frontmatter-empty { grid-column: 1 / -1; color: var(--muted-text-color, #9299a8); white-space: pre-wrap; overflow-wrap: anywhere; }
+@container cm-frontmatter (max-width: 27rem) {
+  .cm-frontmatter-fields { grid-template-columns: minmax(0, 1fr); gap: 0.15em; }
+}
+.cm-frontmatter-card:focus-visible, .cm-footnote-definition:focus-visible, .cm-footnote-reference:focus-visible { outline: 2px solid var(--primary-color, #4d9cff); outline-offset: 2px; }
+.cm-frontmatter-readonly, .cm-footnote-readonly { cursor: default; }
+.cm-footnote-reference { display: inline; color: var(--primary-color, #4d9cff); font-size: 0.78em; vertical-align: super; cursor: pointer; }
+.cm-footnote-reference:hover { text-decoration: underline; }
+.cm-footnote-missing { color: var(--warning-color, #e2a743); cursor: help; }
+.cm-footnote-definition { display: flex; align-items: baseline; gap: 0.6em; box-sizing: border-box; margin: 0.65em 0; padding: 0.65em 0.8em; border-left: 2px solid var(--border-color, #343a46); color: var(--text-color, #e5e8ef); font-size: 0.88em; line-height: 1.65; cursor: pointer; }
+.cm-footnote-label { flex: 0 0 auto; color: var(--primary-color, #4d9cff); font-weight: 650; }
+.cm-footnote-body { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cm-footnote-duplicate, .cm-footnote-duplicate-line { text-decoration: underline wavy var(--warning-color, #e2a743); text-decoration-thickness: 1px; }

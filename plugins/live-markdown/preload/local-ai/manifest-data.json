@@ -1,0 +1,2196 @@
+{
+  "version": "2026-10-21.1",
+  "runtimeByPlatform": {
+    "darwin-arm64": "llama-b11793-darwin-arm64",
+    "darwin-x64": "llama-b11793-darwin-x64",
+    "linux-x64": "llama-b11793-linux-x64",
+    "linux-arm64": "llama-b11793-linux-arm64",
+    "win32-x64": "llama-b11793-win32-x64",
+    "win32-arm64": "llama-b11793-win32-arm64"
+  },
+  "modelByProfile": {
+    "light": "qwen3-light-q4km",
+    "balanced": "qwen3-balanced-q4km",
+    "quality": "qwen3-quality-q4km"
+  },
+  "resources": [
+    {
+      "id": "llama-b11793-darwin-arm64",
+      "version": "b11793",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11793/llama-b11793-bin-macos-arm64.tar.gz",
+      "sha256": "1dbf74ee8b2848fdcbdb3a6bd7da41d250bb3556fc2bd92b9bfa459e8dc51d43",
+      "size": 16122650,
+      "allowedHosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ],
+      "archive": "tar.gz",
+      "files": [
+        {
+          "path": "llama-b11793/llama-mtmd-debug",
+          "size": 75824,
+          "sha256": "399a322d951dee878983db23b4b7c5d9a87a078d11208fcc9b72f80e79bcbf7e",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-tokenize",
+          "size": 58736,
+          "sha256": "7a7bb77fe0e36e37fb7e3ead2131f2d7d23bcce89f9597de5e8d5cb12aa33cbe",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-cli",
+          "size": 49960,
+          "sha256": "67b08224c590a337389e8b46a8d6e49902b959be9922e572ffd81645bac1b084",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-batched-bench",
+          "size": 33488,
+          "sha256": "64f9f09bd2bf1f9f2e9748e36a4dc802704ce8c3fa20eddfc314c6bebd3006a0",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-rpc.0.dylib",
+          "size": 242800,
+          "sha256": "547ac08b705a96e82ddb9fcfc2529472f97f5da1957984b3a7652cd5875d452d",
+          "executable": true,
+          "linkTarget": "libggml-rpc.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-minicpmv-cli",
+          "size": 35344,
+          "sha256": "4baffe08bb410686ee032b1b2ff9a948bbde3fdc014dddf750f36978e3b40589",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-connect",
+          "size": 8251536,
+          "sha256": "a2e54e1198276037f05882b5142641cd4c55c7fbdd748fcb10a4a8109c723d59",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.0.7.0.dylib",
+          "size": 3530720,
+          "sha256": "45c689d9599bcadb56bcd63db802233cdcc565bde0b3a97ca5057872a2d613e2",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.0.7.0.dylib",
+          "size": 1460368,
+          "sha256": "f89e2ba561dd3fa77fb399d01b5b8bd391a8c426098efd4aaa7e7244c0792500",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.0.7.0.dylib",
+          "size": 7931144,
+          "sha256": "afa49e2e05abe8e486b9b7029c09b15c0180df09538a420b2f38298925ad3e7f",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.0.dylib",
+          "size": 3530720,
+          "sha256": "45c689d9599bcadb56bcd63db802233cdcc565bde0b3a97ca5057872a2d613e2",
+          "executable": true,
+          "linkTarget": "libllama.0.7.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libmtmd.0.dylib",
+          "size": 1460368,
+          "sha256": "f89e2ba561dd3fa77fb399d01b5b8bd391a8c426098efd4aaa7e7244c0792500",
+          "executable": true,
+          "linkTarget": "libmtmd.0.7.0.dylib"
+        },
+        {
+          "path": "llama-b11793/LICENSE",
+          "size": 1078,
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "executable": false
+        },
+        {
+          "path": "llama-b11793/libggml.dylib",
+          "size": 60016,
+          "sha256": "a97bc40525aea78834fdf28197b5b21f149b6d5ac2d3b615b95b86f775a69477",
+          "executable": true,
+          "linkTarget": "libggml.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libggml.0.dylib",
+          "size": 60016,
+          "sha256": "a97bc40525aea78834fdf28197b5b21f149b6d5ac2d3b615b95b86f775a69477",
+          "executable": true,
+          "linkTarget": "libggml.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libggml-cpu.0.27.0.dylib",
+          "size": 941024,
+          "sha256": "405533bcfcd24aa47ab2141b3184ca02b705b0a0af5ac05629ee978f98665132",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml.0.27.0.dylib",
+          "size": 60016,
+          "sha256": "a97bc40525aea78834fdf28197b5b21f149b6d5ac2d3b615b95b86f775a69477",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-results",
+          "size": 58912,
+          "sha256": "6eb2a8aef2b5a214df88caa0dd3f7cb49dad311e704cb9ed479115c879c79d74",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.dylib",
+          "size": 1460368,
+          "sha256": "f89e2ba561dd3fa77fb399d01b5b8bd391a8c426098efd4aaa7e7244c0792500",
+          "executable": true,
+          "linkTarget": "libmtmd.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama-server-impl.dylib",
+          "size": 9446680,
+          "sha256": "2385c58c93e760f1888b318479eec7d5c8c4292573561979c9e5373b301144d8",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-gguf-split",
+          "size": 59952,
+          "sha256": "698e8d0239bf7540f3d8746aef9a22b2c05404ecee17083b782c3526cac8cd0d",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-metal.0.27.0.dylib",
+          "size": 5604440,
+          "sha256": "b20d76b6b098aec54d8dd99fb8c093bd3f0664eb2d5ca327ea9f173258e7eaab",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.dylib",
+          "size": 751240,
+          "sha256": "3f053fd7ead67498248c39ada979243d6344a25cf0c7845717c63f4c008d47b6",
+          "executable": true,
+          "linkTarget": "libggml-base.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-perplexity",
+          "size": 33472,
+          "sha256": "2efff38c7c52e14a9d9ba0d34319a572b514c79d1fb5f7804fbf87ae061980c4",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-imatrix",
+          "size": 206320,
+          "sha256": "f52f441d70d14c66aa3ab7fdc769150b5c7e38d6fa22cca9593ca9b5925b7792",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-fit-params",
+          "size": 33472,
+          "sha256": "ceb4c943e71f731a60cbdb351928999822cd973b261b160c89e245b16fe8ba61",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/ggml-rpc-server",
+          "size": 133136,
+          "sha256": "e5e80be949739e616bd11ec7bee841e80d22c11af0e5945bf987cff6e8e6daff",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-qwen2vl-cli",
+          "size": 35344,
+          "sha256": "9be4a36b2587c0216009b1ed59ac79b1e4dd2e885f326e8aeffac8aa37761d31",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-rpc.0.27.0.dylib",
+          "size": 242800,
+          "sha256": "547ac08b705a96e82ddb9fcfc2529472f97f5da1957984b3a7652cd5875d452d",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-blas.0.27.0.dylib",
+          "size": 58776,
+          "sha256": "12aefdc8dd4873d69554dc85a0dd09fffef9828e1fc9ecf6b48913ef2106b33a",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-blas.dylib",
+          "size": 58776,
+          "sha256": "12aefdc8dd4873d69554dc85a0dd09fffef9828e1fc9ecf6b48913ef2106b33a",
+          "executable": true,
+          "linkTarget": "libggml-blas.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-gemma3-cli",
+          "size": 35344,
+          "sha256": "f7f9126b0881654bdb4c9ceab6de40f42e31998fa0c775505b5979ef7e8e567e",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-metal.0.dylib",
+          "size": 5604440,
+          "sha256": "b20d76b6b098aec54d8dd99fb8c093bd3f0664eb2d5ca327ea9f173258e7eaab",
+          "executable": true,
+          "linkTarget": "libggml-metal.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama-completion-impl.dylib",
+          "size": 121744,
+          "sha256": "4612a28f5ad5bc41167f8f5a877aff25963d4c1aba471b12d0261b369d351066",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-bench-impl.dylib",
+          "size": 323016,
+          "sha256": "29d28dec19ac4cadff020c8f29d545fa51fcb538226ba92173b350b2254c8cce",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.0.dylib",
+          "size": 7931144,
+          "sha256": "afa49e2e05abe8e486b9b7029c09b15c0180df09538a420b2f38298925ad3e7f",
+          "executable": true,
+          "linkTarget": "libllama-common.0.7.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama.dylib",
+          "size": 3530720,
+          "sha256": "45c689d9599bcadb56bcd63db802233cdcc565bde0b3a97ca5057872a2d613e2",
+          "executable": true,
+          "linkTarget": "libllama.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama-perplexity-impl.dylib",
+          "size": 156384,
+          "sha256": "208ef689572ac925d4b83a9f8cf9482da29ee7f213517fb9712f713ee49e5596",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu.dylib",
+          "size": 941024,
+          "sha256": "405533bcfcd24aa47ab2141b3184ca02b705b0a0af5ac05629ee978f98665132",
+          "executable": true,
+          "linkTarget": "libggml-cpu.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-mtmd-cli",
+          "size": 103680,
+          "sha256": "54e8228fde1eb90dc863e98820d8c7bcfae60c8057cdcb33a1e23371889d681e",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.0.27.0.dylib",
+          "size": 751240,
+          "sha256": "3f053fd7ead67498248c39ada979243d6344a25cf0c7845717c63f4c008d47b6",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/ggml-metal-tuning",
+          "size": 87696,
+          "sha256": "72162323fcee7d7889190899ca69ddbc1423c29e5f1f502e9bfd6dad003d8317",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-metal.dylib",
+          "size": 5604440,
+          "sha256": "b20d76b6b098aec54d8dd99fb8c093bd3f0664eb2d5ca327ea9f173258e7eaab",
+          "executable": true,
+          "linkTarget": "libggml-metal.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-cvector-generator",
+          "size": 102296,
+          "sha256": "8ac3d8366b742c959ae07b4697b63fae5ad1fca6dcb0cdf778cb881fcec01555",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-quantize-impl.dylib",
+          "size": 96496,
+          "sha256": "582dadbf515289d7a5dd5aa27be5fdcbe58cad0a2eb4eaa72a15087ad9d26864",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-completion",
+          "size": 33472,
+          "sha256": "2b14c5f6bf13aec0118c0917797178d1300d85f8b8321a301fc8fc206c38a934",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-bench",
+          "size": 33464,
+          "sha256": "8e381bc0e4463985ccf1425e3628566664992230d545d4db0482f58482a4fb45",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-cli-impl.dylib",
+          "size": 255144,
+          "sha256": "f4e4a1582ab4f418a59235bb5e338babca9287fdc04dcdf06db0756674137db6",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-server",
+          "size": 49984,
+          "sha256": "981b460a278e9a0c880cef32d6fab42785a119084456b16845304cf38c32cf69",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-batched-bench-impl.dylib",
+          "size": 56576,
+          "sha256": "c744b854dc54b7309e691330729346aedcf5158c8d7e72204958cf2991ccc733",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-llava-cli",
+          "size": 35344,
+          "sha256": "9a77293c34faa94ae6955f9b1da3dca9fa55cf09fcd0fff87c96f5ec44b9d547",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.dylib",
+          "size": 7931144,
+          "sha256": "afa49e2e05abe8e486b9b7029c09b15c0180df09538a420b2f38298925ad3e7f",
+          "executable": true,
+          "linkTarget": "libllama-common.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-tts",
+          "size": 57608,
+          "sha256": "ed4cf8c35c3e3fd20418eaaad9debaf9cca227b02c9fa3afd8ebc79e190e0cc6",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-quantize",
+          "size": 33472,
+          "sha256": "88a670a6136af2b1877305ece7e92fe470078a2425986b68ea25f886ddc9685b",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-export-lora",
+          "size": 99856,
+          "sha256": "dc72d2835da270c6ccf2118006fb8aa52f29db43021a9484c08cbaceb6fc64ea",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.0.dylib",
+          "size": 751240,
+          "sha256": "3f053fd7ead67498248c39ada979243d6344a25cf0c7845717c63f4c008d47b6",
+          "executable": true,
+          "linkTarget": "libggml-base.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama-fit-params-impl.dylib",
+          "size": 55264,
+          "sha256": "0414b02a71930f61e93ed78ceacdb3b76b6b2403e464adea927d4655bd2751df",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-blas.0.dylib",
+          "size": 58776,
+          "sha256": "12aefdc8dd4873d69554dc85a0dd09fffef9828e1fc9ecf6b48913ef2106b33a",
+          "executable": true,
+          "linkTarget": "libggml-blas.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libggml-rpc.dylib",
+          "size": 242800,
+          "sha256": "547ac08b705a96e82ddb9fcfc2529472f97f5da1957984b3a7652cd5875d452d",
+          "executable": true,
+          "linkTarget": "libggml-rpc.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libggml-cpu.0.dylib",
+          "size": 941024,
+          "sha256": "405533bcfcd24aa47ab2141b3184ca02b705b0a0af5ac05629ee978f98665132",
+          "executable": true,
+          "linkTarget": "libggml-cpu.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama",
+          "size": 107320,
+          "sha256": "f87c0b41aec41dc87134ac443fedc0d87b332e69261f71c275a1aebb79731f44",
+          "executable": true
+        }
+      ],
+      "entryPoint": "llama-b11793/llama-server",
+      "backend": "metal"
+    },
+    {
+      "id": "llama-b11793-darwin-x64",
+      "version": "b11793",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11793/llama-b11793-bin-macos-x64.tar.gz",
+      "sha256": "9cfe588c07e4c46bcda8af8e4a8e1a0c3f3e2911d92c5f5b3db39ca45a456bdc",
+      "size": 11849863,
+      "allowedHosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ],
+      "archive": "tar.gz",
+      "files": [
+        {
+          "path": "llama-b11793/llama-mtmd-debug",
+          "size": 53776,
+          "sha256": "43e2c2398ebe8620d96118583c3f5b7bdb58156ff96ce68b824c06bc23c8c17a",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-tokenize",
+          "size": 40760,
+          "sha256": "6dd7526c539c4dbf040c39d34391da9e90dd4b71eea0d46eb0b511f1ff56da8d",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-cli",
+          "size": 20744,
+          "sha256": "e8d3b306b395f3c099177a5cef20626b55451fbaf9cc8e20021fa1527f16659e",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-batched-bench",
+          "size": 16680,
+          "sha256": "faa3ace7e46a999bec244aabe7410635bf41ed5f042a9839002ae2a1fdc32ab7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-rpc.0.dylib",
+          "size": 220112,
+          "sha256": "28add6aca12e233e5ee374bcf5d46bf185c465f304035a716693231bd1ed1e7c",
+          "executable": true,
+          "linkTarget": "libggml-rpc.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-minicpmv-cli",
+          "size": 14440,
+          "sha256": "221d42bb44606b16e6f21c9b127846c9dbc17682bea59d900408c141778fdfe8",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.0.7.0.dylib",
+          "size": 3836648,
+          "sha256": "b73148f564616005f13fdace5a39d6be24a2d19f2c8ce68740ba35a4b9318e76",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.0.7.0.dylib",
+          "size": 1584840,
+          "sha256": "233ee0adec7fb6bf4bb3e58848b36185c5b76a2704b96b91ab8ab52bbc2c9cd6",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.0.7.0.dylib",
+          "size": 8408096,
+          "sha256": "a500ebe75343fa79152d6125d73a158a0bbcd650e7ef286626ed5241a66b4630",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.0.dylib",
+          "size": 3836648,
+          "sha256": "b73148f564616005f13fdace5a39d6be24a2d19f2c8ce68740ba35a4b9318e76",
+          "executable": true,
+          "linkTarget": "libllama.0.7.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libmtmd.0.dylib",
+          "size": 1584840,
+          "sha256": "233ee0adec7fb6bf4bb3e58848b36185c5b76a2704b96b91ab8ab52bbc2c9cd6",
+          "executable": true,
+          "linkTarget": "libmtmd.0.7.0.dylib"
+        },
+        {
+          "path": "llama-b11793/LICENSE",
+          "size": 1078,
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "executable": false
+        },
+        {
+          "path": "llama-b11793/libggml.dylib",
+          "size": 43216,
+          "sha256": "34616f7086aeae55ff96abf48c01d696334066e0f2fcb7df4b3794ec942f0092",
+          "executable": true,
+          "linkTarget": "libggml.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libggml.0.dylib",
+          "size": 43216,
+          "sha256": "34616f7086aeae55ff96abf48c01d696334066e0f2fcb7df4b3794ec942f0092",
+          "executable": true,
+          "linkTarget": "libggml.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libggml-cpu.0.27.0.dylib",
+          "size": 1556016,
+          "sha256": "047fc752ada7e37d7880165ff63ca575c48cb5d31d5410c863b74a3c738860b7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml.0.27.0.dylib",
+          "size": 43216,
+          "sha256": "34616f7086aeae55ff96abf48c01d696334066e0f2fcb7df4b3794ec942f0092",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-results",
+          "size": 45008,
+          "sha256": "16c0ed29e21397909c72d6e5767070aa5d11c0e33594b8aac1950be0876f062b",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.dylib",
+          "size": 1584840,
+          "sha256": "233ee0adec7fb6bf4bb3e58848b36185c5b76a2704b96b91ab8ab52bbc2c9cd6",
+          "executable": true,
+          "linkTarget": "libmtmd.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama-server-impl.dylib",
+          "size": 9802856,
+          "sha256": "3f638f29d38e643d6eed1aaa0d357a3a5b557c2d4b77fbf2830bc85574eaf2e3",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-gguf-split",
+          "size": 46888,
+          "sha256": "0b7195ad54a2368f115839db6baf1cc959f9c0e5bd7d011d83128d7b7473f97f",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.dylib",
+          "size": 735264,
+          "sha256": "78cdfa7a37234d36bd1e5033bf3a8f3f2b9d5604ed168104cd339ef8c0cebaf1",
+          "executable": true,
+          "linkTarget": "libggml-base.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-perplexity",
+          "size": 16664,
+          "sha256": "a5cbb2cb48e5757a91d1d652f398022c126a933cb484a2bd95fe98dc91c71669",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-imatrix",
+          "size": 196480,
+          "sha256": "89660a397f2ce67bc547aeb2bd11f5cc2b851b19131a650a94e66ab1ca8e43b3",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-fit-params",
+          "size": 16664,
+          "sha256": "31aac618cd64eab00ad56ffb74b45806d3adc330d683c011d83c7a86b9d6aaf9",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/ggml-rpc-server",
+          "size": 116024,
+          "sha256": "49ba32ff209a2154882a59a748bc876671b0307b0e0cc72e73f7e5d186b0646a",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-qwen2vl-cli",
+          "size": 14440,
+          "sha256": "f0056e4e1a9e127c3a99cff00e96dcff7770a3914981069568a18a815c24c4f7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-rpc.0.27.0.dylib",
+          "size": 220112,
+          "sha256": "28add6aca12e233e5ee374bcf5d46bf185c465f304035a716693231bd1ed1e7c",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-blas.0.27.0.dylib",
+          "size": 33688,
+          "sha256": "921ecedc49456589898ea38c56a15e317201c3733975ca00441c89b0008339da",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-blas.dylib",
+          "size": 33688,
+          "sha256": "921ecedc49456589898ea38c56a15e317201c3733975ca00441c89b0008339da",
+          "executable": true,
+          "linkTarget": "libggml-blas.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-gemma3-cli",
+          "size": 14440,
+          "sha256": "fe7d3f4472ea84bbbb95672633576af07df0ea6f9b37a8b92c4e698a4df534ae",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-completion-impl.dylib",
+          "size": 107808,
+          "sha256": "9391b8a4336e47f27bd02cf7b2530295007bf8abde50ba2a3e6dee2f5890e3f1",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-bench-impl.dylib",
+          "size": 305240,
+          "sha256": "62358ac7a86fb3448de9d03ee35ebd6ddbe17e620118dbb80c1dd3e7558bda8e",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.0.dylib",
+          "size": 8408096,
+          "sha256": "a500ebe75343fa79152d6125d73a158a0bbcd650e7ef286626ed5241a66b4630",
+          "executable": true,
+          "linkTarget": "libllama-common.0.7.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama.dylib",
+          "size": 3836648,
+          "sha256": "b73148f564616005f13fdace5a39d6be24a2d19f2c8ce68740ba35a4b9318e76",
+          "executable": true,
+          "linkTarget": "libllama.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama-perplexity-impl.dylib",
+          "size": 142184,
+          "sha256": "fb644c00abbe34fde4712ce25864f0a9b008e196a572f2d14cea04f4fbd754ba",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu.dylib",
+          "size": 1556016,
+          "sha256": "047fc752ada7e37d7880165ff63ca575c48cb5d31d5410c863b74a3c738860b7",
+          "executable": true,
+          "linkTarget": "libggml-cpu.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-mtmd-cli",
+          "size": 77728,
+          "sha256": "108a8b7b1dfb6d0d37e9ff0016d519bf3bfb9c9cad2d3d5dc03262217c793e65",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.0.27.0.dylib",
+          "size": 735264,
+          "sha256": "78cdfa7a37234d36bd1e5033bf3a8f3f2b9d5604ed168104cd339ef8c0cebaf1",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-cvector-generator",
+          "size": 76792,
+          "sha256": "dbe121c57de844a2e6761ca248c2e808222a37f21b65bbc222906fa79f1a9ebf",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-quantize-impl.dylib",
+          "size": 75216,
+          "sha256": "9da99bd684a9205232b987cc306c5e093401b333c9d8e2c9e5c0838f168b1636",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-completion",
+          "size": 16664,
+          "sha256": "c41161164fc34698780d18974e1555ec8ff6bc141f500bb2d492fd0cb0f68b87",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-bench",
+          "size": 16664,
+          "sha256": "50b55bd27b7f4896a2c48427780409fda84654fbc20efa24ca2b18dad83c9af9",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-cli-impl.dylib",
+          "size": 237704,
+          "sha256": "2dd569f12326bb406ed65b5de1c50e310c831665b0fb2111159b98442ca9db2b",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-server",
+          "size": 20760,
+          "sha256": "bdb7b995d15d8cff860afb577f0fedd06cd8a23a685eac4c7e284a7cebe4b603",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-batched-bench-impl.dylib",
+          "size": 42888,
+          "sha256": "6adaa934dedca4cf1902d3c5d811755624b6c97ed9232651ed550eade08be883",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-llava-cli",
+          "size": 14440,
+          "sha256": "aca81e9a9432b9efbd746c424de72195a1e4b724d64610ca1f28901e61671f83",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.dylib",
+          "size": 8408096,
+          "sha256": "a500ebe75343fa79152d6125d73a158a0bbcd650e7ef286626ed5241a66b4630",
+          "executable": true,
+          "linkTarget": "libllama-common.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama-tts",
+          "size": 39832,
+          "sha256": "01db59131aab0da5fe188e5074a8d01baea558f73f7bfa99e465f8d13494bf2b",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-quantize",
+          "size": 16664,
+          "sha256": "3b142839bf26570c1e4392d0d840a6167bb524fa02b387c225b1429a5a7f57c4",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-export-lora",
+          "size": 69824,
+          "sha256": "a9c8b1bd8ddd04f54adc7014c0a9cbbb9b86b6a435fb459be43c52ed2583b3e9",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.0.dylib",
+          "size": 735264,
+          "sha256": "78cdfa7a37234d36bd1e5033bf3a8f3f2b9d5604ed168104cd339ef8c0cebaf1",
+          "executable": true,
+          "linkTarget": "libggml-base.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libllama-fit-params-impl.dylib",
+          "size": 33392,
+          "sha256": "35b71eb064afeb28e190cfaf93532e6fd1878e500e6aa0bdf05db3469291be1d",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-blas.0.dylib",
+          "size": 33688,
+          "sha256": "921ecedc49456589898ea38c56a15e317201c3733975ca00441c89b0008339da",
+          "executable": true,
+          "linkTarget": "libggml-blas.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libggml-rpc.dylib",
+          "size": 220112,
+          "sha256": "28add6aca12e233e5ee374bcf5d46bf185c465f304035a716693231bd1ed1e7c",
+          "executable": true,
+          "linkTarget": "libggml-rpc.0.dylib"
+        },
+        {
+          "path": "llama-b11793/libggml-cpu.0.dylib",
+          "size": 1556016,
+          "sha256": "047fc752ada7e37d7880165ff63ca575c48cb5d31d5410c863b74a3c738860b7",
+          "executable": true,
+          "linkTarget": "libggml-cpu.0.27.0.dylib"
+        },
+        {
+          "path": "llama-b11793/llama",
+          "size": 77128,
+          "sha256": "14b32812d29a5cc59e3175e35ca8b6247d6d82960a2d4a266dc1e290ffaf7495",
+          "executable": true
+        }
+      ],
+      "entryPoint": "llama-b11793/llama-server",
+      "backend": "cpu"
+    },
+    {
+      "id": "llama-b11793-linux-x64",
+      "version": "b11793",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11793/llama-b11793-bin-ubuntu-x64.tar.gz",
+      "sha256": "4713a86e46a2b236202ec408d09aa6c28b0f3796cd5e766c21dfd645b7c19bae",
+      "size": 22301872,
+      "allowedHosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ],
+      "archive": "tar.gz",
+      "files": [
+        {
+          "path": "llama-b11793/libggml-base.so",
+          "size": 897792,
+          "sha256": "ce6dcdeecade0f068450ce1ffec91e774385e8e819c74dccf02925ef026c10d7",
+          "executable": true,
+          "linkTarget": "libggml-base.so.0"
+        },
+        {
+          "path": "llama-b11793/llama-connect",
+          "size": 9729072,
+          "sha256": "0f57652dee1df5a5d69dfb11a8775f864345cfb881b2bd34c6ca6c409ce73d25",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-cannonlake.so",
+          "size": 1561704,
+          "sha256": "36d6c8f21f3b68f80a7bddfe8efbfc18a1d57aad631014b4bfa8e0d5695e7e8f",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.so.0",
+          "size": 1997136,
+          "sha256": "f1a081d4a53dba5f4e01e5c05471cdf0770809fddeb4fadcf0e8709764eeb00a",
+          "executable": true,
+          "linkTarget": "libmtmd.so.0.7.0"
+        },
+        {
+          "path": "llama-b11793/llama-qwen2vl-cli",
+          "size": 16952,
+          "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.so.0.7.0",
+          "size": 6646064,
+          "sha256": "eebe81f62b07d34c97b0c3db298919f02d6598bc7427bce5e9a46d0a252f86b8",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.so.0.27.0",
+          "size": 897792,
+          "sha256": "ce6dcdeecade0f068450ce1ffec91e774385e8e819c74dccf02925ef026c10d7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-piledriver.so",
+          "size": 1347944,
+          "sha256": "5c4bde3757542a078ff5c66d290ce981655549583b3873c53b4d35b17d6e30a2",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-x64.so",
+          "size": 950616,
+          "sha256": "90e347de07371df6610bee0dbfa1c13f93da43d52d7c1617bbab40f4ed1333b6",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-cascadelake.so",
+          "size": 1577792,
+          "sha256": "c4e0622bfe8966ef1ee303f0ec11fb49a33d12adfcc97f55bae06951e956097f",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-perplexity",
+          "size": 15968,
+          "sha256": "1c06240ed8594fd377d655aef2dab0865431e3e779c06638474c96b38e6d74a0",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-mtmd-cli",
+          "size": 97432,
+          "sha256": "14eab35cb0a3e616476215d2295ecc692eead45057d663208c787c6691bdf79a",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-mtmd-debug",
+          "size": 58624,
+          "sha256": "609851d5a5a81211273a0b9471de6092c28a3269a34e46ed878b944402f42211",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-server",
+          "size": 17864,
+          "sha256": "8af79094177de8822cae824d472996b8e958d3144cb7fcaf4dbd6e900910b81f",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/ggml-rpc-server",
+          "size": 195504,
+          "sha256": "14c986a62dd4d37672bc5789b01717db590a0dbe6c58219a67c722624621128d",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.so.0",
+          "size": 5156480,
+          "sha256": "1f4be2b8d18cca827c1665d13d9e97f3b9c02b494f0cd090f811023a2bb1c98c",
+          "executable": true,
+          "linkTarget": "libllama.so.0.7.0"
+        },
+        {
+          "path": "llama-b11793/libllama-bench-impl.so",
+          "size": 490560,
+          "sha256": "e4ca59722bb4c5567fde2d5e07deb2116211e88d6d1afc43deabc5278a575ddb",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.so",
+          "size": 5156480,
+          "sha256": "1f4be2b8d18cca827c1665d13d9e97f3b9c02b494f0cd090f811023a2bb1c98c",
+          "executable": true,
+          "linkTarget": "libllama.so.0"
+        },
+        {
+          "path": "llama-b11793/libggml-base.so.0",
+          "size": 897792,
+          "sha256": "ce6dcdeecade0f068450ce1ffec91e774385e8e819c74dccf02925ef026c10d7",
+          "executable": true,
+          "linkTarget": "libggml-base.so.0.27.0"
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-zen4.so",
+          "size": 1577864,
+          "sha256": "e0c2eea9629810ab8f6d17ee00819d61419323f1e1c12ef0605cc55a5ff80626",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-sse42.so",
+          "size": 954536,
+          "sha256": "2b3a4aa00fb42097553710c217264f453ef519c88ef062294c8416b090b9a000",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-batched-bench-impl.so",
+          "size": 49064,
+          "sha256": "a69a1abbca090c7ab3fa286adcb9fa51b710730c7950c02796a9a84197ef00c7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-llava-cli",
+          "size": 16952,
+          "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-ivybridge.so",
+          "size": 1352040,
+          "sha256": "a71f2adfa51ce175082eefef528a9bc57c141cd7864be1bdcbf2b9248f4fc807",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-sandybridge.so",
+          "size": 1350992,
+          "sha256": "e927919ce87edb4cc2ed9bdde5bd3599ca696482a43b0fcb21175713b05aace2",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-fit-params-impl.so",
+          "size": 39920,
+          "sha256": "397ce456786d0c161b14dd0ee225378d1f1ff875cbc428d32fda7dcaf15e306b",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-perplexity-impl.so",
+          "size": 171912,
+          "sha256": "357dc3ef0ebe6fe69b35c965db701452f44cc08a01f77a22c609b4aa96afbca9",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-haswell.so",
+          "size": 1416424,
+          "sha256": "1bc37cef126b01fe5a15222c07d20d29931936bfaa909a97052f6662f4c9d97c",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-icelake.so",
+          "size": 1577792,
+          "sha256": "b0c79233cc397c6f60a0d097629c645e1216d431b4477c9f092a4727d746b59d",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-completion",
+          "size": 15968,
+          "sha256": "7119bef261611b26f326f7c4da4dc3fdeb7bb28e2faf1ec392bda7b21215ef52",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.so",
+          "size": 1997136,
+          "sha256": "f1a081d4a53dba5f4e01e5c05471cdf0770809fddeb4fadcf0e8709764eeb00a",
+          "executable": true,
+          "linkTarget": "libmtmd.so.0"
+        },
+        {
+          "path": "llama-b11793/llama-tts",
+          "size": 45168,
+          "sha256": "2c36b75f033adf15248f97483642d9151ca7ff81863b083edecc0c3c45bd3d0f",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-quantize",
+          "size": 17864,
+          "sha256": "b4883df7b2f6e6b9ec4b110e5cdba5a690605e294b7e744a5441e56d24dfa6a7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-fit-params",
+          "size": 15968,
+          "sha256": "b2ad073a0c093706e5dfdfe2c9864d199ed921e49ea0383a7d0013e2ad8a81c8",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-gguf-split",
+          "size": 48224,
+          "sha256": "d74250db33f0a4821de61a11816eb49face770e9a1b8e9c80122b6de7bfb534a",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-gemma3-cli",
+          "size": 16952,
+          "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.so.0.7.0",
+          "size": 5156480,
+          "sha256": "1f4be2b8d18cca827c1665d13d9e97f3b9c02b494f0cd090f811023a2bb1c98c",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-alderlake.so",
+          "size": 1416424,
+          "sha256": "7758a8c74953999a664bc88549e9ed0c2e387f23f839f85272630eb376d00a86",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-cli",
+          "size": 1499240,
+          "sha256": "fc4930ab9cefe2efef9a488a54b8d1558094e54187f36248301644bb407ee785",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-tokenize",
+          "size": 45320,
+          "sha256": "265935128d55de5646fc24b4ad877ba8f9912689793fb5daf2a2ee0418b00f91",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-minicpmv-cli",
+          "size": 16952,
+          "sha256": "053ff1b820407b8a1836b0b05d1ffcc91e56b6531f08d9b00b8dfb97a41de294",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.so",
+          "size": 6646064,
+          "sha256": "eebe81f62b07d34c97b0c3db298919f02d6598bc7427bce5e9a46d0a252f86b8",
+          "executable": true,
+          "linkTarget": "libllama-common.so.0"
+        },
+        {
+          "path": "llama-b11793/llama",
+          "size": 62528,
+          "sha256": "10c079800d8a55e042090cbfd29a96660845de14846ad7c4fac6e9a44f9694fb",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-rpc.so",
+          "size": 319776,
+          "sha256": "e28139e2d982fb057b88d243e5b2e9d72c52f8b98ae910b1cf751240ef1f9803",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/LICENSE",
+          "size": 1078,
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "executable": false
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-sapphirerapids.so",
+          "size": 1844160,
+          "sha256": "5cb3d534592a69bd41abbdcdf1bd5e2347ef7b3a4b7529dacac39c93ebfaa8ea",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-results",
+          "size": 50416,
+          "sha256": "164e8ab97f233c56e63cda21de4ef1cde08cf47da3d487059b8b9a6179e9a862",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-cooperlake.so",
+          "size": 1577864,
+          "sha256": "2f954ab8e105425de866b25cec9b94a5b6c3c3439e36133e9d7278fd4fd037f8",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-cli-impl.so",
+          "size": 277120,
+          "sha256": "085ffb43408aac8202d35dcd24e0fb3800e1d952925f862c0de3d6fd2f13bb82",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml.so.0",
+          "size": 51040,
+          "sha256": "8643a58bb37af6fb153e2ea98b48efa227855725ee51c05f4ca76b9867956463",
+          "executable": true,
+          "linkTarget": "libggml.so.0.27.0"
+        },
+        {
+          "path": "llama-b11793/libggml.so",
+          "size": 51040,
+          "sha256": "8643a58bb37af6fb153e2ea98b48efa227855725ee51c05f4ca76b9867956463",
+          "executable": true,
+          "linkTarget": "libggml.so.0"
+        },
+        {
+          "path": "llama-b11793/libllama-server-impl.so",
+          "size": 7818920,
+          "sha256": "0abeb55a53575fbdeaa1624e824f7fa498d06adef6f1c786d2f64f1ee5ac8ef7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.so.0.7.0",
+          "size": 1997136,
+          "sha256": "f1a081d4a53dba5f4e01e5c05471cdf0770809fddeb4fadcf0e8709764eeb00a",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-imatrix",
+          "size": 221232,
+          "sha256": "e54ca2cb03aaf68d2915f7e5719f8b662545995017b98db5793ca13bbace553f",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml.so.0.27.0",
+          "size": 51040,
+          "sha256": "8643a58bb37af6fb153e2ea98b48efa227855725ee51c05f4ca76b9867956463",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-skylakex.so",
+          "size": 1561704,
+          "sha256": "4eeaa0c0953865ec7d5992878af899045bab059f06ba7e0d233b062e1757b328",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-batched-bench",
+          "size": 15976,
+          "sha256": "3b70e62c5c5cf43c8c436622a845ad4b80c01837d6ba3a10c90e39b219bbd2ab",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.so.0",
+          "size": 6646064,
+          "sha256": "eebe81f62b07d34c97b0c3db298919f02d6598bc7427bce5e9a46d0a252f86b8",
+          "executable": true,
+          "linkTarget": "libllama-common.so.0.7.0"
+        },
+        {
+          "path": "llama-b11793/libllama-completion-impl.so",
+          "size": 145168,
+          "sha256": "0d3d7ae4cdeafbce5d765f9027371506f5205eeb3203553e463035bc4babae23",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-bench",
+          "size": 17864,
+          "sha256": "e7193fc6ddaff51676f4caaa621cf39a28971aefeca7134febec26d8f6b3df47",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-quantize-impl.so",
+          "size": 81840,
+          "sha256": "8dd43c1fb15f2e6096237a5cc3aa52694b04978c176f10db28c27d15d6c1adcc",
+          "executable": true
+        }
+      ],
+      "entryPoint": "llama-b11793/llama-server",
+      "backend": "cpu"
+    },
+    {
+      "id": "llama-b11793-linux-arm64",
+      "version": "b11793",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11793/llama-b11793-bin-ubuntu-arm64.tar.gz",
+      "sha256": "dbf6d22a9d96905f5a15a3c653b2976c08b5e231fab22863429dc56055117514",
+      "size": 18011591,
+      "allowedHosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ],
+      "archive": "tar.gz",
+      "files": [
+        {
+          "path": "llama-b11793/llama-llava-cli",
+          "size": 71432,
+          "sha256": "b4e5891316104e12a491d69c52a7e95faece98fe978ec1caeba9de3830fbfb1c",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-completion",
+          "size": 70304,
+          "sha256": "e7d50fd11ccc28b19d9d9868204455f10a723a78c75e93f44bb158e0dd553c93",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/LICENSE",
+          "size": 1078,
+          "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+          "executable": false
+        },
+        {
+          "path": "llama-b11793/libggml-rpc.so",
+          "size": 337272,
+          "sha256": "1f38aba8b9f512daefd3cb746d9b6183ce70fa92df013dafa160970b14fe1011",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-tts",
+          "size": 74760,
+          "sha256": "b529ceb6721fc6567749bdcab2ffd357693075188cacc796e043dde0a878840e",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-common.so.0",
+          "size": 5848088,
+          "sha256": "c05e51facc532ed16627c3d06a73be08f5184faeab02e4295eadf86d9f6d5a2e",
+          "executable": true,
+          "linkTarget": "libllama-common.so.0.7.0"
+        },
+        {
+          "path": "llama-b11793/llama-server",
+          "size": 72448,
+          "sha256": "adee0b166f8b16099e52d09ab232a569f415ae5287caba49b834ce8e9cd18143",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-cli-impl.so",
+          "size": 235248,
+          "sha256": "09b45da1e677c7b73c77da47880887bf25a397611ed2cfa79e96d454c9bc68a7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-tokenize",
+          "size": 74656,
+          "sha256": "598c478ee570d29bdf9b43650a099d05c959ddb331b2220fd997da05009ff62a",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.so",
+          "size": 1899832,
+          "sha256": "9b949d76e073d9bd39d9d7300e0d68307adc5af1cf83114f22102014f010d22d",
+          "executable": true,
+          "linkTarget": "libmtmd.so.0"
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-armv8.2_2.so",
+          "size": 1069104,
+          "sha256": "61a11d19cd5e7ffa3d18394163d5038be194b8d5edf5693a092a801c92ecc38e",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-bench-impl.so",
+          "size": 469784,
+          "sha256": "67d9dd1aaae19b7d548ad041356ad221d185efe43c7d7405fe1b3bce530a2c31",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-perplexity-impl.so",
+          "size": 157440,
+          "sha256": "f651da0e626d8aa899e1bcb532a5728069e3073cdbee19b1d77cd85f0a7dc7ba",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-bench",
+          "size": 72448,
+          "sha256": "fd15b81ade73397730a1a775447834b78ffa35f8551fc6aabc22ac76079f2635",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-minicpmv-cli",
+          "size": 71432,
+          "sha256": "b4e5891316104e12a491d69c52a7e95faece98fe978ec1caeba9de3830fbfb1c",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml.so",
+          "size": 77528,
+          "sha256": "6be1305cdda55f0001e87fae600f1148b2f0b9c8b3f98f60c33b4fdfe3cfaf64",
+          "executable": true,
+          "linkTarget": "libggml.so.0"
+        },
+        {
+          "path": "llama-b11793/libmtmd.so.0",
+          "size": 1899832,
+          "sha256": "9b949d76e073d9bd39d9d7300e0d68307adc5af1cf83114f22102014f010d22d",
+          "executable": true,
+          "linkTarget": "libmtmd.so.0.7.0"
+        },
+        {
+          "path": "llama-b11793/libllama-common.so.0.7.0",
+          "size": 5848088,
+          "sha256": "c05e51facc532ed16627c3d06a73be08f5184faeab02e4295eadf86d9f6d5a2e",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-quantize",
+          "size": 72448,
+          "sha256": "7e933f370e5afbbabce48109a3f6013b88835de0ef0747b9ffa882770c067ee3",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-batched-bench-impl.so",
+          "size": 74344,
+          "sha256": "ebcfce5708551fbda60eaba07f065f31e1c24cf171a42b347c54f0f0f0601b2d",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-armv8.2_1.so",
+          "size": 1003544,
+          "sha256": "6688e6dcd841e1e7b8b37878e94ca03e9a37befe237cf72a2969de44aa649627",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-connect",
+          "size": 8450528,
+          "sha256": "6d04d8aeff7c3ed463b0f28a4de0c312c9768f1598762cc385858109e46c1901",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-imatrix",
+          "size": 228464,
+          "sha256": "2aedb98282025448d16b4157d187cf67443b2ee652a486de32f8a8b2268acfb2",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-armv9.2_2.so",
+          "size": 1069880,
+          "sha256": "7e8510132c860c036a34689bb76f895f06052f7a0303127699802f19cf278836",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-results",
+          "size": 75760,
+          "sha256": "fbacc464ce9cc330467db71e03e19f6d4e8fb449eea3b00aaa3bb126fe363656",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-armv8.2_3.so",
+          "size": 1004024,
+          "sha256": "943360faeda12492a4564de24033ab465f9a0451d80b66d61bfd644b96daf2e4",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-armv8.0_1.so",
+          "size": 1002176,
+          "sha256": "c3ce1a2b3eab67962b721c14f46fddc9fe5d71a2e01bc7ef68d79c87471dc3fc",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.so",
+          "size": 802072,
+          "sha256": "b1bc16c1bc2eb816b091e0d9652220f84cbcfb579a2da3d7fe5e075d4477d73b",
+          "executable": true,
+          "linkTarget": "libggml-base.so.0"
+        },
+        {
+          "path": "llama-b11793/llama-qwen2vl-cli",
+          "size": 71432,
+          "sha256": "b4e5891316104e12a491d69c52a7e95faece98fe978ec1caeba9de3830fbfb1c",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-base.so.0.27.0",
+          "size": 802072,
+          "sha256": "b1bc16c1bc2eb816b091e0d9652220f84cbcfb579a2da3d7fe5e075d4477d73b",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.so.0.7.0",
+          "size": 4876848,
+          "sha256": "e206caed89845c99e5e28c6c5bc0b83ea0b4eb9578bf991ce6e2a2b229a559f2",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.so.0",
+          "size": 4876848,
+          "sha256": "e206caed89845c99e5e28c6c5bc0b83ea0b4eb9578bf991ce6e2a2b229a559f2",
+          "executable": true,
+          "linkTarget": "libllama.so.0.7.0"
+        },
+        {
+          "path": "llama-b11793/libllama-common.so",
+          "size": 5848088,
+          "sha256": "c05e51facc532ed16627c3d06a73be08f5184faeab02e4295eadf86d9f6d5a2e",
+          "executable": true,
+          "linkTarget": "libllama-common.so.0"
+        },
+        {
+          "path": "llama-b11793/llama-batched-bench",
+          "size": 70304,
+          "sha256": "09f20becdca03300c4555159035ee35a89c6592a88cbe0ece2c16586a5c4ebc4",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama.so",
+          "size": 4876848,
+          "sha256": "e206caed89845c99e5e28c6c5bc0b83ea0b4eb9578bf991ce6e2a2b229a559f2",
+          "executable": true,
+          "linkTarget": "libllama.so.0"
+        },
+        {
+          "path": "llama-b11793/libggml-base.so.0",
+          "size": 802072,
+          "sha256": "b1bc16c1bc2eb816b091e0d9652220f84cbcfb579a2da3d7fe5e075d4477d73b",
+          "executable": true,
+          "linkTarget": "libggml-base.so.0.27.0"
+        },
+        {
+          "path": "llama-b11793/libllama-fit-params-impl.so",
+          "size": 73000,
+          "sha256": "1cd3d01c96963ccf7bb729fff0a27428b063fa01349d97dd19c6ec027a0c7041",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-perplexity",
+          "size": 70304,
+          "sha256": "e014db4ceefbc248dccfe4fb698adbcf41bdda97df6a994d56b914aecf7d9b3c",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml.so.0",
+          "size": 77528,
+          "sha256": "6be1305cdda55f0001e87fae600f1148b2f0b9c8b3f98f60c33b4fdfe3cfaf64",
+          "executable": true,
+          "linkTarget": "libggml.so.0.27.0"
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-armv8.6_1.so",
+          "size": 1004320,
+          "sha256": "b9c090690a1fb110073976b2ac11afe056133fc732645b410136636dee8fb2b7",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-fit-params",
+          "size": 70304,
+          "sha256": "80d389805a2eaecf2adb5da7e8d257735f1b6754b78c022780577ddad590e692",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-armv8.6_2.so",
+          "size": 1004320,
+          "sha256": "7d9cddd6662b38e4e71d38ed1678f754d7b0166f1c8e5b41966bd78f86634976",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml.so.0.27.0",
+          "size": 77528,
+          "sha256": "6be1305cdda55f0001e87fae600f1148b2f0b9c8b3f98f60c33b4fdfe3cfaf64",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libggml-cpu-armv9.2_1.so",
+          "size": 1069880,
+          "sha256": "a52d952a00e7fa55459778716cbb6491e195de19a6ecf2650d74f6e86b4d717b",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-gguf-split",
+          "size": 77976,
+          "sha256": "b79d381c3728b252f71f222208f817d6ff86850968163c283fa4e216f036e389",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-quantize-impl.so",
+          "size": 81160,
+          "sha256": "6f19f92d1d6039760189ad7298660b97be2e1bc5a98fa7bd2a3e11046f375e57",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-mtmd-cli",
+          "size": 81968,
+          "sha256": "69693692b84bc26c52c045e73b64aa9b10044ce69d8c898effd51cbefe0e7784",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libmtmd.so.0.7.0",
+          "size": 1899832,
+          "sha256": "9b949d76e073d9bd39d9d7300e0d68307adc5af1cf83114f22102014f010d22d",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama",
+          "size": 76328,
+          "sha256": "c1f527b1ede955d4b3a81a74ebf2cadcad1c5bc50d98f1c1c55326127f730c50",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-completion-impl.so",
+          "size": 168328,
+          "sha256": "e95b51d16db55ce4430886906f56302d72739f4b1995165ab143937a371fada0",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-gemma3-cli",
+          "size": 71432,
+          "sha256": "b4e5891316104e12a491d69c52a7e95faece98fe978ec1caeba9de3830fbfb1c",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/ggml-rpc-server",
+          "size": 245056,
+          "sha256": "1cb77ad85b0dfa9a7bc43e8a53f5084d6a323b0b5353d9ab8e4710a024a294d4",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/libllama-server-impl.so",
+          "size": 7126096,
+          "sha256": "738c0479fe0b533d7198aa41cb56e29018efbd8c1a94334b99a0864430db7d1b",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-cli",
+          "size": 1308848,
+          "sha256": "26892d2b4a8a6848b5a9a857dc205876c31e283cab6541c85c5d4066efdc5665",
+          "executable": true
+        },
+        {
+          "path": "llama-b11793/llama-mtmd-debug",
+          "size": 76008,
+          "sha256": "aa0bb1d47f51b923b26d364ba6923f6e4ea11911ef2445ce5cfdedd51a4ba534",
+          "executable": true
+        }
+      ],
+      "entryPoint": "llama-b11793/llama-server",
+      "backend": "cpu"
+    },
+    {
+      "id": "llama-b11793-win32-x64",
+      "version": "b11793",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11793/llama-b11793-bin-win-cpu-x64.zip",
+      "sha256": "775ed03e04de82682b6d2ea9d2f48d683b5aba63e8e0e02269ed30c9e49eba39",
+      "size": 24015419,
+      "allowedHosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ],
+      "archive": "zip",
+      "files": [
+        {
+          "path": "ggml-base.dll",
+          "size": 804352,
+          "sha256": "b723eb9d31d6f71d9ece868485df79449fc7a1c2d79083a24a2b273720a44d27",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-alderlake.dll",
+          "size": 1416704,
+          "sha256": "f3ff2b18e8b5973967525dc33559ed21cc338f4f7e8fa3df46593a6e0c371e1f",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-cannonlake.dll",
+          "size": 1611776,
+          "sha256": "d5da78266318998e1aa7157420a48b7122c6128cebfec24150f0e72ca047b69d",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-cascadelake.dll",
+          "size": 1584640,
+          "sha256": "a1fe8924d7907c217d1b9dd4b1f62b8cdd36591b1db701c3664d6ba6f9c492b9",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-cooperlake.dll",
+          "size": 1594368,
+          "sha256": "68aabb3f7d333a4b1631ad3485c738aaa77e07f97b1c8bfb01aa8fac764562e6",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-haswell.dll",
+          "size": 1421824,
+          "sha256": "bd53ac2efb64983d4e46c5a10e0ec97b34c0b4bfb60588fcd34aae403a3db51b",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-icelake.dll",
+          "size": 1591296,
+          "sha256": "b587acce62ea381c516a180a619ce0f14a6dc236c27cbae55821c8302b52ea80",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-ivybridge.dll",
+          "size": 1303040,
+          "sha256": "bb74325f5e3a86cc23183e542ee57ddfde3e9490ddb623c2274ee184072fe739",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-piledriver.dll",
+          "size": 1295872,
+          "sha256": "eac5c908c68283388cd8a52c4f754ed507ded729d0b97b2e70c4714ea1fa6085",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-sandybridge.dll",
+          "size": 1292800,
+          "sha256": "475703dccb4e8fb5d0769cf883d825b539a4fd353b2b3517c87abf03102eeb62",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-sapphirerapids.dll",
+          "size": 1871360,
+          "sha256": "817587bc358f59f84e3f10c239f2ab392d6f3c8bb067206082fd05700f51bac3",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-skylakex.dll",
+          "size": 1605120,
+          "sha256": "cf470a41caad422548df10b3880807cff964e8992b1c7a9025084f31c24becf9",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-sse42.dll",
+          "size": 918528,
+          "sha256": "cb8dd2fdaf24562c7559bd8d9075c344f433f40101c011e6ca40946ad4799a3d",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-x64.dll",
+          "size": 911872,
+          "sha256": "de06f65c76bb9cf54603c74c880ed40a33088936b134b7987aaa19fc54dcb912",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu-zen4.dll",
+          "size": 1601024,
+          "sha256": "da0a58f5cc9144e63a0dc6ee6b68360844c1a87f4fd0bede35725dede0454e69",
+          "executable": false
+        },
+        {
+          "path": "ggml-rpc-server.exe",
+          "size": 117248,
+          "sha256": "de349e31c344a2fbfc7bab38004397b521dde81949cd60259da75490dd3fb292",
+          "executable": true
+        },
+        {
+          "path": "ggml-rpc.dll",
+          "size": 231424,
+          "sha256": "c7f528e2f5a383b54df11d8d8dd565b8ef613576d99fdbfca0b9fa59459460c2",
+          "executable": false
+        },
+        {
+          "path": "ggml.dll",
+          "size": 78848,
+          "sha256": "ee2e8e2e5f5ea1fd4c4bd6e624108ec448581c1a04297a05e5c8787c94e6e532",
+          "executable": false
+        },
+        {
+          "path": "libomp.dll",
+          "size": 768000,
+          "sha256": "a12116ba72d1d6820407cf30be23da04ce79d6bb8a71a5ee71759c5a1faa6f1c",
+          "executable": false
+        },
+        {
+          "path": "LICENSE-LLVM-OpenMP",
+          "size": 19741,
+          "sha256": "fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4",
+          "executable": false
+        },
+        {
+          "path": "llama-batched-bench-impl.dll",
+          "size": 61952,
+          "sha256": "163cf54c87974c3a4170a0db88641a96b6d32fff50f8e7e73790759ae5f6a258",
+          "executable": false
+        },
+        {
+          "path": "llama-batched-bench.exe",
+          "size": 9216,
+          "sha256": "bbb0d50766d915fa7e06c165b88f44ced414a37be6e6f82201d695a13a10f140",
+          "executable": true
+        },
+        {
+          "path": "llama-bench-impl.dll",
+          "size": 404480,
+          "sha256": "6646c96da5f14ad9d5a7f0702e96d0a69bc18fb9834134b0a2d763995d7f4260",
+          "executable": false
+        },
+        {
+          "path": "llama-bench.exe",
+          "size": 9216,
+          "sha256": "ce1cad013d780e22012fee9822a140edeb9443e4057791396a6883dde38f22f0",
+          "executable": true
+        },
+        {
+          "path": "llama-cli-impl.dll",
+          "size": 3346944,
+          "sha256": "e4b9992782587d9c1c1854d50f9edb18bcbec78bcaddc995eaa57921f23dee4a",
+          "executable": false
+        },
+        {
+          "path": "llama-cli.exe",
+          "size": 9216,
+          "sha256": "251fe13052c5bbf5cef12538a3cd83b7861b2433c1b7c3cbc6819fd367afe205",
+          "executable": true
+        },
+        {
+          "path": "llama-common.dll",
+          "size": 8189952,
+          "sha256": "50a4b7fb3ea06178e2aa1f798ad95e54d72b2e2b448de69e378eb5b5bb43ab9d",
+          "executable": false
+        },
+        {
+          "path": "llama-completion-impl.dll",
+          "size": 140800,
+          "sha256": "f54d26af9bc0c33ae46c9797f2b9a84de26e78d4ce939cd9d28ccaf3614a235e",
+          "executable": false
+        },
+        {
+          "path": "llama-completion.exe",
+          "size": 9216,
+          "sha256": "b18d92a462b88a24dc359c045d43cd94243ca25347ae355a2728da8757dd0b1d",
+          "executable": true
+        },
+        {
+          "path": "llama-connect.exe",
+          "size": 11473920,
+          "sha256": "9f2bdd778f96971995a80add8d6b2478c156f799933337a19dbf80cdaad21b1d",
+          "executable": true
+        },
+        {
+          "path": "llama-fit-params-impl.dll",
+          "size": 43520,
+          "sha256": "21657feb8ea7587a57fcad077bf847848208623adc56601a5d32d97ee92e4eb5",
+          "executable": false
+        },
+        {
+          "path": "llama-fit-params.exe",
+          "size": 9216,
+          "sha256": "47793e043f3ed578c2753c4f90a562e9a6b1a2973cac2f74fcf6e470569ad704",
+          "executable": true
+        },
+        {
+          "path": "llama-gemma3-cli.exe",
+          "size": 27136,
+          "sha256": "2cb705ceef842f8a86364f3b7b79bbaed61dc9be53d69527b81d2a53218bfa16",
+          "executable": true
+        },
+        {
+          "path": "llama-gguf-split.exe",
+          "size": 60416,
+          "sha256": "d955c7074dec2f476f27cb2fb041f971e8ff3c3c98a337cb7603a5698f87b265",
+          "executable": true
+        },
+        {
+          "path": "llama-imatrix.exe",
+          "size": 252928,
+          "sha256": "b18f2ab933d6d7ad30ba6c8df3cf2a5aa095acbca2e7706c590c4aaca568dd44",
+          "executable": true
+        },
+        {
+          "path": "llama-llava-cli.exe",
+          "size": 27136,
+          "sha256": "2cb705ceef842f8a86364f3b7b79bbaed61dc9be53d69527b81d2a53218bfa16",
+          "executable": true
+        },
+        {
+          "path": "llama-minicpmv-cli.exe",
+          "size": 27136,
+          "sha256": "2cb705ceef842f8a86364f3b7b79bbaed61dc9be53d69527b81d2a53218bfa16",
+          "executable": true
+        },
+        {
+          "path": "llama-mtmd-cli.exe",
+          "size": 97280,
+          "sha256": "e13c55919bd5176b9b90c7e2ba368f9fcd7f86cbf985952f74ed08f8ce5a1455",
+          "executable": true
+        },
+        {
+          "path": "llama-mtmd-debug.exe",
+          "size": 55808,
+          "sha256": "75df2eaa5b7b3907afbe4cbfacd601e6141ccf23ef01eabc30ac65bbd004a0c0",
+          "executable": true
+        },
+        {
+          "path": "llama-perplexity-impl.dll",
+          "size": 197632,
+          "sha256": "ff975071436663002d453a11f56b2ed550f53bb048ed5b71d75c22f8b786e046",
+          "executable": false
+        },
+        {
+          "path": "llama-perplexity.exe",
+          "size": 9216,
+          "sha256": "fcf7b82a2b23c73393d65b4480d38bb7f853273d9c18c2eb5e721e9875292d06",
+          "executable": true
+        },
+        {
+          "path": "llama-quantize-impl.dll",
+          "size": 137216,
+          "sha256": "a5009a623e63498a15825e2fb9199197e223014ee0e6e215eb7c3bdff25b8b84",
+          "executable": false
+        },
+        {
+          "path": "llama-quantize.exe",
+          "size": 9216,
+          "sha256": "d75fd54c6864a46383ff8cbcb7c23409f5ab8c194650840af09cde71c35b6467",
+          "executable": true
+        },
+        {
+          "path": "llama-qwen2vl-cli.exe",
+          "size": 27136,
+          "sha256": "2cb705ceef842f8a86364f3b7b79bbaed61dc9be53d69527b81d2a53218bfa16",
+          "executable": true
+        },
+        {
+          "path": "llama-results.exe",
+          "size": 46592,
+          "sha256": "44fe8ce2bdc227221e34944b75527778477dd526be3455f4393e25aa99504735",
+          "executable": true
+        },
+        {
+          "path": "llama-server-impl.dll",
+          "size": 9565696,
+          "sha256": "67f122f5f6ca22afe56be90f5f07eaf9ca417be426f718c71f4932d1d9f0baae",
+          "executable": false
+        },
+        {
+          "path": "llama-server.exe",
+          "size": 9216,
+          "sha256": "ed1607f5b01413e7ac5c9f22c3184efdf275896981fec4efe790dc631a11933e",
+          "executable": true
+        },
+        {
+          "path": "llama-tokenize.exe",
+          "size": 58880,
+          "sha256": "db8ce13d8103c3bfb258ec6323b62a1e60ec6e88ffb804581927ba9c69fdb7eb",
+          "executable": true
+        },
+        {
+          "path": "llama-tts.exe",
+          "size": 42496,
+          "sha256": "714ccdd76bb18d827c1eb0c2c3dc46a799e096a6305bf1044d265690d4ae6cc1",
+          "executable": true
+        },
+        {
+          "path": "llama.dll",
+          "size": 3587072,
+          "sha256": "953a4433544a9e1da8751bfcbdf6dda1b75ba6a99d54d5ddb5b8b266bc1f8ddf",
+          "executable": false
+        },
+        {
+          "path": "llama.exe",
+          "size": 104960,
+          "sha256": "97b12a4444f605d00887522ddce687ad24450bc05f7258024fb25e6fef94046d",
+          "executable": true
+        },
+        {
+          "path": "mtmd.dll",
+          "size": 1911296,
+          "sha256": "f18c25377ed0c80c57167eeeb9e0b5d4a9330cc39a83bf8a4f4e071889c0a985",
+          "executable": false
+        }
+      ],
+      "entryPoint": "llama-server.exe",
+      "backend": "cpu"
+    },
+    {
+      "id": "llama-b11793-win32-arm64",
+      "version": "b11793",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/download/b11793/llama-b11793-bin-win-cpu-arm64.zip",
+      "sha256": "0d232b66078ffaba80af3b66f0be3dd47d6096e23ea33a21369ed1fb323c2492",
+      "size": 12651603,
+      "allowedHosts": [
+        "github.com",
+        "release-assets.githubusercontent.com",
+        "objects.githubusercontent.com"
+      ],
+      "archive": "zip",
+      "files": [
+        {
+          "path": "ggml-base.dll",
+          "size": 667648,
+          "sha256": "6cb0514b5c1ee0bc7dc4b183d7a189009071693b02a4e103f84aaea794463b39",
+          "executable": false
+        },
+        {
+          "path": "ggml-cpu.dll",
+          "size": 821760,
+          "sha256": "224dd4b3e3c746115333ecb07c3d1ecfa0ca3e64b3c1236ae72707960986a531",
+          "executable": false
+        },
+        {
+          "path": "ggml-rpc-server.exe",
+          "size": 108544,
+          "sha256": "d70d656d61abbe66150ae17a8782957cb1698186b08efc8c4343c21a1184a045",
+          "executable": true
+        },
+        {
+          "path": "ggml-rpc.dll",
+          "size": 215040,
+          "sha256": "b10387b7eefd104705cc5953e2c0bfae0dcf72eb27cd9d2b69f4cc1918329dfb",
+          "executable": false
+        },
+        {
+          "path": "ggml.dll",
+          "size": 69120,
+          "sha256": "861b7c6b405c6ba89a9cb28db117aff93de40c7e5fb9b42970835e763322bd90",
+          "executable": false
+        },
+        {
+          "path": "libomp.dll",
+          "size": 764928,
+          "sha256": "26caae17f29aaf2238f664375b663cd306d596bc9e36e780fa88356c51fe876a",
+          "executable": false
+        },
+        {
+          "path": "LICENSE-LLVM-OpenMP",
+          "size": 19741,
+          "sha256": "fdad1758a9e1f9d5a81e18879b3406772115edc92c24bfa36b70c654f325e8e4",
+          "executable": false
+        },
+        {
+          "path": "llama-batched-bench-impl.dll",
+          "size": 47104,
+          "sha256": "ee6a5ae898d4ea7adfa9057640b0f8192ca90436e486724a738eed613cb70f85",
+          "executable": false
+        },
+        {
+          "path": "llama-batched-bench.exe",
+          "size": 9728,
+          "sha256": "4a3a7620e3af9ec48516e0dca73d71647d904050b6f02484d061e73721ca6190",
+          "executable": true
+        },
+        {
+          "path": "llama-bench-impl.dll",
+          "size": 339456,
+          "sha256": "728af47d7228a357a7c962dc067cb936d39c8999b86518d6dd5cb23236dd144e",
+          "executable": false
+        },
+        {
+          "path": "llama-bench.exe",
+          "size": 9728,
+          "sha256": "e14d687a9ff7356213b4ab24011eb2a8cb19b67ca9e343f54b8bb5f62704cc66",
+          "executable": true
+        },
+        {
+          "path": "llama-cli-impl.dll",
+          "size": 3043328,
+          "sha256": "549aefb5202baee78f0c100c6ec1620670b4b192809bdd992048aa960d41414e",
+          "executable": false
+        },
+        {
+          "path": "llama-cli.exe",
+          "size": 9728,
+          "sha256": "ff2acd58cd7d48aef6198d7d0322f368d9d8dfb5d9e48afa879e860370bfe728",
+          "executable": true
+        },
+        {
+          "path": "llama-common.dll",
+          "size": 7238656,
+          "sha256": "f3b9c99fe75c2237fe25ec904399cfc5d7debd6fdfe132f0297c946caaa3640e",
+          "executable": false
+        },
+        {
+          "path": "llama-completion-impl.dll",
+          "size": 125440,
+          "sha256": "ff1ee1bcd669285eb7ff79fef50d1a14b4757a34dcffa700e374914ee939fcb9",
+          "executable": false
+        },
+        {
+          "path": "llama-completion.exe",
+          "size": 9728,
+          "sha256": "46c87b03d0d2a4811714f5b3b38118d8c1b92bd6deefe6373925efde917c0395",
+          "executable": true
+        },
+        {
+          "path": "llama-fit-params-impl.dll",
+          "size": 33792,
+          "sha256": "51d63ece90a282c8cbfe29bc645dd7b374242ee1c984a3bba4b81fbe79bf853d",
+          "executable": false
+        },
+        {
+          "path": "llama-fit-params.exe",
+          "size": 9728,
+          "sha256": "c7c0f02f186d515aecf0be580c21b06649a252dcf87d2dc5915516b0929d2995",
+          "executable": true
+        },
+        {
+          "path": "llama-gemma3-cli.exe",
+          "size": 23552,
+          "sha256": "f86109381b526eaf90741e0e4e9995fee366cba84a15a9ec2bec455d7b948e59",
+          "executable": true
+        },
+        {
+          "path": "llama-gguf-split.exe",
+          "size": 55296,
+          "sha256": "dbccd7e0e24248cb2d83d1bb3f463bc8dfec97ab87c1646c0976c03b2dd84fd6",
+          "executable": true
+        },
+        {
+          "path": "llama-imatrix.exe",
+          "size": 198144,
+          "sha256": "bd2722e66e011c3c5ce7eec55cae355eb8cb66823b1d601a3e399ee336a1edd8",
+          "executable": true
+        },
+        {
+          "path": "llama-llava-cli.exe",
+          "size": 23552,
+          "sha256": "f86109381b526eaf90741e0e4e9995fee366cba84a15a9ec2bec455d7b948e59",
+          "executable": true
+        },
+        {
+          "path": "llama-minicpmv-cli.exe",
+          "size": 23552,
+          "sha256": "f86109381b526eaf90741e0e4e9995fee366cba84a15a9ec2bec455d7b948e59",
+          "executable": true
+        },
+        {
+          "path": "llama-mtmd-cli.exe",
+          "size": 78848,
+          "sha256": "b5ac29571ae65555453e0e3cd3e8cb7ee850b8c878c8199915eb1dde30173103",
+          "executable": true
+        },
+        {
+          "path": "llama-mtmd-debug.exe",
+          "size": 43520,
+          "sha256": "36a6c9acb379c189461a59cdb806688b4f06c2c2f2c12e7120e28fd72175812b",
+          "executable": true
+        },
+        {
+          "path": "llama-perplexity-impl.dll",
+          "size": 153088,
+          "sha256": "afef1e928f847e2a0157a9768dce28f8af290a2759807a48cd2f52df6bb346fc",
+          "executable": false
+        },
+        {
+          "path": "llama-perplexity.exe",
+          "size": 9728,
+          "sha256": "affec2fa1bd019cc6bd19ca82625975e3e336cae85d1b413dad911452088a378",
+          "executable": true
+        },
+        {
+          "path": "llama-quantize-impl.dll",
+          "size": 125952,
+          "sha256": "5dbb5615cf89c9ceebe403bff9cb5f729fcea1b09e3f74114e9e9450a0fdccd0",
+          "executable": false
+        },
+        {
+          "path": "llama-quantize.exe",
+          "size": 9728,
+          "sha256": "f05dae8c0a7d70406ef114b3a290b0dbeb2ac8261d06bccad790b8bf2ed7daf5",
+          "executable": true
+        },
+        {
+          "path": "llama-qwen2vl-cli.exe",
+          "size": 23552,
+          "sha256": "f86109381b526eaf90741e0e4e9995fee366cba84a15a9ec2bec455d7b948e59",
+          "executable": true
+        },
+        {
+          "path": "llama-results.exe",
+          "size": 37376,
+          "sha256": "f6dce38ec7b05b9d12e3e3a9a518a2a3cb51790625338a863b701004593dfa60",
+          "executable": true
+        },
+        {
+          "path": "llama-server-impl.dll",
+          "size": 8739840,
+          "sha256": "8b87c61f3c202899710603e5adb524e33579cc6b023722214fbc031e542759b4",
+          "executable": false
+        },
+        {
+          "path": "llama-server.exe",
+          "size": 9728,
+          "sha256": "5c403aba82468128acc2ada54180eb1dfcd52738d012bf8fa736ffa2a5400c8c",
+          "executable": true
+        },
+        {
+          "path": "llama-tokenize.exe",
+          "size": 50176,
+          "sha256": "53e303e2e5d2638eadf7ed7cefdf91385266456d9828a1d32fc85fbb8c01c105",
+          "executable": true
+        },
+        {
+          "path": "llama-tts.exe",
+          "size": 33280,
+          "sha256": "850178070461b7dc3c28b1e6d333c8924d053cd6057659cf9c0daa0e5b0db0ff",
+          "executable": true
+        },
+        {
+          "path": "llama.dll",
+          "size": 3141120,
+          "sha256": "f83de4b82f6e6b55e031e9edd1136bf23c19d9ff57254b05150afb1eaf9152fa",
+          "executable": false
+        },
+        {
+          "path": "llama.exe",
+          "size": 97280,
+          "sha256": "50d968a393d738b1216617a7f35600ff258acfc32ebddafff1ea995355833bb6",
+          "executable": true
+        },
+        {
+          "path": "mtmd.dll",
+          "size": 1581568,
+          "sha256": "af008239935bd39e4f8ba227bc1f253e8e5627198443ebf340a4df1827230fbb",
+          "executable": false
+        }
+      ],
+      "entryPoint": "llama-server.exe",
+      "backend": "cpu"
+    },
+    {
+      "id": "qwen3-light-q4km",
+      "version": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+      "url": "https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_K_M.gguf",
+      "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a",
+      "size": 396705472,
+      "archive": "file",
+      "allowedHosts": [
+        "huggingface.co",
+        "cdn-lfs.huggingface.co",
+        "cdn-lfs.hf.co",
+        "cdn-lfs-us-1.hf.co",
+        "cas-bridge.xethub.hf.co",
+        "us.aws.cdn.hf.co",
+        "cdn-lfs-eu-1.hf.co"
+      ],
+      "files": [
+        {
+          "path": "Qwen3-0.6B-Q4_K_M.gguf",
+          "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a",
+          "size": 396705472
+        }
+      ],
+      "entryPoint": "Qwen3-0.6B-Q4_K_M.gguf",
+      "backend": "cpu",
+      "publisher": "unsloth/Qwen3-0.6B-GGUF",
+      "memoryBytes": 1073741824
+    },
+    {
+      "id": "qwen3-balanced-q4km",
+      "version": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+      "url": "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/d7f544eead698dbd1f15126ef60b45a1e1933222/Qwen3-1.7B-Q4_K_M.gguf",
+      "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+      "size": 1107409472,
+      "archive": "file",
+      "allowedHosts": [
+        "huggingface.co",
+        "cdn-lfs.huggingface.co",
+        "cdn-lfs.hf.co",
+        "cdn-lfs-us-1.hf.co",
+        "cas-bridge.xethub.hf.co",
+        "us.aws.cdn.hf.co",
+        "cdn-lfs-eu-1.hf.co"
+      ],
+      "files": [
+        {
+          "path": "Qwen3-1.7B-Q4_K_M.gguf",
+          "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+          "size": 1107409472
+        }
+      ],
+      "entryPoint": "Qwen3-1.7B-Q4_K_M.gguf",
+      "backend": "cpu",
+      "publisher": "unsloth/Qwen3-1.7B-GGUF",
+      "memoryBytes": 2362232013
+    },
+    {
+      "id": "qwen3-quality-q4km",
+      "version": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+      "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/bc640142c66e1fdd12af0bd68f40445458f3869b/Qwen3-4B-Q4_K_M.gguf",
+      "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "size": 2497280256,
+      "archive": "file",
+      "allowedHosts": [
+        "huggingface.co",
+        "cdn-lfs.huggingface.co",
+        "cdn-lfs.hf.co",
+        "cdn-lfs-us-1.hf.co",
+        "cas-bridge.xethub.hf.co",
+        "us.aws.cdn.hf.co",
+        "cdn-lfs-eu-1.hf.co"
+      ],
+      "files": [
+        {
+          "path": "Qwen3-4B-Q4_K_M.gguf",
+          "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+          "size": 2497280256
+        }
+      ],
+      "entryPoint": "Qwen3-4B-Q4_K_M.gguf",
+      "backend": "cpu",
+      "publisher": "Qwen/Qwen3-4B-GGUF",
+      "memoryBytes": 5368709120
+    }
+  ]
+}

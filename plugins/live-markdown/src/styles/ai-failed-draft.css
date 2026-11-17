@@ -1,0 +1,7 @@
+.ty-ai-failed-draft{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-color)}
+.ty-ai-failed-draft label{font-size:12px;font-weight:600;color:var(--text-color)}
+.ty-ai-failed-draft textarea{box-sizing:border-box;width:100%;min-height:150px;max-height:45vh;resize:vertical;padding:10px;border:1px solid var(--border-color);border-radius:7px;background:var(--panel-bg,var(--bg-color));color:var(--text-color);font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;cursor:text}
+.ty-ai-failed-draft textarea:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
+.ty-ai-failed-draft p{margin:0;font-size:12px;color:var(--muted-text-color);overflow-wrap:anywhere}
+.ty-ai-failed-draft button{align-self:flex-end;cursor:pointer}
+.ty-ai-failed-draft button:disabled{cursor:not-allowed}

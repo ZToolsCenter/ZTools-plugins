@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <!-- Background Gradient: Deep Slate to Obsidian -->
+    <linearGradient id="bgGrad" x1="28" y1="20" x2="228" y2="236" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="50%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Inner Card Bevel -->
+    <linearGradient id="cardBorder" x1="24" y1="24" x2="232" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#475569" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#334155" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#1E293B" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Markdown 'M' Main Fill: Clean Pure Titanium -->
+    <linearGradient id="mStemGrad" x1="60" y1="80" x2="160" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+
+    <!-- Live Preview Accent: Electric Indigo & Cyan Beam -->
+    <linearGradient id="liveAccentGrad" x1="150" y1="70" x2="210" y2="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#8B5CF6" />
+    </linearGradient>
+
+    <!-- Glow & Shadow Filters -->
+    <filter id="softGlow" x="130" y="50" width="100" height="150" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="cardShadow" x="10" y="12" width="236" height="236" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020617" flood-opacity="0.55" />
+    </filter>
+  </defs>
+
+  <!-- App Card Plate -->
+  <rect x="20" y="20" width="216" height="216" rx="46" fill="url(#bgGrad)" filter="url(#cardShadow)" />
+  <rect x="20" y="20" width="216" height="216" rx="46" stroke="url(#cardBorder)" stroke-width="2" />
+
+  <!-- Background Decorative Syntax Lines (Subtle Markdown structure) -->
+  <rect x="52" y="56" width="36" height="4" rx="2" fill="#38BDF8" fill-opacity="0.4" />
+  <rect x="96" y="56" width="72" height="4" rx="2" fill="#475569" fill-opacity="0.3" />
+  <rect x="52" y="196" width="84" height="4" rx="2" fill="#475569" fill-opacity="0.3" />
+  <rect x="144" y="196" width="40" height="4" rx="2" fill="#38BDF8" fill-opacity="0.3" />
+
+  <!-- Modern Geometric Markdown Fold "M" Glyph -->
+  <!-- Left Pillar -->
+  <path d="M54 168V88C54 84.6863 56.6863 82 60 82H74C77.3137 82 80 84.6863 80 88V168C80 171.314 77.3137 174 74 174H60C56.6863 174 54 171.314 54 168Z" fill="url(#mStemGrad)" />
+
+  <!-- Center Diagonal Peak -->
+  <path d="M78 86L107.5 125.5C109.1 127.6 112.9 127.6 114.5 125.5L144 86C145.8 83.6 149.2 83.4 151.3 85.5C152.4 86.6 153 88.1 153 89.6V168C153 171.314 150.314 174 147 174H135C131.686 174 129 171.314 129 168V118L117.2 134.2C114 138.6 108 138.6 104.8 134.2L93 118V168C93 171.314 90.3137 174 87 174H75C71.6863 174 69 171.314 69 168V89.6C69 86.2863 71.6863 83.6 75 83.6C76.1 83.6 77.2 84.4 78 86Z" fill="url(#mStemGrad)" />
+
+  <!-- Live Preview Dynamic Indicator: Active Editor Beam & Instant Render Spark -->
+  <!-- Active Caret Beam (Right Pillar of Markdown Live Preview) -->
+  <rect x="168" y="94" width="10" height="80" rx="5" fill="url(#liveAccentGrad)" />
+
+  <!-- Live Render Magic Spark (Diamond 4-point star) -->
+  <g filter="url(#softGlow)">
+    <path d="M173 66C173.8 72.8 178.2 77.2 185 78C178.2 78.8 173.8 83.2 173 90C172.2 83.2 167.8 78.8 161 78C167.8 77.2 172.2 72.8 173 66Z" fill="#38BDF8" />
+    <circle cx="173" cy="78" r="2" fill="#FFFFFF" />
+  </g>
+
+  <!-- Downward Live Render Arrow/Chevron indicating flow from syntax to render -->
+  <path d="M190 128L200 138L210 128" stroke="url(#liveAccentGrad)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M200 110V136" stroke="url(#liveAccentGrad)" stroke-width="3.5" stroke-linecap="round" />
+</svg>
