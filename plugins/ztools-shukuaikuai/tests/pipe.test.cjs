@@ -1,0 +1,2 @@
+const{test}=require('node:test');const assert=require('node:assert/strict');const{EventEmitter}=require('node:events');const{createPipe}=require('../public/pipe.cjs');
+test('broken pipes become a reported unavailable state',()=>{const input=new EventEmitter();input.writable=true;input.write=()=>{throw Error('EPIPE')};let error;const pipe=createPipe(input,e=>error=e);assert.equal(pipe.send({op:'pause'}),false);assert.equal(error.message,'EPIPE');assert.doesNotThrow(()=>input.emit('error',Error('closed')))});
