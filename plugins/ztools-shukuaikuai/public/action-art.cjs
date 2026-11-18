@@ -1,0 +1,25 @@
+'use strict';
+const presets=require('./action-icons.json'),fs=require('node:fs/promises'),path=require('node:path');
+function preset(a){if(presets[a.icon])return a.icon;if(a.type==='key')return ({'Ctrl+C':'Copy','Ctrl+V':'Paste','Ctrl+S':'Save','Ctrl+Z':'Undo','Ctrl+X':'Cut','Ctrl+A':'SelectAll','Alt+Left':'Back','Alt+Right':'Forward'})[a.value]||'Keyboard';return {app:'App',path:'File',url:'Globe',text:'Text',plugin:'Plugin'}[a.type]||'Keyboard'}
+function decorate(c){return {...c,actions:c.actions.map(a=>({...a,image:a.image||presets[preset(a)].image}))}}
+function validUrl(value){const u=new URL(value);if(!['http:','https:'].includes(u.protocol)||u.username||u.password)throw Error('网址无效');return u.href}
+async function download(value,signal,limit=280000,depth=0){const target=validUrl(value);return new Promise((resolve,reject)=>{const req=require(target.startsWith('https:')?'node:https':'node:http').get(target,{signal,headers:{'User-Agent':'ZTools-Shukuaikuai','Accept-Encoding':'identity'}},r=>{if(r.statusCode>=300&&r.statusCode<400&&r.headers.location){r.resume();if(depth>=4)return reject(Error('重定向过多'));return resolve(download(new URL(r.headers.location,target).href,signal,limit,depth+1))}if(r.statusCode!==200){r.resume();return reject(Error('网站未提供图标'))}const chunks=[];let size=0;r.on('data',b=>{size+=b.length;if(size>limit)r.destroy(Error('图片过大'));else chunks.push(b)});r.on('error',reject);r.on('end',()=>resolve({bytes:Buffer.concat(chunks),mime:String(r.headers['content-type']||'').split(';')[0],url:target}))});req.on('error',reject)})}
+async function website(value){validUrl(value);const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),6000);try{let candidates=[];try{const p=await download(value,ac.signal,512000);for(const tag of p.bytes.toString('utf8').match(/<link\b[^>]*>/gi)||[]){const attrs={};for(const m of tag.matchAll(/([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g))attrs[m[1].toLowerCase()]=m[2]??m[3]??m[4];if(/(?:^|\s)(?:icon|apple-touch-icon)(?:\s|$)/i.test(attrs.rel||'')&&attrs.href)candidates.push(new URL(attrs.href.replace(/&amp;/g,'&'),p.url).href)}}catch{}candidates.push(new URL('/favicon.ico',value).href);for(const candidate of [...new Set(candidates)].slice(0,6)){try{const r=await download(candidate,ac.signal);const mime=r.mime.startsWith('image/')?r.mime:'image/x-icon';if(r.bytes.length)return `data:${mime};base64,${r.bytes.toString('base64')}`}catch{}}throw Error('网站未提供图标')}finally{clearTimeout(timer)}}
+async function plugin(api,id,command){const state=await require('./plugin-actions.cjs').catalog(api);if(!state.authorized)throw Error('请先授权读取插件列表');const list=await api.internal.getPlugins(),p=list.find(p=>p.name===id);if(!p)throw Error('插件已卸载');const f=(p.features||[]).find(f=>f.cmds?.includes(command)),icon=f?.icon||p.logo;if(!icon)return null;if(icon.startsWith('data:image/'))return icon.length<1000000?icon:null;if(/^https?:/.test(icon)){const r=await download(icon,AbortSignal.timeout(6000));return `data:${r.mime||'image/png'};base64,${r.bytes.toString('base64')}`}let filename;if(icon.startsWith('file:')){const u=new URL(icon);filename=decodeURIComponent(u.pathname).replace(/^\/([a-z]:)/i,'$1')}else filename=path.resolve(p.path,icon);const real=await fs.realpath(filename),root=await fs.realpath(p.path),rel=path.relative(root,real);if(rel.startsWith('..')||path.isAbsolute(rel))return null;if((await fs.stat(real)).size>280000)return null;const ext=path.extname(real).slice(1).toLowerCase(),mime={png:'image/png',svg:'image/svg+xml',jpg:'image/jpeg',jpeg:'image/jpeg',ico:'image/x-icon',webp:'image/webp'}[ext];return mime?`data:${mime};base64,${(await fs.readFile(real)).toString('base64')}`:null}
+async function resolve(api,a){if(a.type==='plugin')return plugin(api,a.pluginId,a.value);if(a.type==='url')return website(a.value);if(['app','path'].includes(a.type)&&a.value){const stat=await fs.stat(a.value);const raw=await api.getFileIcon(a.value);return typeof raw==='string'&&raw.startsWith('data:image/')?raw:presets[stat.isDirectory()?'Folder':preset(a)].image}return presets[preset(a)].image}
+async function websiteName(value){
+ const u=new URL(validUrl(value)),fallback=u.hostname.replace(/^www\./,'');
+ try{
+  const page=await download(value,AbortSignal.timeout(6000),512000);
+  const match=page.bytes.toString('utf8').match(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i);
+  if(!match)return fallback;
+  const entities={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',mdash:'—',ndash:'–',copy:'©',reg:'®',trade:'™'};
+  const title=match[1].replace(/<[^>]*>/g,'').replace(/&#(x[0-9a-f]+|[0-9]+);|&([a-z]+);/gi,(all,code,key)=>{
+   if(!code)return entities[key.toLowerCase()]??all;
+   const n=code[0].toLowerCase()==='x'?parseInt(code.slice(1),16):Number(code);
+   return n>0&&n<=0x10ffff?String.fromCodePoint(n):'';
+  }).replace(/[\x00-\x20]+/g,' ').trim().slice(0,120);
+  return title&&!title.includes('\ufffd')?title:fallback;
+ }catch{return fallback}
+}
+module.exports={preset,decorate,resolve,website,plugin,download,websiteName};

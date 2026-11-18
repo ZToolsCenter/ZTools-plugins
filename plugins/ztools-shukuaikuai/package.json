@@ -1,6 +1,6 @@
 {
   "name": "ztools-shukuaikuai",
-  "version": "0.5.9",
+  "version": "0.7.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "prebuild": "node scripts/prepare.mjs && node scripts/clean.mjs",
     "build": "vite build && node scripts/build-native.mjs",
     "package": "npm run build && node scripts/package.mjs",
-    "test": "node --test tests/*.test.cjs",
+    "test": "node --test tests/*.test.cjs tests/*.test.mjs",
     "publish:market": "node scripts/publish.mjs"
   },
   "dependencies": {

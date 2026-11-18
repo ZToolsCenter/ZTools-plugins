@@ -1,0 +1,7 @@
+import presets from '../public/action-icons.json';
+export {presets};
+export function preset(a={}){if(presets[a.icon])return a.icon;if(a.type==='key')return ({'Ctrl+C':'Copy','Ctrl+V':'Paste','Ctrl+S':'Save','Ctrl+Z':'Undo','Ctrl+X':'Cut','Ctrl+A':'SelectAll','Alt+Left':'Back','Alt+Right':'Forward'})[a.value]||'Keyboard';return {app:'App',path:'File',url:'Globe',text:'Text',plugin:'Plugin'}[a.type]||'Keyboard'}
+export function image(a={}){return a.image||presets[preset(a)].image}
+export async function png(source){if(!source?.startsWith('data:image/'))throw Error('无可用图标');const img=new Image();img.src=source;await img.decode();if(img.naturalWidth>4096||img.naturalHeight>4096)throw Error('图标尺寸过大');const canvas=document.createElement('canvas');canvas.width=64;canvas.height=64;const ratio=Math.min(64/img.naturalWidth,64/img.naturalHeight);canvas.getContext('2d').drawImage(img,(64-img.naturalWidth*ratio)/2,(64-img.naturalHeight*ratio)/2,img.naturalWidth*ratio,img.naturalHeight*ratio);return canvas.toDataURL('image/png')}
+const cache=new Map();
+export function targetIcon(a){const key=JSON.stringify([a.type,a.value,a.pluginId]);if(!cache.has(key)){const result=window.skk?.actionIcon?window.skk.actionIcon({type:a.type,value:a.value,pluginId:a.pluginId}).then(png):Promise.reject(Error('预览不可读取图标'));cache.set(key,result);result.catch(()=>cache.delete(key));if(cache.size>150)cache.delete(cache.keys().next().value)}return cache.get(key)}

@@ -1,11 +1,11 @@
 {
   "name": "ztools-shukuaikuai",
   "title": "鼠快快",
-  "version": "0.5.9",
+  "version": "0.7.5",
   "description": "一划一点，快捷随手。自定义鼠标轮盘与手势工具。",
   "main": "index.html",
   "preload": "preload.cjs",
-  "logo": "logo-mouse.png",
+  "logo": "logo-coral.png",
   "platform": [
     "win32"
   ],

@@ -1,0 +1,11 @@
+'use strict';
+// Match the Dock plugin's public redirect contract and narrow catalog permissions.
+const PERMISSIONS=['internal:get-plugins','internal:get-disabled-plugins'];
+async function allowed(api){if(!api.getInternalApiPermissions||!api.internal?.getPlugins||!api.internal?.getDisabledPlugins)return false;const state=await api.getInternalApiPermissions();return !!state.fullAccess||PERMISSIONS.every(p=>state.granted?.includes(p))}
+function normalize(plugins,disabled=[]){const rows=plugins.filter(p=>p&&typeof p.name==='string'&&typeof p.title==='string'&&p.title.trim()&&p.name!=='ztools-shukuaikuai');return rows.map(p=>({id:p.name,title:p.title,iconVersion:String(p.version||'')+':'+String(p.logo||''),commands:[...new Set((p.features||[]).flatMap(f=>Array.isArray(f.cmds)?f.cmds.filter(c=>typeof c==='string'&&c.trim()):[]))],unavailable:disabled.includes(p.path)||disabled.includes(p.name)?'已停用':rows.filter(x=>x.title===p.title).length>1?'同名插件无法区分':''})).sort((a,b)=>a.title.localeCompare(b.title,'zh-CN'))}
+async function catalog(api){if(!await allowed(api))return {authorized:false,plugins:[]};const [plugins,disabled]=await Promise.all([api.internal.getPlugins(),api.internal.getDisabledPlugins()]);return {authorized:true,plugins:normalize(plugins,disabled)}}
+async function authorize(api){if(await allowed(api))return true;if(!api.requestInternalApiPermissions)throw Error('当前 ZTools 不支持插件选择，请升级宿主');const r=await api.requestInternalApiPermissions(PERMISSIONS,'选择已安装插件及其可直接打开的指令，用于鼠快快轮盘和手势动作。');if(!r?.success)throw Error(r?.error||'无法申请插件列表权限');return r.status==='granted'}
+async function execute(api,config,id){const a=config.actions.find(a=>a.id===id);if(!a||a.type!=='plugin'||!a.pluginId||!a.pluginTitle||!a.value?.trim())throw Error('插件动作配置已不存在或不完整');const list=await catalog(api);if(list.authorized){const target=list.plugins.find(p=>p.id===a.pluginId);if(!target)throw Error('目标插件已卸载，请重新选择');if(target.unavailable)throw Error('目标插件不可用：'+target.unavailable);if(!target.commands.includes(a.value))throw Error('目标指令已不存在，请重新选择');if(target.title!==a.pluginTitle)throw Error('目标插件名称已改变，请重新选择')}
+ const r=await api.redirect([a.pluginTitle,a.value]);if(r===false||r?.success===false||typeof r==='string'&&r)throw Error('无法提交插件指令，请确认插件和指令可用');return '已发送插件指令：'+a.value;
+}
+module.exports={PERMISSIONS,normalize,catalog,authorize,execute};
