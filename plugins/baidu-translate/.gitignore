@@ -1,0 +1,6 @@
+node_modules/
+src-ztools/dist/
+*.log
+.env*
+.DS_Store
+Thumbs.db
