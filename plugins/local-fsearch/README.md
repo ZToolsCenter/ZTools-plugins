@@ -14,7 +14,7 @@
 
 ## 首次使用
 
-**Windows**：从 [Everything 官网](https://www.voidtools.com/downloads/) 安装 Everything 完整版并启动客户端；在同一网站下载并解压 ES 命令行工具。打开插件“使用与连接”，选择 es.exe 并点击“检测连接”。插件不捆绑、不自动安装任何搜索程序。
+**Windows**：从 [Everything 官网](https://www.voidtools.com/downloads/) 安装 Everything 完整版并启动客户端，然后在插件“使用与连接”点击“检测连接”。插件已附带官方 ES 命令行工具，不需要另外下载；不包含 Everything 客户端安装程序。
 
 **macOS**：单独安装 [noahdunnagan/fsearch](https://github.com/noahdunnagan/fsearch)。正文、代码定义、Git 状态、常用优先和 Quick Look 为 macOS 专属功能。
 
@@ -49,7 +49,3 @@ Windows 已在 ZTools 3.2.0 与 Everything 1.4.1.1026 环境检查主要功能�
 ### 搜索预设
 
 ![搜索预设](docs/screenshots/market-0.0.2/05-preset-command.png)
-
-### Windows 安装与连接
-
-![Windows 安装与连接](docs/screenshots/market-0.0.2/06-windows-setup.png)

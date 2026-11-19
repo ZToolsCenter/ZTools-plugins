@@ -5,7 +5,7 @@
 1. 从 https://www.voidtools.com/downloads/ 安装 Everything 完整版并启动客户端，等待索引就绪。仅运行系统服务不足以查询。
 2. 导入本插件的运行文件 ZIP，或用 ZTools 开发者工具选择 plugin.json。
 3. 输入 fs / find；默认按名称包含搜索。在“使用与连接”确认 Everything 版本。
-4. 插件不附带 Everything 或 ES。请从同一官网的 Everything Command-line Interface 栏下载适合系统架构的 ES 并解压，在“使用与连接”选择 es.exe，再点“检测连接”。无需安装 Node.js。命名实例可在启动 ZTools 前设置 ZTOOLS_EVERYTHING_INSTANCE；替换 ES 使用 ZTOOLS_EVERYTHING_ES 绝对路径。
+4. 插件已附带官方 ES 命令行工具，无需另外下载 ES 或安装 Node.js。Everything 客户端需自行安装并启动，再到“使用与连接”点击“检测连接”。命名实例可在启动 ZTools 前设置 ZTOOLS_EVERYTHING_INSTANCE；替换 ES 使用 ZTOOLS_EVERYTHING_ES 绝对路径。
 5. 正文/定义/Git/Quick Look 为 macOS 专属，不会在 Windows 注册。
 
 连接失败先确认 Everything 客户端已启动。覆盖不足请在 Everything 设置中检查卷、文件夹及排除规则，不需要打开 HTTP 服务。

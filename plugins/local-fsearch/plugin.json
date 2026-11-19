@@ -104,5 +104,6 @@
   "platform": [
     "darwin",
     "win32"
-  ]
+  ],
+  "unpack": "vendor/es/**/es.exe"
 }

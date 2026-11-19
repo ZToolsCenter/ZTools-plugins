@@ -34,7 +34,7 @@ SOFTWARE.
 
 ## Windows：Everything 和 ES
 
-Everything 索引服务由用户独立安装。ES 命令行工具也由用户从 [voidtools 官网](https://www.voidtools.com/downloads/) 下载。安装包不附带二者的程序；对应许可证请以官网下载文件为准。
+Everything 索引服务由用户独立安装。随包提供 voidtools 官方 ES 1.1.0.38 命令行工具（x64、ARM64、x86），用于查询已运行的 Everything。官方来源、MIT 许可证及 SHA-256 见 [vendor/es](vendor/es/README.md)。不包含 Everything 客户端安装程序。
 
 ## 宿主与图标
 

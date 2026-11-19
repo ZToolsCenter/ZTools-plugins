@@ -94,18 +94,21 @@ function parseResults(stdout) {
   })
 }
 
-function createEverything({ run = execFile, env = process.env, getConfiguredPath = () => '' } = {}) {
+function createEverything({ run = execFile, env = process.env, arch = process.arch, getConfiguredPath = () => '' } = {}) {
   async function executable() {
     const configured = env.ZTOOLS_EVERYTHING_ES || getConfiguredPath()
     if (configured) {
       if (typeof configured !== 'string' || !path.isAbsolute(configured) || !/\.exe$/i.test(configured) || /["\x00-\x1f]/.test(configured)) throw new Error('请选择官方 ES 的 es.exe 文件')
       return configured
     }
+    const root = /\.asar$/i.test(__dirname) ? __dirname + '.unpacked' : __dirname
+    const bundled = path.join(root, 'vendor', 'es', arch, 'es.exe')
+    try { if ((await fs.stat(bundled)).isFile()) return bundled } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') throw error }
     for (const root of [env.ProgramW6432, env.ProgramFiles, env['ProgramFiles(x86)']].filter(Boolean)) {
       const target = path.join(root, 'Everything', 'es.exe')
       try { if ((await fs.stat(target)).isFile()) return target } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') throw error }
     }
-    return 'es.exe' // 支持用户自行配置的 PATH；不在插件目录寻找或下载程序。
+    return 'es.exe' // 兼容自定义平台的外置 ES；不自动下载或安装任何程序。
   }
   const active = new Set()
   function execute(args, signal) {
@@ -122,7 +125,7 @@ function createEverything({ run = execFile, env = process.env, getConfiguredPath
         active.delete(cancel); signal?.removeEventListener('abort', cancel)
         if (controller.signal.aborted) return reject(aborted())
         if (!error || error.code === 9) return resolve(stdout)
-        if (error.code === 'ENOENT') return reject(new Error('找不到 es.exe。请从 Everything 官网下载 ES 命令行工具，然后在“使用与连接”中选择 es.exe。'))
+        if (error.code === 'ENOENT') return reject(new Error('找不到 es.exe。请重新安装插件以恢复随包 ES，或在“使用与连接”中更换 ES。'))
         if (error.code === 8 || error.code === 7) return reject(new Error('无法连接 Everything，请启动 Everything 客户端；使用命名实例时请设置 ZTOOLS_EVERYTHING_INSTANCE'))
         reject(new Error(error.killed ? 'Everything 响应超时，请稍后重试' : `Everything 查询失败（${error.code || error.message}）`))
       }

@@ -522,8 +522,8 @@
     const version = openDetail('使用与连接')
     if (windows) {
       detailText('1. 从官网下载并安装 Everything 完整版，启动客户端并等待索引完成。只启动系统服务无法搜索。')
-      detailText('2. 在同一官网下载 ES（Everything Command-line Interface）命令行工具并解压。插件不附带或自动安装任何 Everything / ES 程序。')
-      detailText('3. 点击“选择 es.exe”指定解压后的程序，再点击“检测连接”。如果已把 ES 放在 Everything 安装目录或 PATH 中，可直接检测。')
+      detailText('2. 插件已附带官方 ES 命令行工具，无需另外下载。Everything 客户端仍需自行安装，插件不会代为安装或启动。')
+      detailText('3. 安装并启动 Everything 后，点击“检测连接”。只有需要使用其他版本的 ES 时，才需要“更换 ES（可选）”。')
       if (connectionReport) detailText(connectionReport.usable ? 'Everything ' + connectionReport.status.version + ' 已连接。' : connectionReport.title + '\n' + connectionReport.detail)
     } else {
       detailText('macOS 版是连接独立 FSearch 引擎的第三方插件。初始验证：Apple Silicon、ZTools 3.3.0-beta.2、FSearch 0.2.1；Intel Mac 尚未实机验证。')
@@ -551,7 +551,7 @@
       if (version === detailGeneration && !$('detail-panel').hidden) connectionHelp()
     }
     detailButton(windows ? '检测连接' : '重新检测', recheckConnection)
-    if (windows && api.chooseEverythingCli) detailButton('选择 es.exe', async () => { if (await api.chooseEverythingCli()) await recheckConnection() })
+    if (windows && api.chooseEverythingCli) detailButton('更换 ES（可选）', async () => { if (await api.chooseEverythingCli()) await recheckConnection() })
     if (api.openHelp) {
       if (windows) detailButton('打开 Everything 官网', () => api.openHelp('everything'))
       else { detailButton('FSearch 安装文档', () => api.openHelp('install')); detailButton('权限说明', () => api.openHelp('permissions')) }
