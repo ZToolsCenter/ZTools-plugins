@@ -1,0 +1,22 @@
+{
+  "name": "mini-browser",
+  "title": "小浏览器",
+  "pluginName": "小浏览器",
+  "description": "一个放在 ZTools 里的小浏览器，自己添加网页，在插件窗口里打开。",
+  "version": "1.0.0",
+  "author": "海湾上的北辰",
+  "logo": "logo.svg",
+  "main": "index.html",
+  "preload": "preload.js",
+  "pluginSetting": {
+    "height": 640
+  },
+  "features": [
+    {
+      "code": "open",
+      "explain": "小浏览器",
+      "icon": "logo.svg",
+      "cmds": ["小浏览器", "浏览器", "打开网页"]
+    }
+  ]
+}

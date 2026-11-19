@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob: filesystem:;" />
+  <title>小浏览器</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bar: #111827;
+      --line: rgba(255, 255, 255, 0.08);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --active: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #0b0f17;
+      color: var(--text);
+      font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    header {
+      background: var(--bar);
+      border-bottom: 1px solid var(--line);
+    }
+    .tabbar, .addressbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 8px;
+    }
+    .addressbar { height: 36px; padding-top: 0; }
+    #address {
+      flex: 1;
+      height: 28px;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #0b0f17;
+      color: var(--text);
+      padding: 0 12px;
+      outline: none;
+    }
+    #address:focus { border-color: rgba(96, 165, 250, 0.8); }
+    #go {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+    nav {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      flex: 1;
+      scrollbar-width: none;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button.active {
+      background: rgba(34, 197, 94, 0.16);
+      color: var(--text);
+    }
+    button:hover { color: var(--text); }
+    .tools { display: flex; gap: 4px; flex: none; }
+    .tools button { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+    #stage {
+      position: fixed;
+      top: 76px;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background: #fff;
+    }
+    #pages {
+      position: absolute;
+      inset: 0;
+    }
+    #pages webview {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+      visibility: hidden;
+    }
+    #pages webview.active { visibility: visible; }
+    #status {
+      display: none;
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(17, 24, 39, 0.92);
+      color: #e2e8f0;
+      z-index: 2;
+    }
+    #settings {
+      display: none;
+      position: fixed;
+      inset: 76px 0 0 0;
+      background: #0b0f17;
+      z-index: 5;
+      overflow: auto;
+      padding: 16px;
+    }
+    #settings.open { display: block; }
+    .settings-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #0b0f17;
+      padding-bottom: 8px;
+    }
+    .settings-head h2 { flex: 1; margin: 0; font-size: 16px; font-weight: 600; }
+    #settings-close {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+    #settings p, #empty p { margin: 0 0 14px; color: var(--muted); }
+    #empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0b0f17;
+      z-index: 3;
+    }
+    #empty[hidden] { display: none; }
+    #empty button {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .row label { flex: 1; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+    .row small { color: var(--muted); }
+    .row .move { width: 28px; padding: 0; }
+    .add {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .add input, .foot button, .row input[type="text"] {
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #111827;
+      color: var(--text);
+      padding: 0 10px;
+    }
+    .add input { flex: 1; min-width: 0; }
+    .foot { display: flex; gap: 8px; margin-top: 16px; }
+    .foot button, .add button {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="tabbar">
+      <nav id="tabs"></nav>
+      <div class="tools">
+        <button id="settings-open" type="button" title="管理标签页">⚙</button>
+      </div>
+    </div>
+    <form id="address-form" class="addressbar">
+      <button id="back" type="button" title="后退">←</button>
+      <button id="reload" type="button" title="刷新">↻</button>
+      <input id="address" type="text" placeholder="输入网址，回车打开" spellcheck="false" />
+      <button id="go" type="submit">打开</button>
+      <button id="external" type="button" title="用系统浏览器打开">↗</button>
+    </form>
+  </header>
+  <section id="settings">
+    <div class="settings-head">
+      <h2>标签页</h2>
+      <button id="settings-close" type="button">关闭</button>
+    </div>
+    <p>添加后出现在顶栏。勾选控制显示，箭头调整顺序，× 删除。</p>
+    <div id="setting-list"></div>
+    <form id="add-site" class="add">
+      <input id="add-name" type="text" maxlength="24" placeholder="名称，例如 DeepSeek" />
+      <input id="add-url" type="text" placeholder="deepseek.com" required spellcheck="false" />
+      <button type="submit">添加</button>
+    </form>
+    <div class="foot"></div>
+  </section>
+  <div id="stage">
+    <div id="pages"></div>
+    <div id="empty">
+      <p>还没有标签页</p>
+      <button id="empty-add" type="button">添加网页</button>
+    </div>
+    <div id="status"></div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
