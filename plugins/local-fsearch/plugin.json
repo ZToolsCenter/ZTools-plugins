@@ -6,7 +6,6 @@
   "author": "lifeek",
   "main": "index.html",
   "preload": "preload.js",
-  "unpack": "vendor/es/**/es.exe",
   "logo": "logo.png",
   "pluginSetting": {
     "height": 600,

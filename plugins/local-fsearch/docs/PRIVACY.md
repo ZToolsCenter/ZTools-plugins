@@ -4,9 +4,11 @@
 
 ## 查询与索引
 
-macOS 经本机 Unix Socket 向独立 FSearch 守护进程发送关键词、路径与筛选。Windows 通过参数数组启动随包官方 es.exe，使用 Everything 本地 IPC 查询；不拼接 shell、不开放 HTTP 服务。
+macOS 经本机 Unix Socket 向独立 FSearch 守护进程发送关键词、路径与筛选。Windows 通过参数数组启动用户自行安装并选择的官方 es.exe，使用 Everything 本地 IPC 查询；不拼接 shell、不开放 HTTP 服务。
 
 插件不上传文件名、正文或关键词，不含遥测、广告和账号服务，不建立第二份索引。索引由外部引擎维护，其安装、权限和覆盖设置由用户管理。
+
+选择的 ES 程序路径保存在 ZTools 本地 fsearch-everything-es 设置中，仅用于查询，不上传。
 
 ## 图片与内容读取
 

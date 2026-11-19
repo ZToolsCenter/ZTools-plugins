@@ -1,5 +1,6 @@
 const path = require('node:path')
 const { execFile } = require('node:child_process')
+const fs = require('node:fs/promises')
 const { performance } = require('node:perf_hooks')
 const categories = require('./categories.cjs')
 const { applyFilters, resolveDirectories } = require('./filters.cjs')
@@ -93,9 +94,19 @@ function parseResults(stdout) {
   })
 }
 
-function createEverything({ run = execFile, env = process.env, arch = process.arch } = {}) {
-  const root = /\.asar$/i.test(__dirname) ? __dirname + '.unpacked' : __dirname
-  const binary = env.ZTOOLS_EVERYTHING_ES || path.join(root, 'vendor', 'es', arch, 'es.exe')
+function createEverything({ run = execFile, env = process.env, getConfiguredPath = () => '' } = {}) {
+  async function executable() {
+    const configured = env.ZTOOLS_EVERYTHING_ES || getConfiguredPath()
+    if (configured) {
+      if (typeof configured !== 'string' || !path.isAbsolute(configured) || !/\.exe$/i.test(configured) || /["\x00-\x1f]/.test(configured)) throw new Error('请选择官方 ES 的 es.exe 文件')
+      return configured
+    }
+    for (const root of [env.ProgramW6432, env.ProgramFiles, env['ProgramFiles(x86)']].filter(Boolean)) {
+      const target = path.join(root, 'Everything', 'es.exe')
+      try { if ((await fs.stat(target)).isFile()) return target } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') throw error }
+    }
+    return 'es.exe' // 支持用户自行配置的 PATH；不在插件目录寻找或下载程序。
+  }
   const active = new Set()
   function execute(args, signal) {
     checkAbort(signal)
@@ -107,14 +118,18 @@ function createEverything({ run = execFile, env = process.env, arch = process.ar
       const cancel = () => controller.abort()
       active.add(cancel); signal?.addEventListener('abort', cancel, { once: true })
       // -search* 后的查询是原样文本。没有 shell，也不会将查询重新解释为 ES 开关。
-      run(binary, args, { windowsVerbatimArguments: true, windowsHide: true, signal: controller.signal, timeout: 8000, maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
+      const finish = (error, stdout) => {
         active.delete(cancel); signal?.removeEventListener('abort', cancel)
         if (controller.signal.aborted) return reject(aborted())
         if (!error || error.code === 9) return resolve(stdout)
-        if (error.code === 'ENOENT') return reject(new Error('找不到 es.exe，请重新安装插件，或设置 ZTOOLS_EVERYTHING_ES 指向官方 es.exe'))
+        if (error.code === 'ENOENT') return reject(new Error('找不到 es.exe。请从 Everything 官网下载 ES 命令行工具，然后在“使用与连接”中选择 es.exe。'))
         if (error.code === 8 || error.code === 7) return reject(new Error('无法连接 Everything，请启动 Everything 客户端；使用命名实例时请设置 ZTOOLS_EVERYTHING_INSTANCE'))
         reject(new Error(error.killed ? 'Everything 响应超时，请稍后重试' : `Everything 查询失败（${error.code || error.message}）`))
-      })
+      }
+      void executable().then(binary => {
+        checkAbort(controller.signal)
+        run(binary, args, { windowsVerbatimArguments: true, windowsHide: true, signal: controller.signal, timeout: 8000, maxBuffer: 8 * 1024 * 1024 }, finish)
+      }).catch(finish)
     })
   }
   async function search(options, { signal, queueMs = 0, isCurrent = () => true } = {}, limit) {
