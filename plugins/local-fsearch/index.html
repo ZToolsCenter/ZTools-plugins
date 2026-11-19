@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FSearch 文件搜索</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="文件分类">
+      <div class="sidebar-label">文件分类</div>
+      <nav id="categories" aria-label="按类型筛选"></nav>
+      <div class="sidebar-bottom"><span class="status-dot" id="status-dot"></span><span id="index-summary">连接中</span><button id="refresh" class="icon-button" title="刷新索引状态" aria-label="刷新索引状态"></button></div>
+    </aside>
+    <main>
+      <header class="toolbar">
+        <div class="heading"><h1 id="category-title">全部文件</h1><span id="result-summary" role="status" aria-live="polite"></span><button id="new-search" class="quiet heading-action" title="清空条件，开始新搜索">新搜索</button><button id="diagnostics" class="quiet heading-action">索引状态</button><button id="connection-help" class="quiet heading-action">使用与连接</button></div>
+        <div class="match-controls" aria-label="匹配选项">
+          <label for="match-field">搜索</label><select id="match-field" aria-label="搜索范围"><option value="name">文件名</option><option value="path">完整路径</option><option value="content">文件内容</option><option value="symbol">代码定义</option><option value="engine" selected>模糊查找</option></select>
+          <label id="mode-label" for="match-mode">匹配</label><select id="match-mode" aria-label="匹配模式"><option value="literal">精确包含</option><option value="fuzzy">字符模糊</option><option value="regex">正则表达式</option></select>
+          <button id="match-case" class="case-toggle" aria-label="区分大小写" aria-pressed="false" title="区分大小写（Match Case）">Aa</button><span id="mode-hint">包含输入原文</span>
+        </div>
+        <div class="scope-controls"><label for="directory">位置</label><select id="location" aria-label="常用目录"><option value="">常用目录</option><option value="all">所有位置</option><option value="Downloads">下载</option><option value="Documents">文档</option><option value="Desktop">桌面</option><option value="home">用户目录</option></select><input id="directory" placeholder="所有索引位置" spellcheck="false" aria-label="搜索目录"><button id="apply">应用</button><button id="clear" class="quiet" title="取消目录限制">清除</button></div>
+        <div class="filter-strip"><button id="open-filters" aria-haspopup="dialog">筛选与预设</button><div id="filter-chips" aria-label="当前筛选"></div></div>
+        <p id="content-note" class="content-note" hidden>搜索 TXT、Markdown、配置及代码等纯文本；遵循引擎的文件大小和忽略规则。列表展示首处摘要，展开可查看更多命中。</p>
+      </header>
+      <div id="source-file" class="source-file" hidden><span id="source-file-name"></span><div id="source-file-actions"></div></div>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <div class="results-scroll"><section id="empty" class="empty"><div class="empty-icon" id="empty-icon"></div><h2 id="empty-title">查找本机文件</h2><p id="empty-description">在上方输入文件名，也可以先选择左侧分类。</p></section><ul id="results" role="listbox" aria-label="搜索结果"></ul></div>
+      <nav id="pagination" class="pagination" aria-label="搜索结果分页">
+        <label for="page-size">每页 <select id="page-size" aria-label="每页条数"><option value="25">25</option><option value="50" selected>50</option><option value="100">100</option></select> 项</label>
+        <div class="page-controls"><button id="previous-page" disabled>上一页</button><span id="page-summary">第 1 页</span><button id="next-page" disabled>下一页</button></div>
+      </nav>
+      <footer><span id="selection-summary">独立索引</span><span class="shortcuts">↑↓ 选择 <span class="shortcut-divider">·</span> ↵ 打开 <span class="shortcut-divider">·</span> ⌘L 搜索 · 空格 预览 · ⌘C 路径 · ⇧⌘C 文件</span></footer>
+    </main>
+  </div>
+  <div id="panel-backdrop" class="panel-backdrop" hidden></div>
+        <section id="advanced" class="filter-panel" role="dialog" aria-modal="true" aria-labelledby="filter-title" hidden><div class="detail-header"><h2 id="filter-title">筛选与预设</h2><button id="close-filters" aria-label="关闭筛选">完成</button></div><div class="filter-body"><p id="filter-summary"></p>
+          <div class="filter-grid">
+            <label>扩展名<input id="extensions" aria-label="扩展名" placeholder="txt,md,py" spellcheck="false"></label>
+            <label>修改时间<select id="modified" aria-label="修改时间"><option value="">不限时间</option><option value="&lt;1d">最近一天</option><option value="&lt;7d">最近 7 天</option><option value="&lt;30d">最近 30 天</option><option value="&lt;90d">最近 90 天</option><option value="&gt;1y">一年以前</option></select></label>
+            <label>大小<input id="size" aria-label="文件大小" placeholder=">100mb 或 1mb..10mb" spellcheck="false"></label>
+            <label>Git 状态<select id="git" aria-label="Git 状态"><option value="">不限状态</option><option value="modified">全部变更（含未跟踪）</option><option value="staged">已暂存</option><option value="untracked">未跟踪</option><option value="conflict">有冲突</option><option value="tracked">已跟踪</option><option value="clean">未修改</option><option value="ignored">被忽略</option></select></label>
+            <label class="wide">排除目录（每行一个绝对路径或 ~/ 路径）<textarea id="exclude" aria-label="排除目录" rows="2" placeholder="~/Library/Caches" spellcheck="false"></textarea></label>
+          </div>
+          <div class="filter-actions"><label><input type="checkbox" id="boost"> 常用优先</label><label><input type="checkbox" id="browse"> 空关键词浏览筛选结果</label><button id="reset-filters">清空筛选</button></div>
+          <div class="preset-controls"><select id="presets" aria-label="搜索预设"><option value="">选择已保存预设</option></select><input id="preset-name" aria-label="预设名称" placeholder="预设名称" maxlength="30"><button id="save-preset">保存</button><button id="delete-preset" disabled>删除</button></div>
+          <label class="preset-command"><input id="preset-command" type="checkbox" checked> 保存为 ZTools 独立指令，可设置快捷键或固定到超级面板</label><div class="editor-controls"><label for="editor">命中行编辑器</label><select id="editor" aria-label="命中行编辑器"><option value="vscode">VS Code</option><option value="cursor">Cursor</option></select><span>使用已安装编辑器的 URL 协议打开</span></div>
+          <fieldset class="host-preferences"><legend>ZTools 集成</legend>
+            <label><input id="pref-auto-hide" type="checkbox" checked> 打开、定位或跳行成功后收起主窗口</label>
+            <label><input id="pref-copy-hide" type="checkbox"> 复制路径或文件后收起主窗口</label>
+            <label><input id="pref-remember" type="checkbox" checked> 再次唤起时恢复上次搜索</label>
+            <label><input id="pref-push" type="checkbox"> 启用主搜索推送（fs + 空格 + 至少 2 个字）</label>
+            <p>推送默认关闭，仅返回最多 5 项。还需在 ZTools 插件设置中开启「搜索栏推送」。</p>
+            <label class="workspace-pref">工作目录<input id="pref-workspace" aria-label="工作目录" placeholder="~/WorkSpace" spellcheck="false"></label>
+            <button id="shortcut-settings">设置搜索快捷键</button>
+          </fieldset>
+        </div></section>
+  <section id="detail-panel" class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="detail-title" hidden>
+    <div class="detail-header"><h2 id="detail-title"></h2><button id="close-detail" aria-label="关闭预览">关闭</button></div>
+    <div id="detail-body" class="detail-body"></div>
+    <div id="detail-actions" class="detail-actions"></div>
+  </section>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="image-viewer.js"></script>
+  <script src="app.js"></script>
+</body></html>

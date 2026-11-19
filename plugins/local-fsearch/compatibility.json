@@ -1,0 +1,16 @@
+{
+  "testedAt": "2026-11-06",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "macOS": "27.0.1",
+  "ztools": "3.3.0-beta.2",
+  "fsearch": {
+    "version": "0.2.1",
+    "repository": "noahdunnagan/fsearch",
+    "releaseUrl": "https://github.com/noahdunnagan/fsearch/releases/tag/v0.2.1",
+    "archive": "fsearch-aarch64-apple-darwin.tar.gz",
+    "archiveSha256": "08f68fe10362732f701be3ddf59cb370920c5a08af63e76b15addf8aca118d2f",
+    "binarySha256": "008faa677348e1161596d545fdcc7f3a8427eb47ce68bc40f67a93cd2992add1"
+  },
+  "note": "安装文件指纹不代表正在运行的守护进程版本；运行时能力通过有界探针验证。Intel Mac 尚未实机验证。"
+}
