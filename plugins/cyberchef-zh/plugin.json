@@ -1,0 +1,42 @@
+{
+  "name": "cyberchef-zh",
+  "title": "CyberChef 中文版",
+  "author": "iFlyDiary",
+  "description": "离线 CyberChef v11.5.0 中文版：编码/解码、加解密、压缩、取证与数据分析；界面、说明与悬浮提示全中文，入口文本与文件自动带入（作者 iFlyDiary）",
+  "version": "1.0.4",
+  "platform": [
+    "win32",
+    "darwin"
+  ],
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "cyberchef-zh",
+      "explain": "打开 CyberChef 中文版（离线）",
+      "cmds": [
+        "cyberchef",
+        "赛博厨师",
+        "编码解码",
+        "cc",
+        "base64",
+        "加解密",
+        "厨师"
+      ]
+    },
+    {
+      "code": "cyberchef-zh-files",
+      "explain": "把文件送入 CyberChef 中文版",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "用 CyberChef 中文版打开",
+          "fileType": "file",
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    }
+  ]
+}
