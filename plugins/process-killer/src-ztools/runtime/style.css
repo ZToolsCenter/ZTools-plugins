@@ -1,0 +1,252 @@
+:root {
+  --bg: #ffffff;
+  --fg: #24292f;
+  --muted: #6b7280;
+  --line: #eef0f3;
+  --hover: #f5f7fa;
+  --active: #eef4ff;
+  --accent: #2f6fed;
+  --danger: #d93025;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1f22;
+    --fg: #e6e8eb;
+    --muted: #9aa0a6;
+    --line: #2c2f33;
+    --hover: #26282c;
+    --active: #2a3346;
+    --accent: #6ea8ff;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* display 会覆盖 hidden，必须显式兜底 */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px 8px;
+}
+
+.search {
+  flex: 1;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+.search:focus { border-color: var(--accent); }
+
+.sorts { display: flex; gap: 2px; }
+
+.sorts button {
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.sorts button:hover { background: var(--hover); color: var(--fg); }
+.sorts button.active { background: var(--active); color: var(--accent); font-weight: 600; }
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--hover); color: var(--fg); }
+.icon-btn.auto { color: var(--accent); background: var(--active); }
+
+.banner {
+  margin: 0 12px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff4e5;
+  color: #8a5a00;
+  font-size: 12px;
+}
+@media (prefers-color-scheme: dark) { .banner { background: #3a2f1c; color: #f0c97a; } }
+
+.table-head {
+  display: grid;
+  grid-template-columns: 1fr 76px 130px 56px 70px;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.list { flex: 1; overflow-y: auto; }
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 76px 130px 56px 70px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  cursor: default;
+  user-select: none;
+}
+.row:hover { background: var(--hover); }
+.row.selected { background: var(--active); }
+
+.col-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.name { font-weight: 500; white-space: nowrap; }
+.path { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-wrap { min-width: 0; display: flex; flex-direction: column; }
+
+/* 没有 src 时 Chrome 会画个破图图标；Windows 上多数进程没有图标，取到图标（有 src）才显示 */
+.icon { width: 18px; height: 18px; flex: none; border-radius: 4px; object-fit: contain; display: none; }
+.icon[src] { display: block; }
+
+.col-pid, .col-cpu, .col-mem { color: var(--muted); font-variant-numeric: tabular-nums; }
+.col-port { color: var(--muted); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-port.has-port { color: var(--accent); font-weight: 500; }
+
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+
+.status {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.hint { opacity: .8; }
+
+.menu {
+  position: fixed;
+  z-index: 20;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+}
+.menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.menu button:hover { background: var(--hover); }
+.menu button.danger { color: var(--danger); }
+.menu .sep { height: 1px; margin: 4px 2px; background: var(--line); }
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .35);
+}
+.dialog {
+  width: min(680px, 90%);
+  max-height: 70%;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+  display: flex;
+  flex-direction: column;
+}
+.dialog h3 { margin: 0 0 10px; font-size: 14px; }
+.dialog pre {
+  flex: 1;
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--hover);
+  overflow: auto;
+  font: 12px/1.6 SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.dialog-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.dialog-actions button {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.confirm-dialog { width: min(420px, 86%); }
+.confirm-text {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--hover);
+  font-size: 12px;
+  line-height: 1.7;
+  word-break: break-all;
+}
+.dialog-actions { gap: 8px; }
+.danger-btn {
+  border-color: var(--danger) !important;
+  background: var(--danger) !important;
+  color: #fff !important;
+}
+.danger-btn:hover { opacity: .88; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 44px;
+  z-index: 40;
+  transform: translateX(-50%);
+  max-width: 70%;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(24, 26, 30, .92);
+  color: #fff;
+  font-size: 12px;
+}
+
+.row.removing { opacity: .45; }
