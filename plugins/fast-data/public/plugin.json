@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "fast-data",
+  "title": "快速处理数据",
+  "description": "快速批量处理数据",
+  "author": "onezylee",
+  "version": "1.0.0",
+  "main": "index.html",
+  "logo": "logo-fast.png",
+  "development": {
+    "main": "http://localhost:5173"
+  },
+  "features": [
+    {
+      "code": "fast-data",
+      "explain": "快速处理数据",
+      "icon": "logo-fast.png",
+      "cmds": [
+        "fast-data",
+        "快速处理数据"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ]
+}
