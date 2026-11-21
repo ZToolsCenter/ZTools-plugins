@@ -1,0 +1,29 @@
+/* The editor's general body font and inherited color rules use !important.
+   Keep fenced source readable and make tokenizer marks visible above those rules. */
+#write .cm-editor .cm-line.cm-codeblock-line {
+  color: var(--code-text, var(--text-color)) !important;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace) !important;
+  font-size: 0.9em !important;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#write .cm-editor .cm-line.cm-codeblock-line .cm-keyword,
+#write .cm-editor .cm-line.cm-codeblock-line .cm-operator { color: #cf222e !important; font-weight: 600; }
+#write .cm-editor .cm-line.cm-codeblock-line .cm-string { color: #0a3069 !important; }
+#write .cm-editor .cm-line.cm-codeblock-line .cm-comment { color: #6e7781 !important; font-style: italic; }
+#write .cm-editor .cm-line.cm-codeblock-line .cm-number { color: #0550ae !important; }
+#write .cm-editor .cm-line.cm-codeblock-line .cm-function { color: #8250df !important; }
+
+.theme-night #write .cm-editor .cm-line.cm-codeblock-line .cm-keyword,
+.theme-night #write .cm-editor .cm-line.cm-codeblock-line .cm-operator { color: #ff7b72 !important; }
+.theme-night #write .cm-editor .cm-line.cm-codeblock-line .cm-string { color: #a5d6ff !important; }
+.theme-night #write .cm-editor .cm-line.cm-codeblock-line .cm-comment { color: #8b949e !important; }
+.theme-night #write .cm-editor .cm-line.cm-codeblock-line .cm-number { color: #79c0ff !important; }
+.theme-night #write .cm-editor .cm-line.cm-codeblock-line .cm-function { color: #d2a8ff !important; }
+
+#write .cm-editor .cm-line.cm-codeblock-line .ty-codeblock-header {
+  color: var(--muted-text-color, #6a737d) !important;
+  font-family: var(--font-ui, sans-serif) !important;
+  white-space: normal;
+}

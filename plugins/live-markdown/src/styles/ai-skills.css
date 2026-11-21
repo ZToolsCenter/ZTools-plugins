@@ -1,0 +1,144 @@
+.ty-ai-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  color: var(--text-color);
+  background: var(--bg-color);
+  font-size: 12px;
+}
+
+.ty-ai-skills button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-color);
+  background: var(--bg-color);
+  font: inherit;
+  cursor: pointer;
+}
+.ty-ai-skills button:disabled { opacity: .45; cursor: not-allowed; }
+.ty-ai-skills button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.ty-ai-skills button.primary { border-color: var(--primary-color); color: #fff; background: var(--primary-color); }
+.ty-ai-skills button.danger { border-color: #c94b3b; color: #fff; background: #c94b3b; }
+
+.ty-ai-skills-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.ty-ai-skills-heading > div { min-width: 0; }
+.ty-ai-skills-heading h2 { margin: 0; font-size: 16px; font-weight: 650; overflow-wrap: anywhere; }
+.ty-ai-skills-heading p, .ty-ai-skills-card p { margin: 4px 0 0; color: var(--muted-text-color); line-height: 1.5; }
+.ty-ai-skills-heading p { max-width: 250px; }
+.ty-ai-skills-heading small, .ty-ai-skills-card small { color: var(--muted-text-color); }
+.ty-ai-skills button.ty-ai-skills-new {
+  flex: none;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-color: color-mix(in srgb, var(--primary-color) 35%, var(--border-color));
+  color: var(--primary-color);
+  white-space: nowrap;
+}
+
+.ty-ai-skills-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ty-ai-skills-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text-color) 2%, var(--bg-color));
+}
+.ty-ai-skills-card-main { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+.ty-ai-skills-card-icon {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary-color) 20%, var(--border-color));
+  border-radius: 8px;
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--bg-color));
+}
+.ty-ai-skills-card-icon-academic { color: #a781d1; background: color-mix(in srgb, #a781d1 9%, var(--bg-color)); }
+.ty-ai-skills-card-icon-diagram { color: #4ea6a0; background: color-mix(in srgb, #4ea6a0 9%, var(--bg-color)); }
+.ty-ai-skills-card-icon-coding { color: #cb9357; background: color-mix(in srgb, #cb9357 9%, var(--bg-color)); }
+.ty-ai-skills-card-icon-summary { color: #718fd0; background: color-mix(in srgb, #718fd0 9%, var(--bg-color)); }
+.ty-ai-skills-card-copy { flex: 1; min-width: 0; }
+.ty-ai-skills-card-name {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-color);
+  font-size: 13px;
+  font-weight: 620;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ty-ai-skills-card-meta { display: flex; align-items: center; gap: 7px; margin-top: 4px; color: var(--muted-text-color); font-size: 10px; line-height: 1.4; }
+.ty-ai-skills-card-kind { padding-left: 7px; border-left: 1px solid var(--border-color); }
+.ty-ai-skills-card-description {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 5px !important;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ty-ai-skills-card-actions { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ty-ai-skills button.ty-ai-skills-card-action,
+.ty-ai-skills button.ty-ai-skills-card-icon-action,
+.ty-ai-skills button.ty-ai-skills-card-run {
+  flex: none;
+  min-width: 32px;
+  height: 31px;
+  padding: 0 7px;
+  border-color: transparent;
+  background: transparent;
+}
+.ty-ai-skills button.ty-ai-skills-card-action { color: var(--muted-text-color); }
+.ty-ai-skills button.ty-ai-skills-card-icon-action { width: 31px; padding: 0; color: var(--muted-text-color); }
+.ty-ai-skills button.ty-ai-skills-card-action:hover,
+.ty-ai-skills button.ty-ai-skills-card-icon-action:hover { border-color: var(--border-color); color: var(--text-color); background: color-mix(in srgb, var(--text-color) 5%, var(--bg-color)); }
+.ty-ai-skills button.ty-ai-skills-card-run { gap: 5px; margin-left: auto; padding-inline: 9px; border-color: color-mix(in srgb, var(--primary-color) 22%, transparent); color: var(--primary-color); background: color-mix(in srgb, var(--primary-color) 8%, var(--bg-color)); }
+.ty-ai-skills button.ty-ai-skills-card-run:hover { border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color)); background: color-mix(in srgb, var(--primary-color) 13%, var(--bg-color)); }
+
+.ty-ai-skills-back { align-self: flex-start; }
+.ty-ai-skills-form { display: flex; flex-direction: column; gap: 10px; }
+.ty-ai-skills-form header { padding-bottom: 8px; border-bottom: 1px solid var(--border-color); }
+.ty-ai-skills-form header div { display: flex; flex-direction: column; gap: 3px; }
+.ty-ai-skills-form header small { color: var(--muted-text-color); }
+.ty-ai-skills-form label { display: flex; flex-direction: column; gap: 5px; font-weight: 550; }
+.ty-ai-skills-form input, .ty-ai-skills-form select, .ty-ai-skills-form textarea { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color); font: inherit; font-weight: 400; }
+.ty-ai-skills-form textarea { resize: vertical; line-height: 1.5; }
+.ty-ai-skills-form input:focus, .ty-ai-skills-form select:focus, .ty-ai-skills-form textarea:focus { outline: 2px solid color-mix(in srgb, var(--primary-color) 60%, transparent); outline-offset: 1px; }
+.ty-ai-skills-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ty-ai-skills-form > small { color: var(--muted-text-color); line-height: 1.5; }
+.ty-ai-skills-form code { padding: 1px 4px; border-radius: 3px; background: color-mix(in srgb, var(--text-color) 8%, transparent); }
+.ty-ai-skills-form footer, .ty-ai-skills-confirm footer, .ty-ai-skills-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ty-ai-skills-form footer { justify-content: flex-end; }
+.ty-ai-skills-error { margin: 0; color: #dc6b50; line-height: 1.5; }
+.ty-ai-skills-notice { margin: 0; padding: 8px 10px; border-left: 3px solid var(--primary-color); color: var(--muted-text-color); background: color-mix(in srgb, var(--primary-color) 7%, var(--bg-color)); line-height: 1.5; }
+.ty-ai-skills-detail { display: grid; gap: 6px; margin: 0; }
+.ty-ai-skills-detail dt { color: var(--muted-text-color); font-size: 11px; }
+.ty-ai-skills-detail dd { min-width: 0; margin: 0 0 6px; }
+.ty-ai-skills-detail pre { max-height: 30vh; overflow: auto; margin: 0; padding: 9px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ty-ai-skills-confirm { width: min(360px, calc(100% - 32px)); margin: auto; padding: 16px; border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-color); background: var(--bg-color); box-shadow: 0 8px 30px #0003; }
+.ty-ai-skills-confirm::backdrop { background: #0007; }
+.ty-ai-skills-confirm h3 { margin: 0 0 8px; font-size: 14px; }
+.ty-ai-skills-confirm p { margin: 0 0 14px; color: var(--muted-text-color); line-height: 1.55; }
+.ty-ai-skills-confirm footer { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 540px) {
+  .ty-ai-skills-form-row { grid-template-columns: 1fr; }
+}

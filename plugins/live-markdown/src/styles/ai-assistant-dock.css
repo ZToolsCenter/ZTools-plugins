@@ -1,0 +1,48 @@
+.typora-ai-assistant-drawer .ty-ai-main{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+.typora-ai-assistant-drawer .ty-ai-stream,.typora-ai-assistant-drawer .ty-ai-result pre{max-height:none;overflow:visible}
+.typora-ai-assistant-drawer .ty-ai-dock{display:flex;flex:0 0 auto;flex-direction:column;gap:6px;min-width:0;padding:8px 12px calc(9px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border-color);background:var(--panel-bg,var(--bg-color))}
+.ty-ai-dock-toolbar{display:flex;align-items:center;min-width:0;min-height:32px}
+.ty-ai-failure{display:flex;align-items:center;gap:10px;min-width:0;padding:7px 9px;border:1px solid color-mix(in srgb,#f97316 30%,var(--border-color));border-radius:9px;background:color-mix(in srgb,#f97316 7%,var(--panel-bg,var(--bg-color)));color:#f97316}
+.ty-ai-failure-copy{flex:1 1 auto;min-width:0}
+.ty-ai-failure-copy p{margin:0;overflow-wrap:anywhere;font-size:12px;line-height:1.45}
+.ty-ai-failure-copy span{display:block;margin-top:2px;color:var(--muted-text-color);font-size:11px}
+.ty-ai-failure button{display:inline-flex;flex:0 0 auto;align-items:center;gap:5px;min-height:30px;padding:4px 8px;border:1px solid color-mix(in srgb,#f97316 36%,var(--border-color));border-radius:7px;background:transparent;color:inherit;font:inherit;font-size:12px;cursor:pointer}
+.ty-ai-failure button:hover{background:color-mix(in srgb,#f97316 12%,transparent)}
+.ty-ai-failure button:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
+.ty-ai-dock .ty-ai-result-actions .ty-ai-copy-icon,.ty-ai-dock .ty-ai-composer-toolbar .ty-ai-settings-trigger{display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;height:30px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted-text-color);cursor:pointer}
+.ty-ai-copy-icon:hover:not(:disabled),.ty-ai-settings-trigger:hover:not(:disabled){background:color-mix(in srgb,var(--primary-color) 10%,transparent);color:var(--primary-color)}
+.ty-ai-result-actions{display:flex;align-items:center;gap:clamp(5px,2vw,10px);min-width:0;min-height:34px;margin:0}
+.ty-ai-review-status{flex:1 1 auto;min-width:0;overflow:hidden;color:var(--muted-text-color);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.ty-ai-proposal-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;margin-left:auto}
+.ty-ai-dock .ty-ai-proposal-actions button{min-height:32px;padding:5px 7px;border:0;border-radius:6px;background:transparent;color:var(--muted-text-color);font:inherit;font-size:12px;white-space:nowrap;cursor:pointer}
+.ty-ai-proposal-actions button:hover:not(:disabled){color:var(--text-color)}
+.ty-ai-dock .ty-ai-proposal-actions .ty-ai-proposal-apply{padding-inline:11px;border:1px solid var(--primary-color);background:var(--primary-color);color:var(--primary-foreground,var(--bg-color));font-weight:600}
+.ty-ai-proposal-actions .ty-ai-proposal-apply:hover:not(:disabled){filter:brightness(1.06)}
+.ty-ai-dock .ty-ai-composer-wrap{position:static;z-index:auto;min-width:0;margin:0;padding:0;background:transparent}
+.ty-ai-dock .ty-ai-composer{gap:6px;padding:8px 9px 7px;box-shadow:none}
+.ty-ai-dock .ty-ai-composer-toolbar{gap:5px}
+.ty-ai-dock .ty-ai-model-trigger{max-width:calc(100% - 106px);flex:0 1 auto}
+.ty-ai-dock .ty-ai-settings-trigger{flex-basis:30px}
+.ty-ai-dock .ty-ai-composer-hint{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.ty-ai-dock .ty-ai-send-button{min-height:32px;margin-left:auto;padding-inline:9px}
+.ty-ai-dock button:disabled{opacity:.48;cursor:not-allowed}
+.ty-ai-dock button:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
+.ty-ai-visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:380px){
+  .typora-ai-assistant-drawer .ty-ai-dock{padding-inline:9px}
+  .ty-ai-result-actions{gap:4px}
+  .ty-ai-review-status{font-size:11px}
+  .ty-ai-proposal-actions{gap:3px}
+  .ty-ai-proposal-actions button{padding-inline:5px;font-size:11px}
+  .ty-ai-proposal-actions .ty-ai-proposal-apply{padding-inline:7px}
+  .ty-ai-dock .ty-ai-composer-toolbar{flex-wrap:nowrap}
+  .ty-ai-dock .ty-ai-model-trigger{max-width:calc(100% - 103px);flex:1 1 auto}
+  .ty-ai-dock .ty-ai-composer-hint{display:none}
+}
+@media(max-height:600px){
+  .typora-ai-assistant-drawer .ty-ai-dock{gap:4px;padding-top:5px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+  .ty-ai-dock .ty-ai-composer{gap:4px;padding:6px 8px}
+  .ty-ai-dock .ty-ai-composer-label{display:none}
+}
+@media(prefers-reduced-motion:reduce){.ty-editor-column>.typora-ai-assistant-drawer{animation:none}}
+

@@ -1,0 +1,66 @@
+{
+  "name": "live-markdown",
+  "title": "Live Markdown",
+  "description": "高性能沉浸式所见即所得 Markdown 编辑器：支持实时预览/源码模式切换、大纲与文件树、全局搜索、数学公式、Mermaid 图表、交互式表格、专注模式、打字机模式与 6 套经典排版主题",
+  "author": "harris",
+  "version": "0.1.0",
+  "main": "dist/index.html",
+  "preload": "preload/services.cjs",
+  "logo": "logo.svg",
+  "categories": ["productivity", "text"],
+  "pluginSetting": {
+    "single": true,
+    "height": 820
+  },
+  "features": [
+    {
+      "code": "typora-workbench",
+      "explain": "打开 Live Markdown 实时预览编辑器（支持大纲、文件树、数学公式、Mermaid 图表与多排版主题）",
+      "icon": "logo.svg",
+      "cmds": [
+        "Live Markdown",
+        "live-markdown",
+        "markdown",
+        "Markdown",
+        "md",
+        "写作",
+        "笔记",
+        {
+          "type": "files",
+          "label": "用 Live Markdown 打开",
+          "fileType": "file",
+          "extensions": [
+            "md",
+            "markdown",
+            "mdown",
+            "mkdn",
+            "mkd",
+            "mdtxt",
+            "txt"
+          ],
+          "minLength": 1,
+          "maxLength": 20
+        },
+        {
+          "type": "files",
+          "label": "在 Live Markdown 中打开文件夹",
+          "fileType": "directory",
+          "minLength": 1,
+          "maxLength": 20
+        }
+      ]
+    },
+    {
+      "code": "typora-new-doc",
+      "explain": "新建 Markdown 文档",
+      "icon": "logo.svg",
+      "cmds": ["new md", "新建 Markdown", "md new", "新建笔记"]
+    },
+    {
+      "code": "typora-quickstart",
+      "explain": "打开 Markdown 语法参考与快速上手指南",
+      "icon": "logo.svg",
+      "cmds": ["markdown help", "markdown 语法", "md 指南"]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+#write .cm-editor .cm-line.cm-paragraph-preview {
+  white-space: normal;
+  text-wrap: pretty;
+}
+
+/* Chromium forces pre-wrap in plaintext-only content. Preview paragraphs may
+   flow normally; entering one removes this class before editing. The editable
+   attribute gate keeps reading mode read-only.
+   https://github.com/whatwg/html/issues/11350 */
+#write .cm-editor .cm-content[contenteditable="true"] > .cm-line.cm-paragraph-preview {
+  -webkit-user-modify: read-write;
+}
+
+#write .cm-editor .cm-softbreak-join {
+  white-space: nowrap;
+}
+
+#write .cm-editor .cm-paragraph-preview .cm-inline-code,
+#write .cm-editor .cm-paragraph-preview .cm-inline-code-whitespace {
+  white-space: break-spaces;
+  text-wrap: wrap;
+}

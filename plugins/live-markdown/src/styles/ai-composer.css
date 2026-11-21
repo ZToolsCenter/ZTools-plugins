@@ -1,0 +1,9 @@
+.ty-ai-composer{cursor:text}
+.ty-ai-composer[data-input-disabled="true"]{cursor:not-allowed}
+.ty-ai-composer-input{display:flex;min-width:0;min-height:90px;max-height:150px;overflow:auto;overscroll-behavior:contain;cursor:inherit}
+.ty-ai-composer .ty-ai-composer-input textarea{min-width:0;min-height:90px;max-height:150px;flex:1 1 auto;overflow-x:hidden;overflow-y:hidden;padding:4px 2px;background:transparent;line-height:1.5;cursor:inherit}
+.ty-ai-composer .ty-ai-composer-input textarea::placeholder{color:var(--muted-text-color);opacity:.85}
+.ty-ai-composer .ty-ai-composer-input textarea:focus-visible{outline:2px solid color-mix(in srgb,var(--primary-color) 70%,transparent);outline-offset:2px;border-radius:3px}
+.ty-ai-composer-toolbar{display:flex;align-items:center;gap:8px;min-width:0;cursor:default}
+.ty-ai-composer-label-visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+

@@ -1,0 +1,29 @@
+:root {
+  --syntax-bg: #f6f8fa; --syntax-text: #24292f; --syntax-keyword: #b42318;
+  --syntax-string: #0a3069; --syntax-comment: #58636e; --syntax-number: #0550ae;
+  --syntax-function: #6639ba; --syntax-attr: #953800; --syntax-type: #116329;
+}
+:root[data-code-theme="dark"], :root[data-code-theme="auto"] .theme-night, :root[data-code-theme="auto"] .theme-gothic {
+  --syntax-bg: #161b22; --syntax-text: #e6edf3; --syntax-keyword: #ff8f87;
+  --syntax-string: #a5d6ff; --syntax-comment: #a0adb9; --syntax-number: #79c0ff;
+  --syntax-function: #d2a8ff; --syntax-attr: #ffa657; --syntax-type: #7ee787;
+}
+:root[data-code-theme="soft"] {
+  --syntax-bg: #f4f0e9; --syntax-text: #403b38; --syntax-keyword: #984c55;
+  --syntax-string: #3f6754; --syntax-comment: #6e675f; --syntax-number: #476b85;
+  --syntax-function: #755a91; --syntax-attr: #8d552c; --syntax-type: #416b6c;
+}
+:root[data-code-theme="contrast"] {
+  --syntax-bg: #000; --syntax-text: #fff; --syntax-keyword: #ffadad;
+  --syntax-string: #b9ffbc; --syntax-comment: #d1d1d1; --syntax-number: #9ed9ff;
+  --syntax-function: #e4baff; --syntax-attr: #ffdb80; --syntax-type: #83f6ed;
+}
+.ty-code-render, .ty-code-theme-preview, #write .cm-editor .cm-line.cm-codeblock-line { background: var(--syntax-bg) !important; color: var(--syntax-text) !important; }
+.ty-code-theme-preview { border-radius: 6px; padding: 8px 12px; margin: 8px 0 16px; }
+.ty-code-render .hljs-keyword, .ty-code-theme-preview .hljs-keyword, #write .cm-editor .cm-line.cm-codeblock-line .hljs-keyword { color: var(--syntax-keyword) !important; font-weight: 600; }
+.ty-code-render .hljs-string, .ty-code-theme-preview .hljs-string, #write .cm-editor .cm-line.cm-codeblock-line .hljs-string { color: var(--syntax-string) !important; }
+.ty-code-render .hljs-comment, .ty-code-theme-preview .hljs-comment, #write .cm-editor .cm-line.cm-codeblock-line .hljs-comment { color: var(--syntax-comment) !important; font-style: italic; }
+.ty-code-render .hljs-number, .ty-code-render .hljs-literal, .ty-code-theme-preview .hljs-number, #write .cm-editor .cm-line.cm-codeblock-line .hljs-number, #write .cm-editor .cm-line.cm-codeblock-line .hljs-literal { color: var(--syntax-number) !important; }
+.ty-code-render .hljs-title, .ty-code-render .hljs-function, .ty-code-theme-preview .hljs-title, #write .cm-editor .cm-line.cm-codeblock-line .hljs-title, #write .cm-editor .cm-line.cm-codeblock-line .hljs-function { color: var(--syntax-function) !important; }
+.ty-code-render .hljs-attr, .ty-code-render .hljs-attribute, .ty-code-render .hljs-variable, .ty-code-theme-preview .hljs-attr, #write .cm-editor .cm-line.cm-codeblock-line .hljs-attr, #write .cm-editor .cm-line.cm-codeblock-line .hljs-attribute, #write .cm-editor .cm-line.cm-codeblock-line .hljs-variable { color: var(--syntax-attr) !important; }
+.ty-code-render .hljs-type, .ty-code-render .hljs-built_in, .ty-code-render .hljs-tag, .ty-code-theme-preview .hljs-built_in, #write .cm-editor .cm-line.cm-codeblock-line .hljs-type, #write .cm-editor .cm-line.cm-codeblock-line .hljs-built_in, #write .cm-editor .cm-line.cm-codeblock-line .hljs-tag { color: var(--syntax-type) !important; }

@@ -1,0 +1,4 @@
+.ty-ai-canvas-brand{display:flex;flex:1 1 auto;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:hidden;pointer-events:none;user-select:none}
+.ty-ai-canvas-brand-mark{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;max-width:100%;max-height:100%;overflow:hidden;opacity:.36;color:var(--muted-text-color);font-size:15px;font-weight:550;line-height:1.35;text-align:center}
+.ty-ai-canvas-brand-mark img{display:block;flex:0 1 48px;width:48px;height:48px;min-width:0;min-height:0;max-width:100%;max-height:48px;object-fit:contain}
+@media(max-height:600px){.ty-ai-canvas-brand-mark{gap:6px;font-size:12px}.ty-ai-canvas-brand-mark img{flex-basis:32px;width:32px;height:32px;max-height:32px}}

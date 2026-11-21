@@ -1,0 +1,14 @@
+.typora-ai-assistant-drawer .ty-ai-dock .ty-ai-actions{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;min-width:0;flex:1 1 auto}
+.typora-ai-assistant-drawer .ty-ai-dock .ty-ai-actions .ty-ai-quick-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:32px;padding:4px 9px;border:1px solid var(--border-color);border-radius:8px;background:color-mix(in srgb,var(--panel-bg,var(--bg-color)) 95%,var(--text-color));color:var(--text-color);font:inherit;font-size:12px;white-space:nowrap}
+.typora-ai-assistant-drawer .ty-ai-dock .ty-ai-actions .ty-ai-quick-action:hover:not(:disabled){border-color:color-mix(in srgb,var(--primary-color) 52%,var(--border-color));background:color-mix(in srgb,var(--primary-color) 10%,var(--panel-bg,var(--bg-color)));color:var(--primary-color)}
+.typora-ai-assistant-drawer .ty-ai-dock .ty-ai-actions .ty-ai-quick-action:active:not(:disabled){background:color-mix(in srgb,var(--primary-color) 17%,var(--panel-bg,var(--bg-color)))}
+.ty-ai-actions .ty-ai-more-wrap{position:relative;flex:0 0 auto}
+.ty-ai-actions .ty-ai-more-actions{position:absolute;z-index:30;right:0;bottom:calc(100% + 6px);left:auto;display:flex;flex-direction:column;gap:1px;width:max-content;min-width:min(156px,calc(100vw - 36px));max-width:calc(100vw - 24px);max-height:min(220px,calc(100dvh - 150px));overflow:auto;padding:5px;border:1px solid var(--border-color);border-radius:9px;background:var(--panel-bg,var(--bg-color));box-shadow:0 8px 24px #0003;overscroll-behavior:contain}
+.ty-ai-actions .ty-ai-more-actions[hidden]{display:none}
+.ty-ai-actions .ty-ai-more-actions button{display:flex;align-items:center;width:100%;min-height:32px;padding:6px 9px;border:0;border-radius:5px;background:transparent;color:var(--text-color);font:inherit;text-align:left;white-space:nowrap}
+.ty-ai-actions .ty-ai-more-actions button:hover:not(:disabled){background:color-mix(in srgb,var(--primary-color) 12%,var(--panel-bg,var(--bg-color)))}
+.ty-ai-actions .ty-ai-quick-copy{display:inline-flex;align-items:center;justify-content:center;flex:0 0 30px;width:30px;height:30px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted-text-color)}
+.ty-ai-actions .ty-ai-quick-copy:hover:not(:disabled){background:color-mix(in srgb,var(--primary-color) 10%,transparent);color:var(--primary-color)}
+.ty-ai-actions button:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
+@media(max-width:380px){.typora-ai-assistant-drawer .ty-ai-dock .ty-ai-actions{gap:6px}.typora-ai-assistant-drawer .ty-ai-dock .ty-ai-actions .ty-ai-quick-action{gap:4px;padding-right:6px;padding-left:6px;font-size:12px}}
+@media(max-height:600px){.ty-ai-actions .ty-ai-more-actions{max-height:min(200px,calc(100dvh - 110px))}}

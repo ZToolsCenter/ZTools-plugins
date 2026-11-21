@@ -1,0 +1,51 @@
+{
+  "name": "ztools-live-markdown",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "High-performance live-preview Markdown editor built in React 19 & TypeScript for ZTools.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5189",
+    "typecheck": "tsc --noEmit && node scripts/check-jsx-returns.mjs",
+    "test": "npm run test:unit && npm run test:preload && npm run test:integration && npm run test:e2e",
+    "test:unit": "vitest run tests/unit",
+    "test:preload": "node --test tests/preload/*.test.cjs",
+    "test:integration": "node --test tests/integration/*.test.cjs",
+    "test:e2e": "node --test tests/e2e/*.test.cjs",
+    "build": "npm run test:unit && npm run test:preload && npm run typecheck && vite build && node scripts/prepare-dist.mjs && npm run verify:dist && npm run test:integration",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "preview": "vite preview --host 127.0.0.1 --port 4189",
+    "package": "npm run build && npm run test:e2e && node scripts/package-release.mjs"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.14",
+    "@lezer/highlight": "^1.2.5",
+    "@lezer/html": "1.3.13",
+    "@lezer/javascript": "1.5.6",
+    "@lezer/markdown": "^1.8.0",
+    "highlight.js": "^11.11.1",
+    "lucide-react": "1.17.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "wink-eng-lite-web-model": "1.8.1",
+    "wink-nlp": "2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "playwright": "1.64.0",
+    "typescript": "6.0.3",
+    "vite": "^8.1.5",
+    "vitest": "4.1.7"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}
