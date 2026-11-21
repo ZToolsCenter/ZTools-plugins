@@ -22,12 +22,20 @@ window.services = {
   // ---------- 统一的分离式启动（带错误处理，避免未捕获的 'error' 事件） ----------
   _spawnDetached(exePath, args) {
     const fs = require('fs');
+    const path = require('path');
     const { spawn } = require('child_process');
     if (!exePath) throw new Error('未指定 Unity.exe 路径');
     if (!fs.existsSync(exePath)) throw new Error(`编辑器不存在: ${exePath}`);
     let child;
     try {
-      child = spawn(exePath, args, { detached: true, stdio: 'ignore', windowsHide: true });
+      // Unity.exe 是 GUI 程序。windowsHide 会让旧版编辑器加载完成后仍不显示主窗口。
+      // 分离进程并忽略标准流即可；编辑器进程必须允许显示自己的窗口。
+      child = spawn(exePath, args, {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false,
+        cwd: path.dirname(exePath)
+      });
     } catch (e) {
       throw new Error(`启动失败: ${e.message}`);
     }
