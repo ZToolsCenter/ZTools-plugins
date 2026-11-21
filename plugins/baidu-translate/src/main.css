@@ -1,0 +1,668 @@
+/**
+ * 百度翻译插件全局样式。
+ * 浅色为主，跟随宿主暗色模式（ztools.isDarkColors）时挂 dark class。
+ *
+ * @author yhx
+ */
+
+:root {
+  --bg: #f6f7fb;
+  --panel: #ffffff;
+  --border: #e3e6ee;
+  --text: #23262f;
+  --text-2: #6b7280;
+  --primary: #2932e1;
+  --primary-weak: #eef0ff;
+  --danger: #d5413c;
+  --ok: #0f8a4d;
+  --warn: #b26a00;
+  --radius: 10px;
+}
+
+.dark {
+  --bg: #1e2028;
+  --panel: #262933;
+  --border: #3a3e4c;
+  --text: #e8eaf0;
+  --text-2: #9aa1b0;
+  --primary: #6b74ff;
+  --primary-weak: #30355a;
+  --danger: #e2695f;
+  --ok: #4dbb82;
+  --warn: #d9a441;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+/* ---------------- 顶栏 ---------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+
+.topbar-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.badge-ok {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+
+.badge-warn {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+.icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: var(--primary-weak);
+  color: var(--primary);
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.icon-btn:disabled:hover {
+  background: transparent;
+  color: var(--text-2);
+}
+
+/* ---------------- 翻译主页（上语言栏，下左右分栏） ---------------- */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+.lang-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.lang-select {
+  flex: 1;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  min-width: 0;
+}
+
+.lang-select:focus {
+  border-color: var(--primary);
+}
+
+.swap-btn {
+  flex-shrink: 0;
+}
+
+.input-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px 6px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.input-area {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.7;
+  flex: 1;
+  min-height: 180px;
+}
+
+.input-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 6px;
+  border-top: 1px dashed var(--border);
+  margin-top: 6px;
+}
+
+.hint {
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.byte-count {
+  color: var(--text-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.byte-count.over {
+  color: var(--danger);
+}
+
+.input-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.primary-btn {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  cursor: pointer;
+}
+
+.primary-btn:hover {
+  filter: brightness(1.08);
+}
+
+.primary-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  filter: none;
+}
+
+.ghost-btn {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.ghost-btn:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.ghost-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ---------------- 右栏：结果 ---------------- */
+
+.pane-result {
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.result-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.detect {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.mini-btn {
+  border: none;
+  background: var(--primary-weak);
+  color: var(--primary);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mini-btn:hover {
+  filter: brightness(0.96);
+}
+
+.dark .mini-btn:hover {
+  filter: brightness(1.15);
+}
+
+.segments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.segment {
+  position: relative;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.seg-src {
+  margin: 0 0 4px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.seg-dst {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.seg-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.segment:hover .seg-copy {
+  opacity: 1;
+}
+
+.seg-copy:hover {
+  background: var(--primary-weak);
+  color: var(--primary);
+}
+
+.error-card {
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border));
+  border-radius: var(--radius);
+  color: var(--danger);
+  padding: 12px;
+  line-height: 1.6;
+}
+
+/* ---------------- 词典卡片 ---------------- */
+
+.dict {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dict-word-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dict-word {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+.dict-tag {
+  font-size: 11px;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.dict-phon {
+  display: flex;
+  gap: 14px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.dict-section {
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dict-sec-title {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.dict-line {
+  margin: 0;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.dict-pos {
+  display: inline-block;
+  color: var(--primary);
+  font-weight: 600;
+  margin-right: 6px;
+  font-size: 13px;
+}
+
+.dict-exch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.exch-name {
+  color: var(--text-2);
+  margin-right: 4px;
+}
+
+.en-def {
+  border-left: 2px solid var(--primary-weak);
+  padding-left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.en-def-sense {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.en-def-example {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+  font-style: italic;
+}
+
+.en-def-similar {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.empty-tip {
+  text-align: center;
+  color: var(--text-2);
+  padding: 36px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.empty-main {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.empty-sub {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* ---------------- 历史记录 ---------------- */
+
+.history {
+  margin-top: 2px;
+}
+
+.hist-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-2);
+  padding: 0 2px 6px;
+}
+
+.hist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hist-item {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hist-item:hover {
+  border-color: var(--primary);
+}
+
+.hist-text {
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hist-meta {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+/* ---------------- 设置页 ---------------- */
+
+.settings {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 480px;
+}
+
+.settings-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.settings-desc {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.settings-desc a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field-input {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+  width: 100%;
+}
+
+.field-input:focus {
+  border-color: var(--primary);
+}
+
+.secret-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-actions .primary-btn {
+  flex: 1;
+  letter-spacing: 2px;
+}
+
+.danger-btn {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+}
+
+.danger-btn:hover {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.tip {
+  margin: 0;
+  font-size: 12px;
+}
+
+.tip-ok {
+  color: var(--ok);
+}
+
+.tip-err {
+  color: var(--danger);
+}
