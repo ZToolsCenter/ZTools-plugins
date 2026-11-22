@@ -1,0 +1,109 @@
+{
+  "name": "local-fsearch",
+  "title": "FSearch 文件搜索",
+  "description": "本地文件搜索 · macOS 使用 FSearch · Windows 使用 Everything",
+  "version": "0.0.2",
+  "author": "lifeek",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 600,
+    "single": true
+  },
+  "features": [
+    {
+      "code": "search",
+      "explain": "搜索本机文件与文件夹",
+      "platform": [
+        "darwin",
+        "win32"
+      ],
+      "cmds": [
+        "fs",
+        "find",
+        "fsearch",
+        "全盘搜索",
+        "FSearch 文件搜索"
+      ],
+      "mainPush": true
+    },
+    {
+      "code": "search-query",
+      "explain": "FSearch 带关键词搜索",
+      "platform": [
+        "darwin",
+        "win32"
+      ],
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "FSearch 搜索参数",
+          "match": "/^(?:fs|find)\\s+\\S[\\s\\S]*$/i",
+          "minLength": 4,
+          "maxLength": 1024
+        }
+      ]
+    },
+    {
+      "code": "search-text",
+      "explain": "搜索选中的文字",
+      "platform": [
+        "darwin",
+        "win32"
+      ],
+      "cmds": [
+        {
+          "type": "over",
+          "label": "用 FSearch 搜索文字",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      ]
+    },
+    {
+      "code": "search-files",
+      "explain": "在文件夹中搜索或操作文件",
+      "platform": [
+        "darwin",
+        "win32"
+      ],
+      "cmds": [
+        {
+          "type": "files",
+          "label": "用 FSearch 搜索文件或目录",
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "search-workspace",
+      "explain": "FSearch 工作目录搜索",
+      "platform": [
+        "darwin",
+        "win32"
+      ],
+      "cmds": [
+        "搜工作目录",
+        "FSearch 工作目录"
+      ]
+    },
+    {
+      "code": "search-new",
+      "explain": "FSearch 新搜索（清空上次条件）",
+      "platform": [
+        "darwin",
+        "win32"
+      ],
+      "cmds": [
+        "FSearch 新搜索"
+      ]
+    }
+  ],
+  "platform": [
+    "darwin",
+    "win32"
+  ],
+  "unpack": "vendor/es/**/es.exe"
+}

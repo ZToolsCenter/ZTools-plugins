@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src blob:">
+  <title>图片预览</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="image-window">
+  <main class="detail-panel" data-kind="image">
+    <div class="detail-header"><h2 id="image-title">图片预览</h2><button id="image-close">关闭</button></div>
+    <div class="detail-body" id="image-body"><p role="status">正在加载图片…</p></div>
+    <div class="detail-actions">
+      <button id="image-open">用默认应用打开</button><button id="image-copy">复制路径</button><span id="image-message" role="status"></span>
+    </div>
+  </main>
+  <script src="image-viewer.js"></script>
+  <script src="image-window.js"></script>
+</body>
+</html>
