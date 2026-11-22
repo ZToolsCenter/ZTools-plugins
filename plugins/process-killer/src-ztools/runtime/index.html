@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>关闭进程</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="toolbar">
+      <input id="search" class="search" type="text" placeholder="搜索进程名、路径或端口…" autofocus />
+      <div class="sorts" id="sorts">
+        <button data-sort="mem" class="active">内存</button>
+        <button data-sort="cpu">CPU</button>
+        <button data-sort="name">名称</button>
+        <button data-sort="ports">端口</button>
+      </div>
+      <button id="refresh" class="icon-btn auto" title="自动刷新中，点击改为手动（Ctrl/⌘+R 随时刷新）">⟳</button>
+    </header>
+
+    <div id="banner" class="banner" hidden></div>
+
+    <div class="table-head">
+      <span class="col-name">进程</span>
+      <span class="col-pid">PID</span>
+      <span class="col-port">端口</span>
+      <span class="col-cpu">CPU</span>
+      <span class="col-mem">内存</span>
+    </div>
+
+    <main id="list" class="list"></main>
+
+    <div id="empty" class="empty" hidden>没有匹配的进程</div>
+
+    <footer class="status">
+      <span id="summary">加载中…</span>
+      <span class="hint">↑↓ 选择 · ⏎ 关闭 · Ctrl/⌘+⏎ 重启 · ⇧⏎ 详情 · Ctrl/⌘+C 复制路径</span>
+    </footer>
+  </div>
+
+  <div id="menu" class="menu" hidden></div>
+  <div id="dialog" class="dialog-backdrop" hidden>
+    <div class="dialog">
+      <h3 id="dialog-title">进程详情</h3>
+      <pre id="dialog-body"></pre>
+      <div class="dialog-actions"><button id="dialog-close">关闭</button></div>
+    </div>
+  </div>
+  <div id="confirm" class="dialog-backdrop" hidden>
+    <div class="dialog confirm-dialog">
+      <h3 id="confirm-title">确认关闭进程</h3>
+      <p id="confirm-body" class="confirm-text"></p>
+      <div class="dialog-actions">
+        <button id="confirm-cancel">取消</button>
+        <button id="confirm-ok" class="danger-btn">确认关闭</button>
+      </div>
+    </div>
+  </div>
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

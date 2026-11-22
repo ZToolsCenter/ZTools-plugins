@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "process-killer",
+  "title": "进程管家",
+  "description": "搜索进程名或端口，查看 CPU、内存与端口占用，关闭、强制结束或重启进程",
+  "version": "1.0.0",
+  "author": "xiewz",
+  "homepage": "https://github.com/XiewzHub/ztools-process-killer",
+  "platform": ["win32", "darwin"],
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 560
+  },
+  "features": [
+    {
+      "code": "kill",
+      "explain": "搜索进程名或端口，关闭或管理进程",
+      "icon": "logo.png",
+      "cmds": [
+        "kill",
+        "关闭进程",
+        "进程管理",
+        "进程管家",
+        "netstat",
+        "端口占用"
+      ]
+    }
+  ]
+}
