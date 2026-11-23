@@ -1,6 +1,6 @@
 # Native OCR
 
-ZTools 本地多引擎 OCR 插件。支持 macOS Vision / Windows OCR（系统 WinRT）/ ONNX OCR（PP-OCR v4）/ 微信 OCR（macOS）/ 公式识别（LaTeX OCR）五类引擎，内置表格识别、PDF 多页识别、OCR 后翻译、识别历史。
+ZTools 本地多引擎 OCR 插件。macOS 支持 Vision / ONNX OCR（PP-OCR v4）/ 微信 OCR / 公式识别 / 图文混排；Windows 支持 ONNX OCR / 微信 OCR / 公式识别 / 图文混排。内置表格识别、PDF 多页识别、OCR 后翻译、识别历史。
 
 **识别（含公式、图文混排、表格）全部在本地完成，图片不上传任何服务器**；唯二需要联网的是「首次下载模型」与「OCR 后翻译」，详见「[隐私与联网](#隐私与联网)」。
 
@@ -13,10 +13,10 @@ ZTools 本地多引擎 OCR 插件。支持 macOS Vision / Windows OCR（系统 W
 | ONNX OCR | ✅ | ✅（默认首选） | PP-OCR v4 模型，约 60MB 一次性下载，离线可用，支持表格识别，无需任何环境 |
 | 公式识别 | ✅ | ✅ | RapidLaTeXOCR 模型，约 171MB 一次性下载，把公式图片识别为 LaTeX 代码（依托 ONNX 引擎） |
 | 图文混排 | ✅ | ✅ | MFD 模型（pix2text-mfd-1.5.onnx，约 80MB）先定位公式区域，裁切后复用公式引擎识别，再与文本行按阅读顺序合并为 Markdown |
-| 系统 OCR | macOS Vision | Windows OCR | 系统内置能力，零依赖；小图自动放大提升识别率 |
-| 微信 OCR | ✅ | — | 复用微信自带离线 OCR 运行时（按需从 npmmirror 下载） |
+| 系统 OCR | macOS Vision | — | 系统内置能力，零依赖；小图自动放大提升识别率 |
+| 微信 OCR | ✅（下载运行时） | ✅（需微信 4.x） | macOS 下载微信离线 OCR 运行时；Windows 复用本机微信自带的 wxocr.dll（P/Invoke，无需 Python / 原生构建） |
 
-Windows 平台默认展示 ONNX OCR，切换引擎后自动用新引擎重新识别当前图片。
+Windows 平台默认展示 ONNX OCR，切换引擎后自动用新引擎重新识别当前图片。**Windows 系统 OCR（WinRT）自 1.2.0 起移除**：识别质量明显弱于 ONNX / 微信 OCR，且依赖中文语言包。
 
 ## 功能
 
@@ -34,9 +34,9 @@ Windows 平台默认展示 ONNX OCR，切换引擎后自动用新引擎重新识
 | 能力 | 依赖 |
 | --- | --- |
 | 系统 OCR（macOS Vision） | 首次运行会用 `swiftc -O` 把 `bin/ocr-vision.swift` 编译成二进制（按脚本内容指纹缓存，脚本变更后自动重编；编译失败会回退用 `swift` 解释执行）。因此**需要安装 Xcode Command Line Tools**（`xcode-select --install`） |
-| 系统 OCR（Windows OCR） | Win10/11 **桌面版**，依赖系统内置的 **Windows PowerShell**（当前实现调用 `powershell.exe`，未适配 PowerShell 7 / `pwsh`）；基于 WinRT OCR，**识别中文需系统安装中文语言包**，在英文版 Windows 上可能不可用或识别质量很差 |
+| 微信 OCR（Windows） | 需安装并登录**微信 4.x 桌面版**：插件直接调用微信自带的 `wxocr.dll`（位于 `%APPDATA%\Tencent\xwechat\XPlugin\plugins\WeChatOcr\<版本>\extracted`），不随插件分发。依赖系统内置的 **Windows PowerShell 5.1**（调用 `powershell.exe`，未适配 `pwsh`）；找不到微信时该引擎置灰并给出原因 |
 | ONNX OCR / 公式识别 / 图文混排 | 无需额外环境（Electron 自带 Node 子进程）；首次使用需联网下载模型 |
-| 微信 OCR | 仅 macOS，复用微信自带离线 OCR 运行时（按需下载） |
+| 微信 OCR（macOS） | 复用微信自带离线 OCR 运行时（按需下载） |
 | OCR 后翻译 | 需联网 |
 
 ## 运行时下载
@@ -47,6 +47,7 @@ ONNX OCR、公式识别、图文混排与微信 OCR 运行时不内置在插件�
 - 公式识别（RapidLaTeXOCR，约 171MB）→ `<ztools.getPath("pluginData")>/native-ocr/onnx-runtime/assets/formula`（复用 ONNX 运行环境，需先装 ONNX 引擎），来源 `ghfast.top`（GitHub 加速）
 - 图文混排（MFD，约 80MB）→ `<ztools.getPath("pluginData")>/native-ocr/onnx-runtime/assets/mfd`（复用 ONNX 运行环境与公式模型，需先装二者），来源 `hf-mirror.com`
 - 微信 OCR（macOS）→ `<ztools.getPath("pluginData")>/native-ocr/ocr-runtime`（插件卸载时自动清理），来源 `registry.npmmirror.com`
+- 微信 OCR（Windows）**不下载任何运行时**，直接使用本机微信的 `wxocr.dll`
 
 插件页头提供两个资源管理入口：**「释放内存」**回收常驻的 ONNX 推理进程（下次识别自动重启）；**「清理 ONNX 模型缓存」**删除已下载的 ONNX 运行环境与全部 ONNX 系模型（约 300MB+，微信 OCR 运行时不受影响），下次使用需重新下载。
 
