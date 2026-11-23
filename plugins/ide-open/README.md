@@ -67,6 +67,8 @@ npm run build
 3. 保存后，ZTools 主搜索框输入配置的别名（如 `vsc`、`cursor`）即可进入项目列表
 4. 在项目列表中搜索并打开项目
 
+macOS 上的 VS Code 预设会优先使用终端中的 `code` 命令。没有安装该命令时，插件可以使用 VS Code 应用打开本地项目，或使用应用内置的 CLI 打开远程项目。
+
 ## 技术栈
 
 React 19 + Vite + TypeScript。SQLite 历史通过 ZTools 内置的 Node.js SQLite 模块读写。

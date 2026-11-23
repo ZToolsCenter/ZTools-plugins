@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+### Fixed
+- macOS 缺少 code 命令时，使用已安装的 VS Code 打开项目。
+
 ## 1.0.1
 
 ### Fixed

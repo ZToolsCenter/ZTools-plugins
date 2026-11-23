@@ -2,7 +2,8 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { homedir } = require('node:os')
 const { SaxesParser } = require('saxes')
-const { exec } = require('node:child_process')
+const { exec, execFile } = require('node:child_process')
+const { promisify } = require('node:util')
 const { fileURLToPath, pathToFileURL } = require('node:url')
 
 // ─── 文件日志（开发调试） ──
@@ -359,35 +360,45 @@ function escapeShellArg(arg) {
   return "'" + arg.replace(/'/g, "'\\''") + "'"
 }
 
-function openProject(command, uri, shell) {
+const runShell = promisify(exec)
+const runFile = promisify(execFile)
+const launchOptions = { windowsHide: true, timeout: 10000 }
+
+async function openVSCodeOnMac(args, isRemote) {
+  if (!isRemote) {
+    await runFile('/usr/bin/open', ['-b', 'com.microsoft.VSCode', '--', path.resolve(args[0])], launchOptions)
+    return
+  }
+
+  // 远程 URI 需要交给 VS Code 的 CLI，macOS open 无法把启动参数传给已运行的实例。
+  const cli = ['/Applications', path.join(homedir(), 'Applications')]
+    .map(dir => path.join(dir, 'Visual Studio Code.app', 'Contents', 'Resources', 'app', 'bin', 'code'))
+    .find(filePath => fs.existsSync(filePath))
+
+  if (!cli) throw new Error('未找到 VS Code 内置命令。请在 VS Code 中将 code 安装到 PATH 后再打开远程项目。')
+  await runFile(cli, args, launchOptions)
+}
+
+async function openProject(command, uri, shell) {
   const effectiveShell = shell || defaultShell
   const isRemote = /^[a-z]+-remote:\/\//.test(uri)
-  const localPath = isRemote ? '' : uriToPath(uri)
+  const args = isRemote ? [uri.endsWith('.code-workspace') ? '--file-uri' : '--folder-uri', uri] : [uriToPath(uri)]
+  const cmd = [command, ...args.slice(0, -1), escapeShellArg(args.at(-1))].join(' ')
+  const fullCmd = effectiveShell ? `${effectiveShell} ${escapeShellArg(cmd)}` : cmd
+  debugLog(`执行: ${fullCmd}`)
 
-  const run = (cmd, timeout = 10000) => new Promise((resolve, reject) => {
-    const fullCmd = effectiveShell ? `${effectiveShell} ${escapeShellArg(cmd)}` : cmd
-    debugLog(`执行: ${fullCmd}`)
-    exec(fullCmd, { env: process.env, windowsHide: true, timeout }, (err) => {
-      if (err) {
-        debugLog(`命令失败: ${err.message}`)
-        reject(err)
-      } else resolve()
-    })
-  })
-
-  return new Promise((resolve, reject) => {
-    if (localPath) {
-      run(`${command} ${escapeShellArg(localPath)}`)
-        .then(() => resolve())
-        .catch(err => reject(new Error(`启动失败: ${err.message}`)))
-      return
+  try {
+    try {
+      await runShell(fullCmd, launchOptions)
+    } catch (error) {
+      if (process.platform !== 'darwin' || command.trim() !== 'code' || error.code !== 127) throw error
+      debugLog('未找到 code 命令，使用 macOS 上的 VS Code 应用')
+      await openVSCodeOnMac(args, isRemote)
     }
-    const isWorkspace = uri.endsWith('.code-workspace')
-    const flag = isWorkspace ? '--file-uri' : '--folder-uri'
-    run(`${command} ${flag} ${escapeShellArg(uri)}`)
-      .then(() => resolve())
-      .catch(err => reject(new Error(`启动失败: ${err.message}`)))
-  })
+  } catch (error) {
+    debugLog(`命令失败: ${error.message}`)
+    throw new Error(`启动失败: ${error.stderr?.trim() || error.message}`)
+  }
 }
 
 // ─── 预设 ──
