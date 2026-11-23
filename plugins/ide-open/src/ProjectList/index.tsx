@@ -30,6 +30,25 @@ function IconRemote() {
   )
 }
 
+function IconCopy() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"
+      fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1.5" />
+      <path d="M3.5 10.5A1.5 1.5 0 0 1 2 9V3.5A1.5 1.5 0 0 1 3.5 2H9a1.5 1.5 0 0 1 1.5 1.5" />
+    </svg>
+  )
+}
+
+function IconTrash() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"
+      fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 4h11M6 4V2.5h4V4m2 0-.6 8.5a1 1 0 0 1-1 .9H5.6a1 1 0 0 1-1-.9L4 4M6.5 6.5v4m3-4v4" />
+    </svg>
+  )
+}
+
 export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onBack?: () => void; onEdit?: () => void }) {
   const [projects, setProjects] = useState<ProjectItem[]>([])
   const [filtered, setFiltered] = useState<ProjectItem[]>([])
@@ -140,7 +159,7 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
         e.preventDefault(); setSelected(i => i >= f.length - 1 ? 0 : i + 1)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault(); setSelected(i => i <= 0 ? f.length - 1 : i - 1)
-      } else if (e.key === 'Enter' && f[s]) {
+      } else if (e.key === 'Enter' && f[s] && !(e.target instanceof HTMLButtonElement)) {
         e.preventDefault(); handleOpen(f[s])
       }
     }
@@ -163,8 +182,6 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
         <div className='pl-empty'>{search ? '没有匹配的项目' : '暂无最近项目'}</div>
       )}
 
-      <div className='pl-shortcuts-hint'>📋 复制路径{canDelete && ' · ✕ 删除'}</div>
-
       <div className='pl-items' ref={listRef}>
         {filtered.map((p, i) => (
           <div key={p.uri || i}
@@ -179,10 +196,16 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
               <div className='pl-item-name'>{p.name}</div>
               <div className='pl-item-path' title={p.path || p.uri}>{p.path || p.uri}</div>
             </div>
-            <button className='pl-item-copy' onClick={e => { e.stopPropagation(); handleCopyPath(p) }}
-              title='复制路径'>📋</button>
-            {canDelete && <button className='pl-item-del' onClick={e => { e.stopPropagation(); handleDelete(p) }}
-              title='删除此记录'>✕</button>}
+            <button type='button' className='pl-item-copy' aria-label='复制路径' title='复制路径'
+              onClick={e => { e.stopPropagation(); handleCopyPath(p) }}>
+              <IconCopy />
+            </button>
+            {canDelete && (
+              <button type='button' className='pl-item-del' aria-label='删除此记录' title='删除此记录'
+                onClick={e => { e.stopPropagation(); handleDelete(p) }}>
+                <IconTrash />
+              </button>
+            )}
             {p.type === 'remote' && <span className='pl-item-badge'>远程</span>}
           </div>
         ))}

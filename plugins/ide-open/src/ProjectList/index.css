@@ -25,14 +25,6 @@
   font-size: 12px;
 }
 
-.pl-shortcuts-hint {
-  text-align: center;
-  font-size: 11px;
-  color: #ff4d4f;
-  padding: 4px 12px 6px;
-  opacity: .75;
-}
-
 .pl-items {
   flex: 1;
   overflow-y: auto;
@@ -59,27 +51,30 @@
 .pl-item-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-item-path { font-size: 11px; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
 
+.pl-item-copy,
 .pl-item-del {
-  font-size: 12px;
-  color: var(--red);
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
   opacity: 0;
-  padding: 0 4px;
-  border-radius: 3px;
-  transition: opacity .15s;
+  pointer-events: none;
+  transition: opacity .15s, background .15s, color .15s;
 }
-.pl-item-copy {
-  font-size: 12px;
-  opacity: 0;
-  padding: 0 4px;
-  border-radius: 3px;
-  transition: opacity .15s;
+
+.pl-item-del { color: var(--red); }
+
+.pl-item:hover :is(.pl-item-copy, .pl-item-del),
+.pl-item-selected :is(.pl-item-copy, .pl-item-del),
+:is(.pl-item-copy, .pl-item-del):focus-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
-.pl-item:hover .pl-item-del,
-.pl-item:hover .pl-item-copy,
-.pl-item-selected .pl-item-del,
-.pl-item-selected .pl-item-copy { opacity: .5; }
-.pl-item .pl-item-del:hover { opacity: 1; background: rgba(255,77,79,.08); }
-.pl-item .pl-item-copy:hover { opacity: 1; background: rgba(22,119,255,.08); }
+
+.pl-item-copy:hover { color: var(--blue); background: rgba(22,119,255,.08); }
+.pl-item-del:hover { background: rgba(255,77,79,.08); }
 
 .pl-item-badge {
   font-size: 10px;
