@@ -2,6 +2,36 @@
 
 Native OCR 从官方 `wechat-ocr` 插件 fork 而来，作者署名 Samson。以下版本历史已按里程碑整合。
 
+## 1.2.0 - 2026-11-23
+
+次要版本：**调整 Windows 的引擎组合**——移除系统 OCR，加回微信 OCR；同时修掉 ONNX 引擎「起不来又不说原因」的问题。macOS 的引擎组合不变（Vision / ONNX / 图文混排 / 公式 / 微信 OCR）。
+
+### 变更（仅 Windows）
+
+- **移除系统 OCR（Windows.Media.Ocr / WinRT）**：识别质量明显弱于 PP-OCRv4 与微信 OCR，且强依赖系统中文语言包（英文版 Windows 上几乎不可用）。同步删除 `bin/ocr-winrt.ps1`、WinRT 能力探针与「Windows OCR」页签；Windows 上历史选择的该引擎自动迁移到 ONNX OCR。
+- **加回微信 OCR**：Windows 上复用**本机微信 4.x 自带的 `wxocr.dll`**，通过 PowerShell P/Invoke 直接调用（`wechat_ocr` / `stop_ocr`，`__cdecl`），**不需要 Python、不需要 node-gyp/MSVC 原生构建**，也不下载任何运行时。找不到微信时该页签置灰并在遮罩里给出具体原因（缺 `wxocr.dll` 还是缺安装目录），支持「重新检测」。
+  - 之所以不是复用 macOS 那套运行时：官方 `@ztools-center/wechat-ocr-native` 只发布了一份 `wcocr_native.node`，实测是 Mach-O arm64，没有 Windows 构建。
+  - 传输仍走 1.1.1 引入的 `NOCR1:<base64>` 信封，对控制台代码页免疫；微信返回的 JSON **不在 PowerShell 里解析**（形状随微信版本变化且无法单测），而是把原始字节带回 Node，由 `wechat-result.cjs` 容错解析。
+
+### 修复
+
+- **ONNX 服务启动失败时不再吞掉真实原因**：`onnx_ocr_server.mjs` 顶层是静态 `import 'onnxruntime-node'`，ESM 静态导入在模块求值前解析，原生模块加载失败会在任何 `try/catch` 之前杀掉进程 —— stdout 一个字节都没有，界面只能显示「服务启动失败」，真正的原因只留在被丢弃的 stderr 里。现在预加载脚本会把子进程 stderr 尾部与退出码拼进错误信息，并在 Windows 上识别 `LoadLibrary` 失败后检查 `System32` 下的 `vcruntime140.dll` / `vcruntime140_1.dll` / `msvcp140.dll`，缺哪个报哪个，并直接提示安装 VC++ 2015-2022 x64 运行库。
+- **新增平台二进制预检**：启动前检查 `node_modules/onnxruntime-node/bin/napi-v3/<platform>/<arch>` 是否存在。宿主为 32 位 Electron 时包内没有对应二进制，此前表现为「引擎显示已安装但永远起不来」，现在直接报「缺少当前平台的二进制」。OCR / 公式识别 / 图文混排三个服务统一走这套报错。
+
+### 工程
+
+- 新增 `tests/onnx-diagnose.mjs`（16 项）：把「进程崩溃时错误信息必须包含 stderr 原因」和「运行库齐全时不得误导用户去装」写成不变量断言。
+- 新增 `tests/wechat-result.mjs`（20 项）：锁定微信返回值的容错范围（`results` / `ocr_result` / 根数组、多边形与 `x/y/w/h` 框、`Text` 大写键）、**原点左下的归一化坐标**、`errcode != 0` 必须报错而不是伪装成「图里没字」、以及 GBK 字节回退（UTF-8 严格解码失败后按 936 解）。
+- `winrt-payload.cjs` 更名为 `ps-ocr-payload.cjs`（它现在服务微信 OCR 通道，不再与 WinRT 绑定）；`npm test` 现串联 8 个文件。
+
+### 排查结论（真机已确认）
+
+Windows 虚拟机上复现并确认 ONNX 启动失败的根因：`onnxruntime.dll` 的导入表依赖 `VCRUNTIME140.dll` / `VCRUNTIME140_1.dll` / `MSVCP140.dll`，而干净的虚拟机镜像常缺 `VCRUNTIME140_1.dll`（VS2019 起才提供）。安装 VC++ 2015-2022 x64 运行库后，ONNX 引擎恢复正常，中文识别质量随之回到 PP-OCRv4 的水平。
+
+### 已知限制
+
+Windows 微信 OCR 的解析容错与 P/Invoke 链路**尚未在真机上跑通验证**（开发机为 macOS，无微信 4.x 也无 PowerShell）。代码把不确定性集中到了可单测的 `wechat-result.cjs`，但调用链本身需要一次真机验证；失败时错误信息会带出微信返回的原始片段，便于定位。
+
 ## 1.1.1 - 2026-11-03
 
 基于 1.1.0 的补丁发布：修复 Windows 系统 OCR 的中文乱码。仅此一项功能变更，其余为配套的传输协议测试与脚本编码调整。
