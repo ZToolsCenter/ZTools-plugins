@@ -364,11 +364,12 @@ const runShell = promisify(exec)
 const runFile = promisify(execFile)
 const launchOptions = { windowsHide: true, timeout: 10000 }
 
-async function openVSCodeOnMac(args, isRemote) {
-  if (!isRemote) {
-    await runFile('/usr/bin/open', ['-b', 'com.microsoft.VSCode', '--', path.resolve(args[0])], launchOptions)
-    return
-  }
+const macEditorBundles = new Map([
+  ['code', 'com.microsoft.VSCode'],
+  ['idea', 'com.jetbrains.intellij']
+])
+
+async function openRemoteVSCodeOnMac(args) {
 
   // 远程 URI 需要交给 VS Code 的 CLI，macOS open 无法把启动参数传给已运行的实例。
   const cli = ['/Applications', path.join(homedir(), 'Applications')]
@@ -391,9 +392,17 @@ async function openProject(command, uri, shell) {
     try {
       await runShell(fullCmd, launchOptions)
     } catch (error) {
-      if (process.platform !== 'darwin' || command.trim() !== 'code' || error.code !== 127) throw error
-      debugLog('未找到 code 命令，使用 macOS 上的 VS Code 应用')
-      await openVSCodeOnMac(args, isRemote)
+      const launcher = command.trim()
+      const bundleId = macEditorBundles.get(launcher)
+      if (process.platform !== 'darwin' || error.code !== 127 || !bundleId) throw error
+
+      if (isRemote) {
+        if (launcher !== 'code') throw error
+        await openRemoteVSCodeOnMac(args)
+      } else {
+        debugLog(`未找到 ${launcher} 命令，通过 macOS 打开 ${bundleId}`)
+        await runFile('/usr/bin/open', ['-b', bundleId, '--', path.resolve(args[0])], launchOptions)
+      }
     }
   } catch (error) {
     debugLog(`命令失败: ${error.message}`)

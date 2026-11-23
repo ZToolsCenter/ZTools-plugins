@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+### Fixed
+- macOS 缺少 idea 命令时，使用已安装的 IntelliJ IDEA 打开本地项目。
+
 ## 1.0.3
 
 ### Changed

@@ -36,6 +36,15 @@ test('missing code opens the local project in the macOS VS Code app', macOnly, a
   ])
 })
 
+test('missing idea opens the local project in IntelliJ IDEA on macOS', macOnly, async () => {
+  shellError = Object.assign(new Error('idea: command not found'), { code: 127 })
+  await openProject('idea', uri, 'zsh -l -i -c')
+  assert.equal(shell.mock.callCount(), 1)
+  assert.deepEqual(file.mock.calls[0].arguments.slice(0, 2), [
+    '/usr/bin/open', ['-b', 'com.jetbrains.intellij', '--', project]
+  ])
+})
+
 test('missing code uses the bundled CLI for remote directories and workspaces', macOnly, async t => {
   shellError = missingCode
   const bundled = '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code'

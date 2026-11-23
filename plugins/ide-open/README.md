@@ -67,7 +67,7 @@ npm run build
 3. 保存后，ZTools 主搜索框输入配置的别名（如 `vsc`、`cursor`）即可进入项目列表
 4. 在项目列表中搜索并打开项目
 
-macOS 上的 VS Code 预设会优先使用终端中的 `code` 命令。没有安装该命令时，插件可以使用 VS Code 应用打开本地项目，或使用应用内置的 CLI 打开远程项目。
+macOS 上的 VS Code 和 IntelliJ IDEA 预设优先使用 `code` 和 `idea` 命令。命令不可用时，插件可以直接通过对应应用打开本地项目，也可以使用 VS Code 内置的 CLI 打开 VS Code 远程项目。
 
 ## 技术栈
 
