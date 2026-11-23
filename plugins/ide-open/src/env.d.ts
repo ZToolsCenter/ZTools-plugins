@@ -5,6 +5,7 @@ interface Services {
   readProjects: (dbPath: string) => Promise<any[]>
   openProject: (command: string, uri: string, shell?: string) => Promise<void>
   deleteProject: (dbPath: string, uri: string) => Promise<void>
+  canDeleteProjects: (dbPath: string) => boolean
   getIDEs: () => any[]
   saveIDEs: (ides: any[]) => void
   registerFeatures: () => void

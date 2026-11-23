@@ -3,6 +3,9 @@
 ## 1.0.1
 
 ### Fixed
+- 使用 ZTools 内置的 SQLite 读取 WAL 历史并在事务中删除，修复安装包缺少 sql.js 的报错。
+- 支持新版 JetBrains 历史文件和预设路径回退。
+- 修复 IDE 切换后的键盘打开、空列表导航、别名冲突和旧配置迁移。
 - 对齐 utools-ide-open 功能（shell转义、SQL参数化、复制路径、删除确认、UI调整）
 
 ## 1.0.0

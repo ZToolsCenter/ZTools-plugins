@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm ci --prefix public/preload --omit=dev",
     "build": "tsc && vite build",
+    "test": "node --test",
     "changelog": "node scripts/gen-changelog.mjs",
     "release": "npm run changelog && git add CHANGELOG.md && git commit -m \"chore: update CHANGELOG\" && ztools publish"
   },

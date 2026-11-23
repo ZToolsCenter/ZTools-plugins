@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getIDEs, saveIDEs, getQuickFillPresets, getAppDataPath, getDefaultShell, type IDEItem } from '../store'
+import { getIDEs, saveIDEs, getQuickFillPresets, getDefaultShell, type IDEItem } from '../store'
 import './index.css'
 
 const emptyForm = (): IDEItem => ({ code: '', name: '', command: '', dbPath: '', shell: '' })
@@ -10,7 +10,6 @@ export default function Settings({ onBack, editIDE }: { onBack?: () => void; edi
   const [form, setForm] = useState<IDEItem>(emptyForm())
   const [editingIdx, setEditingIdx] = useState(-1)
   const defaultShell = getDefaultShell()
-  const appData = getAppDataPath()
 
   useEffect(() => {
     setIDEs(getIDEs())
@@ -27,10 +26,17 @@ export default function Settings({ onBack, editIDE }: { onBack?: () => void; edi
   }, [editIDE])
 
   const save = () => {
-    if (!form.code.trim()) { alert('请输入别名'); return }
+    const code = form.code.trim()
+    const normalizedCode = code.toLowerCase()
+    if (!code) { alert('请输入别名'); return }
+    if (normalizedCode === 'ideopen') { alert('ideopen 是设置页的保留别名'); return }
+    if (ides.some((ide, index) => index !== editingIdx && ide.code.toLowerCase() === normalizedCode)) {
+      alert('别名已存在')
+      return
+    }
     if (!form.command.trim()) { alert('请输入启动命令'); return }
     if (!form.dbPath.trim()) { alert('请输入历史文件路径'); return }
-    const entry: IDEItem = { code: form.code.trim(), name: form.name.trim() || form.code.trim(), command: form.command.trim(), dbPath: form.dbPath.trim(), shell: form.shell.trim() }
+    const entry: IDEItem = { code, name: form.name.trim() || code, command: form.command.trim(), dbPath: form.dbPath.trim(), shell: form.shell.trim() }
     let list
     if (editingIdx >= 0) {
       list = ides.map((item, i) => i === editingIdx ? entry : item)

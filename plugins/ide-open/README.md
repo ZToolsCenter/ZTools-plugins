@@ -5,7 +5,8 @@
 ## 功能
 
 - 从编辑器的本地数据库/配置文件中读取最近项目列表
-- 搜索并快速打开项目，支持键盘导航（↑↓ 选择、Enter 打开、Ctrl+D 删除）
+- 搜索并快速打开项目，支持键盘导航（↑↓ 选择、Enter 打开）
+- 通过项目行的删除按钮或右键菜单移除 SQLite 历史记录
 - 支持动态注册快捷指令，输入别名即可进入对应编辑器的项目列表
 
 ### 支持的编辑器
@@ -13,9 +14,9 @@
 | 编辑器 | 数据源格式 | 启动命令 |
 |---|---|---|
 | VS Code | SQLite (.vscdb) / JSON | `code` |
-| Cursor | SQLite (.vscdb) | `cursor` |
-| VSCodium | SQLite (.vscdb) | `codium` |
-| Qoder | SQLite (.vscdb) | `qoder` |
+| Cursor | SQLite (.vscdb) / JSON | `cursor` |
+| VSCodium | SQLite (.vscdb) / JSON | `codium` |
+| Qoder | SQLite (.vscdb) / JSON | `qoder` |
 | IntelliJ IDEA | XML (recentProjects.xml) | `idea` |
 | PyCharm | XML | `pycharm` |
 | WebStorm | XML | `webstorm` |
@@ -26,9 +27,8 @@
 ```
 ├── public/
 │   ├── preload/
-│   │   ├── package.json      # preload 依赖（sql.js）
-│   │   ├── services.js        # Node.js 能力：SQLite/JSON/XML 读取、项目打开、删除
-│   │   └── sql-wasm.wasm     # sql.js 的 wasm 文件
+│   │   ├── package.json      # preload 依赖（saxes）
+│   │   └── services.js       # Node.js 能力：SQLite/JSON/XML 读取、项目打开、删除
 │   ├── plugin.json           # 插件配置
 │   └── logo.png
 ├── src/
@@ -46,12 +46,15 @@
 ```bash
 # 安装依赖（前端 + preload）
 npm install
-cd public/preload && npm install && cd ..
+npm ci --prefix public/preload
 
 # 启动开发服务器
 npm run dev
 
-# 构建
+# 回归测试（Node.js 22.13 或更新版本）
+npm test
+
+# 构建（自动安装并打包 preload 依赖）
 npm run build
 ```
 
@@ -66,7 +69,7 @@ npm run build
 
 ## 技术栈
 
-React 19 + Vite + TypeScript + sql.js
+React 19 + Vite + TypeScript。SQLite 历史通过 ZTools 内置的 Node.js SQLite 模块读写。
 
 ## License
 

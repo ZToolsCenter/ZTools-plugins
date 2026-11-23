@@ -38,6 +38,7 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
   const [error, setError] = useState('')
   const [selected, setSelected] = useState(-1)
   const listRef = useRef<HTMLDivElement>(null)
+  const canDelete = window.services?.canDeleteProjects(ide.dbPath) ?? false
 
   // refs for document-level keydown (避免频繁重新注册)
   const filteredRef = useRef(filtered)
@@ -54,6 +55,9 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
     }
     setLoading(true)
     setError('')
+    setProjects([])
+    setFiltered([])
+    setSelected(-1)
     readProjects(ide.dbPath)
       .then(items => {
         window.services?.debugLog(`ProjectList 加载完成: ${items.length} 个项目`)
@@ -78,6 +82,7 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
 
   // 过滤
   useEffect(() => {
+    setSelected(-1)
     const q = search.toLowerCase().trim()
     if (!q) { setFiltered(projects); return }
     const terms = q.split(/\s+/)
@@ -86,7 +91,6 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
         p.name.toLowerCase().includes(t) || p.path.toLowerCase().includes(t) || p.label.toLowerCase().includes(t)
       )
     ))
-    setSelected(-1)
   }, [search, projects])
 
   // 滚动到选中项
@@ -109,6 +113,7 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
   }
 
   const handleDelete = async (project: ProjectItem) => {
+    if (!canDelete) return
     if (!confirm(`确定从历史记录中删除「${project.name}」？`)) return
     try {
       await deleteProject(ide.dbPath, project.uri)
@@ -130,11 +135,12 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
     const onKeyDown = (e: KeyboardEvent) => {
       const f = filteredRef.current
       const s = selectedRef.current
+      if (!f.length) return
       if (e.key === 'ArrowDown') {
         e.preventDefault(); setSelected(i => i >= f.length - 1 ? 0 : i + 1)
       } else if (e.key === 'ArrowUp') {
         e.preventDefault(); setSelected(i => i <= 0 ? f.length - 1 : i - 1)
-      } else if (e.key === 'Enter' && s >= 0) {
+      } else if (e.key === 'Enter' && f[s]) {
         e.preventDefault(); handleOpen(f[s])
       }
     }
@@ -157,14 +163,14 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
         <div className='pl-empty'>{search ? '没有匹配的项目' : '暂无最近项目'}</div>
       )}
 
-      <div className='pl-shortcuts-hint'>📋 复制路径 · ✕ 删除</div>
+      <div className='pl-shortcuts-hint'>📋 复制路径{canDelete && ' · ✕ 删除'}</div>
 
       <div className='pl-items' ref={listRef}>
         {filtered.map((p, i) => (
           <div key={p.uri || i}
             className={`pl-item ${i === selected ? 'pl-item-selected' : ''}`}
             onClick={() => handleOpen(p)}
-            onContextMenu={e => { e.preventDefault(); handleDelete(p) }}
+            onContextMenu={canDelete ? e => { e.preventDefault(); handleDelete(p) } : undefined}
             onMouseEnter={() => setSelected(i)}>
             <div className='pl-item-icon'>
               {p.type === 'remote' ? <IconRemote /> : p.type === 'workspace' || p.type === 'file' ? <IconFile /> : <IconFolder />}
@@ -175,8 +181,8 @@ export default function ProjectList({ ide, onBack, onEdit }: { ide: IDEItem; onB
             </div>
             <button className='pl-item-copy' onClick={e => { e.stopPropagation(); handleCopyPath(p) }}
               title='复制路径'>📋</button>
-            <button className='pl-item-del' onClick={e => { e.stopPropagation(); handleDelete(p) }}
-              title='删除此记录'>✕</button>
+            {canDelete && <button className='pl-item-del' onClick={e => { e.stopPropagation(); handleDelete(p) }}
+              title='删除此记录'>✕</button>}
             {p.type === 'remote' && <span className='pl-item-badge'>远程</span>}
           </div>
         ))}

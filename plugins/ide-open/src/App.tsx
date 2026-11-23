@@ -29,7 +29,7 @@ export default function App() {
     })
   }, [])
 
-  if (view.page === 'projects') return <ProjectList ide={view.ide} onBack={() => setView({ page: 'settings' })} />
+  if (view.page === 'projects') return <ProjectList key={view.ide.code} ide={view.ide} onBack={() => setView({ page: 'settings' })} />
 
   return <Settings />
 }

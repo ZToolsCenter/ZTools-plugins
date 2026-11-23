@@ -1,6 +1,6 @@
 {
   "type": "commonjs",
   "dependencies": {
-    "sql.js": "^1.14.1"
+    "saxes": "6.0.0"
   }
 }
