@@ -1,10 +1,10 @@
 "use strict";
 
-// Windows 系统 OCR 的 stdout 传输协议（供 public/preload.js 与 tests/ 共用）。
+// PowerShell OCR 子进程的 stdout 传输协议（供 public/preload.js 与 tests/ 共用）。
 //
 // 问题背景
 // --------
-// `bin/ocr-winrt.ps1` 由 powershell.exe 执行，stdout 的字节由
+// Windows 侧的 OCR 脚本（微信 OCR：bin/ocr-wechat-win.ps1）由 powershell.exe 执行，stdout 的字节由
 // `[Console]::OutputEncoding` 决定。该设置在「没有真实控制台 + stdout 被重定向
 // 到管道」的宿主里可能被**静默忽略**（脚本里那两行 try/catch 会吞掉失败），于是
 // 输出退回系统 OEM 代码页 —— 中文 Windows 是 936(GBK)。Node 侧若固定按 UTF-8
@@ -21,7 +21,7 @@
 //   NOCR1:<base64(UTF-8 JSON)>
 // 成功：{ ok: true,  width, height, lines: [{ text, box: { x, y, w, h } }] }
 // 失败：{ ok: false, code, message }
-// 旧版脚本直接输出明文 JSON，本模块仍兼容（见 decodeWinRtStdout 的 legacy 分支）。
+// 旧版脚本直接输出明文 JSON，本模块仍兼容（见 decodeStdout 的 legacy 分支）。
 
 const PROTOCOL_PREFIX = "NOCR1:";
 
@@ -33,7 +33,7 @@ function toBuffer(raw) {
 
 // 把脚本 stdout 解成 payload 对象；无法识别时返回 null。
 // 传入 Buffer 最佳（字节精确）；传入字符串时按 utf8 解释，仅用于旧调用点。
-function decodeWinRtStdout(raw) {
+function decodeStdout(raw) {
   const buf = toBuffer(raw);
   if (!buf.length) return null;
 
@@ -52,12 +52,12 @@ function decodeWinRtStdout(raw) {
     try {
       json = Buffer.from(b64, "base64").toString("utf8");
     } catch (_) {
-      throw new Error("Windows OCR 返回内容无法解码（协议 NOCR1）");
+      throw new Error("PowerShell OCR 返回内容无法解码（协议 NOCR1）");
     }
     try {
       return JSON.parse(json);
     } catch (_) {
-      throw new Error("Windows OCR 返回内容不是合法 JSON（协议 NOCR1）");
+      throw new Error("PowerShell OCR 返回内容不是合法 JSON（协议 NOCR1）");
     }
   }
 
@@ -69,7 +69,7 @@ function decodeWinRtStdout(raw) {
   try {
     return JSON.parse(text.slice(start));
   } catch (_) {
-    throw new Error("Windows OCR 返回内容无法解析（legacy 协议）");
+    throw new Error("PowerShell OCR 返回内容无法解析（legacy 协议）");
   }
 }
 
@@ -78,7 +78,7 @@ function decodeWinRtStdout(raw) {
 function payloadToOcrResult(payload) {
   if (!payload) return { text: "", lines: [] };
   if (payload.ok === false || payload.error) {
-    throw new Error(String(payload.message || "Windows OCR 识别失败"));
+    throw new Error(String(payload.message || "OCR 识别失败"));
   }
   const items = Array.isArray(payload.lines)
     ? payload.lines
@@ -100,19 +100,19 @@ function payloadToOcrResult(payload) {
 // 取不到才退回 stderr；stderr 若已被解成替换字符(U+FFFD) 就不要再把乱码抛给用户。
 function errorMessageFromOutput(raw, stderrText, fallback) {
   try {
-    const payload = decodeWinRtStdout(raw);
+    const payload = decodeStdout(raw);
     if (payload && payload.message) return String(payload.message);
   } catch (_) {
     // 信封本身不可解析，继续走下面的兜底。
   }
   const text = String(stderrText || "").trim();
   if (text && !text.includes("\uFFFD")) return text;
-  return fallback || "Windows OCR 识别失败";
+  return fallback || "OCR 识别失败";
 }
 
 module.exports = {
   PROTOCOL_PREFIX,
-  decodeWinRtStdout,
+  decodeStdout,
   payloadToOcrResult,
   errorMessageFromOutput
 };

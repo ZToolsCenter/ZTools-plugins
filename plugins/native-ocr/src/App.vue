@@ -293,10 +293,21 @@
             @click="startMfdDownload"
           >下载图文混排模型 (约 80MB)</button>
         </div>
+        <div v-if="wechatWinOverlayVisible" class="runtime-mask">
+          <div class="runtime-title">微信 OCR 不可用</div>
+          <div class="runtime-message">
+            {{ wechatWinDetail?.message || '需要在本机安装微信 4.x 桌面版，插件复用其自带的 wxocr.dll' }}
+          </div>
+          <button
+            type="button"
+            class="runtime-download-button"
+            @click="refreshWechatWinProbe(true)"
+          >重新检测</button>
+        </div>
         <div v-if="loading" class="busy-mask">
           <span class="spinner"></span>
           <span>{{ loadingMessage }}</span>
-          <span v-if="isFirstRunLoading && engine === 'wechat'" class="loading-note">首次使用需要初始化 OCR 模型</span>
+          <span v-if="isFirstRunLoading && engine === 'wechat' && isMacPlatform" class="loading-note">首次使用需要初始化 OCR 模型</span>
         </div>
       </section>
 
@@ -808,14 +819,20 @@ const runtimeProgress = ref({
   downloaded: 0,
   total: 0
 })
-const engine = ref(localStorage.getItem('native_ocr_engine') || 'wechat')
+// 默认引擎：macOS 用微信 OCR（免下载、离线）；Windows 用 ONNX（系统 OCR 已移除，
+// 微信 OCR 依赖本机安装微信，不如 ONNX 稳定）。
+const initialPlatform = window.nativeOcr?.getPlatform?.() || 'darwin'
+const engine = ref(localStorage.getItem('native_ocr_engine') || (initialPlatform === 'darwin' ? 'wechat' : 'rapidocr'))
 const lastRecognizedSource = ref('')
 // 切引擎时若识别在途，则登记一次待补跑的重识别（loading 结束后由 finally 消费）。
 const pendingEngineRerun = ref(false)
 const visionAvailable = ref(false)
-// Windows 视觉探针细节（非 Windows / 未探针恒为 null）。仅用于把「缺中文语言包」等解释性
-// 文案透出给用户；绝不参与启用/禁用决策，也绝不据此改变 visionAvailable 的布尔契约。
-const visionSupportDetail = ref(null)
+// Windows 微信 OCR 能力：复用本机微信自带的 wxocr.dll，需装微信 4.x。
+// probed 区分「还没探过」与「探过但不可用」—— 探测要起一次 powershell 进程，
+// 放在首帧之后做，未探测前不要因此把页签判成不可用。
+const wechatWinAvailable = ref(false)
+const wechatWinProbed = ref(false)
+const wechatWinDetail = ref(null)
 const onnxReady = ref(false)
 const onnxDownloading = ref(false)
 const onnxCacheClearing = ref(false)
@@ -990,16 +1007,7 @@ const hasContent = computed(() => Boolean(previewSrc.value || rawResultText.valu
 const runtimeReady = computed(() => runtimeStatus.value === 'ready')
 const isMacPlatform = (window.nativeOcr?.getPlatform?.() || 'darwin') === 'darwin'
 const wechatReady = computed(() => runtimeReady.value)
-const wechatSupported = computed(() => runtimeStatus.value !== 'unsupported')
-// Windows 视觉探针的补充提示：仅当探针结论明确（known === true）且给出非空 message 时采用，
-// 否则返回空串，由 engineTabs 回落到原有文案（探针无结论时不得改变任何措辞）。
-const visionDetailHint = computed(() => {
-  const detail = visionSupportDetail.value
-  if (!detail || detail.known !== true) return ''
-  const message = detail.message
-  return typeof message === 'string' && message.trim() !== '' ? message : ''
-})
-// 引擎页签排序：Windows 上 ONNX OCR（识别率最优）排第一；
+// 引擎页签排序：Windows 上 ONNX OCR（识别率最优）排第一，微信 OCR 复用本机微信；
 // macOS 保持 macOS Vision → ONNX OCR → 微信 OCR。
 const engineTabs = computed(() => {
   const onnxTab = {
@@ -1010,18 +1018,11 @@ const engineTabs = computed(() => {
     badge: onnxReady.value ? '' : '未下载',
     title: onnxReady.value ? '内置 ONNX 引擎（PP-OCR v4），支持表格识别' : '点击下载内置 ONNX 引擎（无需 Python）'
   }
-  const visionTab = isMacPlatform
-    ? {
-        id: 'vision', label: 'macOS Vision', pending: false,
-        disabled: !visionAvailable.value, badge: '',
-        title: visionAvailable.value ? '' : '需要 macOS 及 swift 命令'
-      }
-    : {
-        id: 'vision', label: 'Windows OCR', pending: false,
-        disabled: !visionAvailable.value, badge: '',
-        // 探针给出明确提示（如缺中文语言包）时优先展示；否则保持原有文案。
-        title: visionDetailHint.value || (visionAvailable.value ? '' : '需要 Windows 10 及 PowerShell')
-      }
+  const visionTab = {
+    id: 'vision', label: 'macOS Vision', pending: false,
+    disabled: !visionAvailable.value, badge: '',
+    title: visionAvailable.value ? '' : '需要 macOS 及 swift 命令'
+  }
   const formulaTab = {
     id: 'formula',
     label: '公式识别',
@@ -1046,7 +1047,18 @@ const engineTabs = computed(() => {
       : '点击下载图文混排模型（约 80MB，依赖 ONNX 引擎与公式模型）'
   }
   if (!isMacPlatform) {
-    return [onnxTab, mixedTab, formulaTab, visionTab]
+    // Windows：系统 OCR（WinRT）已移除，微信 OCR 改为复用本机微信的 wxocr.dll。
+    // 未探测前不禁用（探测在首帧后异步进行），探测完不可用才置灰并给出原因。
+    const wechatWinTab = {
+      id: 'wechat', label: '微信 OCR',
+      pending: false,
+      disabled: wechatWinProbed.value && !wechatWinAvailable.value,
+      badge: wechatWinAvailable.value || !wechatWinProbed.value ? '' : '不可用',
+      title: wechatWinAvailable.value
+        ? '调用本机微信自带的离线 OCR（需微信 4.x）'
+        : (wechatWinDetail.value?.message || '需要在本机安装微信 4.x 桌面版')
+    }
+    return [onnxTab, mixedTab, formulaTab, wechatWinTab]
   }
   const wechatTab = {
     id: 'wechat', label: '微信 OCR',
@@ -1061,11 +1073,17 @@ const readyToRecognize = computed(() => {
   if (engine.value === 'rapidocr') return onnxReady.value
   if (engine.value === 'formula') return formulaReady.value
   if (engine.value === 'mixed') return mfdReady.value
-  return wechatReady.value
+  if (engine.value === 'wechat') {
+    return isMacPlatform ? wechatReady.value : (!wechatWinProbed.value || wechatWinAvailable.value)
+  }
+  return false
 })
 const runtimeBusy = computed(() => ['checking', 'downloading', 'extracting'].includes(runtimeStatus.value))
 const runtimeCanDownload = computed(() => ['missing', 'outdated', 'error'].includes(runtimeStatus.value))
 const runtimeOverlayVisible = computed(() => engine.value === 'wechat' && isMacPlatform && !runtimeReady.value)
+// Windows 微信 OCR 不可用时的说明遮罩（macOS 走上面的运行时下载遮罩）。
+const wechatWinOverlayVisible = computed(() => engine.value === 'wechat' && !isMacPlatform
+  && wechatWinProbed.value && !wechatWinAvailable.value)
 const runtimeProgressVisible = computed(() => ['downloading', 'extracting'].includes(runtimeStatus.value))
 const tableCapable = computed(() => {
   if (engine.value === 'vision') return visionAvailable.value
@@ -2117,6 +2135,8 @@ function recognizeWithEngine(source) {
   if (engine.value === 'vision') return window.nativeOcr.recognizeVision(source)
   if (engine.value === 'rapidocr') return window.nativeOcr.recognizeOnnxOcr(source)
   if (engine.value === 'formula') return window.nativeOcr.recognizeOnnxFormula(source)
+  // Windows 的微信 OCR 走本机 wxocr.dll（P/Invoke），与 macOS 的下载运行时是两条实现
+  if (engine.value === 'wechat' && !isMacPlatform) return window.nativeOcr.recognizeWeChatWin(source)
   return window.nativeOcr.recognize(source)
 }
 
@@ -2174,7 +2194,8 @@ async function recognizeSource(source, preview = '', force = false) {
     showToast('请先下载图文混排模型')
     return
   }
-  if (engine.value !== 'vision' && engine.value !== 'rapidocr' && engine.value !== 'formula' && engine.value !== 'mixed' && !runtimeReady.value) {
+  // 微信 OCR：macOS 需要下载运行时；Windows 复用本机微信，无运行时下载这一步。
+  if (engine.value === 'wechat' && isMacPlatform && !runtimeReady.value) {
     pendingRecognition = { source, preview }
     try {
       previewSrc.value = preview || await previewForSource(source)
@@ -2182,6 +2203,10 @@ async function recognizeSource(source, preview = '', force = false) {
       // Keep the download prompt usable even if preview loading fails.
     }
     showToast('请先下载 OCR 运行时')
+    return
+  }
+  if (engine.value === 'wechat' && !isMacPlatform && wechatWinProbed.value && !wechatWinAvailable.value) {
+    showToast(wechatWinDetail.value?.message || '微信 OCR 不可用，请安装微信 4.x 桌面版')
     return
   }
   if (!force && source === lastSource && rawResultText.value) return
@@ -3759,13 +3784,6 @@ onMounted(async () => {
   } catch (_) {
     // Ignore host API failures.
   }
-  // 探针细节只用于解释性文案：宿主未暴露该 API（旧版 ZTools）或调用失败时保持 null，
-  // 绝不因此影响启动或引擎可用性判断。
-  try {
-    visionSupportDetail.value = await window.nativeOcr?.getVisionSupportDetail?.() || null
-  } catch (_) {
-    // Ignore host API failures.
-  }
   try {
     onnxReady.value = await window.nativeOcr?.isOnnxOcrAvailable?.() || false
   } catch (_) {
@@ -3781,16 +3799,38 @@ onMounted(async () => {
   } catch (_) {
     // Ignore host API failures.
   }
-  // 微信 OCR 仅支持 macOS；Windows 上历史遗留的 wechat 引擎回退到本机 OCR
-  if (engine.value === 'wechat' && !isMacPlatform) {
-    engine.value = 'vision'
+  // Windows 系统 OCR（WinRT）已移除：历史选择的 vision 统一迁到 ONNX。
+  if (!isMacPlatform && engine.value === 'vision') {
+    engine.value = 'rapidocr'
   }
   if (engine.value === 'vision' && !visionAvailable.value) {
     engine.value = 'rapidocr'
   }
   await refreshRuntimeStatus()
+  // 微信 OCR 在 Windows 上要起一次 powershell 探测微信安装情况：放到首帧之后，
+  // 避免冷启动（约数百毫秒）拖慢插件界面。探测完若不可用再把引擎迁走。
+  if (!isMacPlatform) {
+    setTimeout(refreshWechatWinProbe, 0)
+  }
   await consumePendingImage()
 })
+
+// Windows 微信 OCR 能力探测 / 重新探测（「重新检测」按钮也走这里）。
+function refreshWechatWinProbe(force = false) {
+  if (isMacPlatform) return
+  let detail = null
+  try {
+    detail = window.nativeOcr?.getWeChatWinDetail?.(force) || null
+  } catch (_) {
+    detail = { available: false, message: '无法检测微信 OCR，请重试' }
+  }
+  wechatWinDetail.value = detail
+  wechatWinAvailable.value = Boolean(detail?.available)
+  wechatWinProbed.value = true
+  if (engine.value === 'wechat' && !wechatWinAvailable.value) {
+    engine.value = 'rapidocr'
+  }
+}
 
 onBeforeUnmount(() => {
   window.removeEventListener(OCR_IMAGE_EVENT, onOcrImageEvent)
