@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.5
+
+### Changed
+- macOS 的八种快速填入预设使用系统 open 命令打开本地项目。
+
 ## 1.0.4
 
 ### Fixed

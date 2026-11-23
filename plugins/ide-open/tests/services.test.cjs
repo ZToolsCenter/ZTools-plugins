@@ -139,6 +139,9 @@ test('quick-fill prefers an existing preset and keeps all eight aliases', () => 
   const cursor = writeFixture('app-data/Cursor/storage.json', '{}')
   const presets = services.getQuickFillPresets()
   assert.deepEqual(presets.map(item => item.code), ['vsc', 'cursor', 'codium', 'idea', 'pycharm', 'webstorm', 'goland', 'qoder'])
+  if (process.platform !== 'darwin') {
+    assert.deepEqual(presets.map(item => item.command), ['code', 'cursor', 'codium', 'idea', 'pycharm', 'webstorm', 'goland', 'qoder'])
+  }
   assert.equal(presets[0].dbPath, standard)
   assert.equal(presets[1].dbPath, cursor)
   fs.rmSync(standard)

@@ -364,44 +364,86 @@ const runShell = promisify(exec)
 const runFile = promisify(execFile)
 const launchOptions = { windowsHide: true, timeout: 10000 }
 
-const macEditorBundles = new Map([
-  ['code', 'com.microsoft.VSCode'],
-  ['idea', 'com.jetbrains.intellij']
+const macEditors = new Map([
+  ['code', { apps: ['Visual Studio Code'], bundledCLI: 'code' }],
+  ['cursor', { apps: ['Cursor'], bundledCLI: 'cursor' }],
+  ['codium', { apps: ['VSCodium'], bundledCLI: 'codium' }],
+  ['idea', { apps: ['IntelliJ IDEA', 'IntelliJ IDEA CE', 'IntelliJ IDEA Ultimate'] }],
+  ['pycharm', { apps: ['PyCharm', 'PyCharm CE'] }],
+  ['webstorm', { apps: ['WebStorm'] }],
+  ['goland', { apps: ['GoLand'] }],
+  ['qoder', { apps: ['Qoder IDE', 'Qoder'], bundledCLI: 'code' }]
 ])
 
-async function openRemoteVSCodeOnMac(args) {
-
-  // 远程 URI 需要交给 VS Code 的 CLI，macOS open 无法把启动参数传给已运行的实例。
-  const cli = ['/Applications', path.join(homedir(), 'Applications')]
-    .map(dir => path.join(dir, 'Visual Studio Code.app', 'Contents', 'Resources', 'app', 'bin', 'code'))
+function findMacAppFile(app, ...parts) {
+  return ['/Applications', path.join(homedir(), 'Applications')]
+    .map(dir => path.join(dir, `${app}.app`, ...parts))
     .find(filePath => fs.existsSync(filePath))
+}
 
-  if (!cli) throw new Error('未找到 VS Code 内置命令。请在 VS Code 中将 code 安装到 PATH 后再打开远程项目。')
-  await runFile(cli, args, launchOptions)
+function preferredMacApp(editor) {
+  return editor.apps.length === 1
+    ? editor.apps[0]
+    : editor.apps.find(app => findMacAppFile(app)) || editor.apps[0]
+}
+
+function macOpenCommand(app) {
+  return `/usr/bin/open -a "${app}"`
+}
+
+function matchMacOpenCommand(command) {
+  const fullCommand = command.startsWith('open ') ? `/usr/bin/${command}` : command
+  for (const [launcher, editor] of macEditors) {
+    const app = editor.apps.find(name => macOpenCommand(name) === fullCommand)
+    if (app) return { launcher, app, bundledCLI: editor.bundledCLI }
+  }
+}
+
+function runConfiguredCommand(command, args, shell) {
+  const cmd = [command, ...args.slice(0, -1), escapeShellArg(args.at(-1))].join(' ')
+  const fullCmd = shell ? `${shell} ${escapeShellArg(cmd)}` : cmd
+  debugLog(`执行: ${fullCmd}`)
+  return runShell(fullCmd, launchOptions)
+}
+
+function findBundledCLI(app, binary) {
+  return findMacAppFile(app, 'Contents', 'Resources', 'app', 'bin', binary)
 }
 
 async function openProject(command, uri, shell) {
   const effectiveShell = shell || defaultShell
   const isRemote = /^[a-z]+-remote:\/\//.test(uri)
   const args = isRemote ? [uri.endsWith('.code-workspace') ? '--file-uri' : '--folder-uri', uri] : [uriToPath(uri)]
-  const cmd = [command, ...args.slice(0, -1), escapeShellArg(args.at(-1))].join(' ')
-  const fullCmd = effectiveShell ? `${effectiveShell} ${escapeShellArg(cmd)}` : cmd
-  debugLog(`执行: ${fullCmd}`)
+  const launcher = command.trim()
+  const isMac = process.platform === 'darwin'
 
   try {
-    try {
-      await runShell(fullCmd, launchOptions)
-    } catch (error) {
-      const launcher = command.trim()
-      const bundleId = macEditorBundles.get(launcher)
-      if (process.platform !== 'darwin' || error.code !== 127 || !bundleId) throw error
+    // macOS open 只用于本地路径，远程 URI 仍需由编辑器的 CLI 接收。
+    const macPreset = isMac && isRemote ? matchMacOpenCommand(launcher) : null
+    if (macPreset) {
+      const { app, bundledCLI } = macPreset
+      if (!bundledCLI) throw new Error(`${app} 的预设无法打开远程项目`)
+      const cli = findBundledCLI(app, bundledCLI)
+      if (cli) await runFile(cli, args, launchOptions)
+      else await runConfiguredCommand(macPreset.launcher, args, effectiveShell)
+      return
+    }
 
-      if (isRemote) {
-        if (launcher !== 'code') throw error
-        await openRemoteVSCodeOnMac(args)
+    try {
+      await runConfiguredCommand(command, args, effectiveShell)
+    } catch (error) {
+      // 兼容升级前保存的预设命令。
+      const editor = isMac ? macEditors.get(launcher) : null
+      if (error.code !== 127 || !editor) throw error
+
+      const app = preferredMacApp(editor)
+      if (!isRemote) {
+        await runFile('/usr/bin/open', ['-a', app, '--', path.resolve(args[0])], launchOptions)
       } else {
-        debugLog(`未找到 ${launcher} 命令，通过 macOS 打开 ${bundleId}`)
-        await runFile('/usr/bin/open', ['-b', bundleId, '--', path.resolve(args[0])], launchOptions)
+        if (!editor.bundledCLI) throw error
+        const cli = findBundledCLI(app, editor.bundledCLI)
+        if (!cli) throw error
+        await runFile(cli, args, launchOptions)
       }
     }
   } catch (error) {
@@ -488,13 +530,16 @@ function getPresets() {
 
 function getQuickFillPresets() {
   const aliases = { vscode: 'vsc', vscodium: 'codium' }
-  return Object.entries(getPresets()).map(([key, preset]) => ({
-    code: aliases[key] || key,
-    name: preset.name,
-    command: preset.command,
-    dbPath: preset.dbPaths.find(p => fs.existsSync(resolveGlobPath(p))) || preset.dbPaths[0],
-    shell: defaultShell
-  }))
+  return Object.entries(getPresets()).map(([key, preset]) => {
+    const macEditor = process.platform === 'darwin' ? macEditors.get(preset.command) : null
+    return {
+      code: aliases[key] || key,
+      name: preset.name,
+      command: macEditor ? macOpenCommand(preferredMacApp(macEditor)) : preset.command,
+      dbPath: preset.dbPaths.find(p => fs.existsSync(resolveGlobPath(p))) || preset.dbPaths[0],
+      shell: defaultShell
+    }
+  })
 }
 
 function detectPresetPaths() {
