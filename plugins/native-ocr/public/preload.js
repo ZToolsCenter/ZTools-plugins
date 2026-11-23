@@ -7,14 +7,31 @@ const zlib = require("node:zlib");
 const { clipboard } = require("electron");
 const { execFile, spawn, spawnSync } = require("node:child_process");
 
-// Windows 系统 OCR 的 stdout 解码（ASCII base64 协议，见 public/winrt-payload.cjs）。
+// PowerShell OCR 子进程的 stdout 解码（ASCII base64 协议，见 public/ps-ocr-payload.cjs）。
 // 单独成模块是为了能在纯 Node 下单测：preload.js 顶层 require("electron")，测试里跑不起来。
-// 缺该文件时不让整个 preload 崩掉 —— 只有 Windows 系统 OCR 这条路会报错。
-let winrtPayload = null;
+// 缺该文件时不让整个 preload 崩掉 —— 只有 Windows 微信 OCR 这条路会报错。
+let psPayload = null;
 try {
-  winrtPayload = require("./winrt-payload.cjs");
+  psPayload = require("./ps-ocr-payload.cjs");
 } catch (_) {
-  winrtPayload = null;
+  psPayload = null;
+}
+
+// 微信 OCR 原始返回的容错解析（返回值形状随微信版本变化，纯 Node 可测）。
+let wechatResult = null;
+try {
+  wechatResult = require("./wechat-result.cjs");
+} catch (_) {
+  wechatResult = null;
+}
+
+// ONNX 子进程启动失败的诊断（原生模块加载失败的原因只出现在 stderr 里）。
+// 同样单独成模块以便单测；缺失时退化为原有兜底文案。
+let onnxDiagnose = null;
+try {
+  onnxDiagnose = require("./onnx-diagnose.cjs");
+} catch (_) {
+  onnxDiagnose = null;
 }
 
 const OCR_IMAGE_STORAGE_KEY = "native_ocr_image";
@@ -648,32 +665,52 @@ function runVisionScript(scriptPath, imagePath) {
   });
 }
 
-function runWinRtOcrScript(scriptPath, imagePath) {
-  const scriptReal = ensureRuntimeScript(scriptPath, "ztools-native-ocr-winrt.ps1");
+// ---------------------------------------------------------------------------
+// PowerShell OCR 子进程（仅 Windows）
+// 原「Windows 系统 OCR（WinRT）」已移除，这条通道现在只服务微信 OCR。
+// ---------------------------------------------------------------------------
+const WECHAT_WIN_SCRIPT = "ocr-wechat-win.ps1";
+
+// 微信 OCR 在 Windows 上复用本机微信自带的 wxocr.dll（不随插件分发），
+// 因此目标机必须装微信 4.x。原因码 → 中文文案：脚本侧保持纯 ASCII
+// （PowerShell 5.1 会用 ANSI 读取无 BOM 的 UTF-8 文件），文案统一放这里。
+const WECHAT_WIN_REASONS = {
+  "wxocr-dll-missing": "未找到微信 OCR 组件 wxocr.dll，请安装并登录微信 4.x 桌面版后重试",
+  "wechat-dir-missing": "未找到微信安装目录（Weixin.exe），请确认微信 4.x 已正确安装"
+};
+
+function localizeWeChatWinError(message) {
+  const text = String(message || "");
+  for (const [code, zh] of Object.entries(WECHAT_WIN_REASONS)) {
+    if (text.startsWith(code)) return zh;
+  }
+  return text;
+}
+
+function runPowerShellOcrScript(scriptName, args) {
+  const scriptReal = ensureRuntimeScript(
+    path.join(__dirname, "bin", scriptName),
+    `ztools-native-ocr-${scriptName}`
+  );
   return new Promise((resolve, reject) => {
     execFile("powershell.exe", [
       "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-      "-File", scriptReal, "-ImagePath", imagePath
+      "-File", scriptReal, ...args
     ], {
       timeout: 60000,
       maxBuffer: 8 * 1024 * 1024,
       windowsHide: true,
-      // 取原始字节，不让 Node 提前做有损解码。
-      // 新协议是纯 ASCII base64（任何代码页字节相同）；旧协议再按 utf8 解。
-      // 若用默认 utf8，GBK 输出会先被解成 U+FFFD，后面任何补救都无效。
+      // 取原始字节，不让 Node 提前做有损解码（协议是纯 ASCII base64）。
       encoding: "latin1"
     }, (err, stdout, stderr) => {
       const outBuf = Buffer.from(String(stdout || ""), "latin1");
       if (err) {
-        // 失败信息优先取 stdout 里的 base64 信封（不受本机代码页影响）；
-        // stderr 先按字节还原成 utf8，若已是替换字符则不再把乱码抛给用户。
         const stderrText = Buffer.from(String(stderr || ""), "latin1").toString("utf8");
-        const fallbackMessage = err.message || "Windows OCR 识别失败";
-        reject(new Error(
-          winrtPayload
-            ? winrtPayload.errorMessageFromOutput(outBuf, stderrText, fallbackMessage)
-            : fallbackMessage
-        ));
+        const fallbackMessage = err.message || "微信 OCR 识别失败";
+        const raw = psPayload
+          ? psPayload.errorMessageFromOutput(outBuf, stderrText, fallbackMessage)
+          : fallbackMessage;
+        reject(new Error(localizeWeChatWinError(raw)));
         return;
       }
       resolve(outBuf);
@@ -681,23 +718,90 @@ function runWinRtOcrScript(scriptPath, imagePath) {
   });
 }
 
-function parseWinRtOutput(raw) {
-  if (!winrtPayload) {
-    throw new Error("Windows OCR 解码模块缺失（winrt-payload.cjs），请重新安装插件");
+// 探测结果缓存：微信是否安装不会在会话中途变化，每次识别都跑一次 PowerShell 太贵。
+let wechatWinProbeCache = null;
+
+function probeWeChatWin(force = false) {
+  if (process.platform !== "win32") {
+    return { available: false, reasonCode: "unsupported-platform", detail: "not win32" };
   }
-  const { text, lines } = winrtPayload.payloadToOcrResult(winrtPayload.decodeWinRtStdout(raw));
-  return { engine: "vision", text, lines };
+  if (!force && wechatWinProbeCache) return wechatWinProbeCache;
+  let probe;
+  try {
+    probe = spawnSync("powershell.exe", [
+      "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+      "-File", ensureRuntimeScript(path.join(__dirname, "bin", WECHAT_WIN_SCRIPT), `ztools-native-ocr-${WECHAT_WIN_SCRIPT}`),
+      "-Probe"
+    ], {
+      timeout: 20000,
+      maxBuffer: 4 * 1024 * 1024,
+      windowsHide: true,
+      encoding: "latin1"
+    });
+  } catch (error) {
+    return { available: false, reasonCode: "probe-failed", detail: error.message };
+  }
+  const outBuf = Buffer.from(String((probe && probe.stdout) || ""), "latin1");
+  let payload = null;
+  try {
+    payload = psPayload ? psPayload.decodeStdout(outBuf) : null;
+  } catch (_) {
+    payload = null;
+  }
+  if (!payload) {
+    const stderrText = Buffer.from(String((probe && probe.stderr) || ""), "latin1").toString("utf8").trim();
+    return {
+      available: false,
+      reasonCode: "probe-failed",
+      detail: stderrText.slice(0, 300) || "探测脚本没有返回结果"
+    };
+  }
+  const result = {
+    available: Boolean(payload.available),
+    reasonCode: String(payload.reasonCode || (payload.available ? "ok" : "unknown")),
+    detail: String(payload.detail || ""),
+    wxocrDll: String(payload.wxocrDll || ""),
+    wechatDir: String(payload.wechatDir || ""),
+    message: localizeWeChatWinError(String(payload.reasonCode || ""))
+  };
+  wechatWinProbeCache = result;
+  return result;
 }
 
-async function recognizeWinRtOcr(source) {
+async function recognizeWeChatWin(source) {
   let tempFile = "";
   try {
     const imagePath = typeof source === "string" && source.startsWith("data:image/")
       ? (tempFile = dataUrlToTempFile(source))
       : assertImagePath(source);
-    const scriptPath = path.join(__dirname, "bin", "ocr-winrt.ps1");
-    const stdout = await runWinRtOcrScript(scriptPath, imagePath);
-    return parseWinRtOutput(stdout);
+    const probe = probeWeChatWin();
+    if (!probe.available) {
+      throw new Error(probe.message || localizeWeChatWinError(probe.reasonCode));
+    }
+    const raw = await runPowerShellOcrScript(WECHAT_WIN_SCRIPT, ["-ImagePath", imagePath]);
+    if (!psPayload) {
+      throw new Error("PowerShell 传输解码模块缺失（ps-ocr-payload.cjs），请重新安装插件");
+    }
+    const payload = psPayload.decodeStdout(raw);
+    if (!payload) throw new Error("微信 OCR 没有返回结果");
+    if (payload.ok === false) {
+      throw new Error(localizeWeChatWinError(String(payload.message || "微信 OCR 识别失败")));
+    }
+    if (!payload.raw) throw new Error("微信 OCR 返回结果为空");
+    if (!wechatResult) {
+      throw new Error("微信 OCR 结果解析模块缺失（wechat-result.cjs），请重新安装插件");
+    }
+    const bytes = Buffer.from(String(payload.raw), "base64");
+    const parsed = wechatResult.parseWeChatResult(bytes, {
+      width: Number(payload.width) || 0,
+      height: Number(payload.height) || 0
+    });
+    return {
+      engine: "wechat",
+      text: parsed.lines.map((line) => line.text).join("\n"),
+      lines: parsed.lines,
+      raw: parsed
+    };
   } finally {
     if (tempFile) {
       try {
@@ -777,11 +881,10 @@ function parseVisionOutput(raw, engineName = "vision") {  const output = String(
 }
 
 async function recognizeVision(source) {
-  if (process.platform === "win32") {
-    return recognizeWinRtOcr(source);
-  }
+  // Windows 系统 OCR（WinRT）已移除：识别质量明显弱于微信 OCR / ONNX，
+  // 且需要额外安装中文语言包。Windows 侧请使用微信 OCR 或 ONNX。
   if (process.platform !== "darwin") {
-    throw new Error("系统 OCR 仅支持 macOS / Windows");
+    throw new Error("系统 OCR 仅支持 macOS，Windows 请使用微信 OCR 或 ONNX OCR");
   }
   let tempFile = "";
   try {
@@ -924,91 +1027,10 @@ async function translateSegments(segments, toLang) {
   return translated;
 }
 
-// Windows 系统 OCR 走内置 PowerShell + WinRT，无 OCR 语言包时引擎不可用。
-// 只验证「powershell 能跑」会把英文版 Windows（或未装中文语言包）也判成可用，
-// 实际识别中文会失败或极差，所以这里做一次真实探针，查 AvailableRecognizerLanguages。
-// 探针与 PS 版本检查合并成同一次调用（避免启动时多一次 powershell 冷启动），
-// 输出只用 ASCII 标签，不受中文控制台的代码页影响。
-const WIN_VISION_PROBE_SCRIPT = [
-  "$psv = $PSVersionTable.PSVersion.Major",
-  "$probe = 'ERR'",
-  "$langs = ''",
-  "try {",
-  "  $null = [Windows.Media.Ocr.OcrEngine, Windows.Foundation, ContentType = WindowsRuntime]",
-  "  $langs = (@([Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages) | ForEach-Object { $_.LanguageTag }) -join ','",
-  "  $probe = 'OK'",
-  "} catch { }",
-  "Write-Output ('PSV=' + $psv + ';PROBE=' + $probe + ';LANGS=' + $langs)"
-].join("\n");
-const WIN_VISION_PROBE_TIMEOUT_MS = 8000;
-
-let lastWindowsVisionProbe = null;
-
-// 返回 { known, powershellAvailable, languages, chinese, message }。
-// known=false 表示探针本身没结论（异常 / 超时 / 输出不可解析 / WinRT 查询失败），
-// 调用方必须退回旧的乐观判断，绝不能因此把可用环境判成不可用。
-function probeWindowsVision() {
-  let probe;
-  try {
-    probe = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", WIN_VISION_PROBE_SCRIPT], {
-      encoding: "utf8",
-      timeout: WIN_VISION_PROBE_TIMEOUT_MS,
-      windowsHide: true
-    });
-  } catch (_) {
-    return {
-      known: false,
-      powershellAvailable: true,
-      languages: [],
-      chinese: false,
-      message: "无法检测 Windows 系统 OCR，已按兼容策略视为可用"
-    };
-  }
-  // 只有确定 powershell.exe 缺失（ENOENT）才算不可用；超时 / 被终止 / 非零退出
-  // 都可能只是慢或被安全软件拦截，按旧判断乐观处理。
-  const powershellAvailable = !(probe.error && probe.error.code === "ENOENT");
-  const stdout = typeof probe.stdout === "string" ? probe.stdout : "";
-  const versionMatch = /PSV=(\d+)/.exec(stdout);
-  const probeMatch = /PROBE=([A-Z]+)/.exec(stdout);
-  const langsMatch = /LANGS=([^\r\n]*)/.exec(stdout);
-  if (probe.status !== 0 || !versionMatch || !probeMatch || !langsMatch || probeMatch[1] !== "OK") {
-    return {
-      known: false,
-      powershellAvailable,
-      languages: [],
-      chinese: false,
-      message: "未能确认 Windows 系统 OCR 语言包，已按兼容策略视为可用"
-    };
-  }
-  const languages = langsMatch[1].split(",").map((tag) => tag.trim()).filter(Boolean);
-  const chinese = languages.some((tag) => /^zh/i.test(tag));
-  return {
-    known: true,
-    powershellAvailable: true,
-    languages,
-    chinese,
-    message: languages.length
-      ? (chinese ? "" : "Windows 系统 OCR 未安装中文识别语言包，请在「设置 > 时间和语言 > 语言」中添加中文并安装语言包")
-      : "Windows 系统 OCR 引擎不可用，请安装 OCR 语言包（设置 > 时间和语言 > 语言）"
-  };
-}
-
 function isVisionAvailable() {
-  if (process.platform === "win32") {
-    const probe = probeWindowsVision();
-    lastWindowsVisionProbe = probe;
-    // 探针没结论 → 退回旧的「powershell 能跑就算可用」，宁可乐观也不制造假阴性
-    // （假阴性会让 UI 直接禁用系统 OCR 引擎）。
-    if (!probe.known) return probe.powershellAvailable;
-    // 探到 WinRT OCR 但一个识别语言都没有，说明引擎确实不可用。
-    if (!probe.languages.length) return false;
-    // 有 OCR 但缺中文语言包时仍返回 true（引擎可用，只是中文效果差），
-    // 提示信息放在 getVisionSupportDetail() 里，不改变本函数的布尔契约。
-    return true;
-  }
-  if (process.platform !== "darwin") {
-    return false;
-  }
+  // Windows 系统 OCR（WinRT）已移除：识别质量明显弱于微信 OCR / ONNX，且依赖中文语言包。
+  // Windows 侧的可选引擎为 ONNX OCR 与微信 OCR（见 probeWeChatWin）。
+  if (process.platform !== "darwin") return false;
   try {
     const result = spawnSync("which", ["swift"], { encoding: "utf8", timeout: 5000 });
     return result.status === 0
@@ -1019,28 +1041,9 @@ function isVisionAvailable() {
   }
 }
 
-// 附件能力（不改变 isVisionAvailable 的布尔契约）：UI 想提示「需安装中文语言包」
-// 时可读上一次探针细节；未探针过（非 Windows）返回 null。
+// 保留导出以维持 preload 契约：Windows 已无系统 OCR 探针，恒返回 null。
 function getVisionSupportDetail() {
-  return lastWindowsVisionProbe ? { ...lastWindowsVisionProbe } : null;
-}
-
-// ---------------------------------------------------------------------------
-// Python 探测（仅供 Windows 微信 OCR 过渡链路使用；ONNX OCR / Vision 均无 Python）
-// ---------------------------------------------------------------------------
-
-function pythonCandidates() {
-  if (process.platform === "win32") {
-    return ["python", "python3", "py"];
-  }
-  // GUI 应用不继承 shell 的 PATH，需补充常见绝对路径
-  return [
-    "/opt/homebrew/bin/python3",
-    "/usr/local/bin/python3",
-    "/usr/bin/python3",
-    "python3",
-    "python"
-  ];
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1248,6 +1251,22 @@ async function installOnnxRuntime(onProgress) {
 
 let onnxServerState = null;
 
+// 服务进程已退出时组装报错：ESM 静态 import 的原生模块加载失败会直接杀掉进程、
+// stdout 无输出，原因只在 stderr 尾部。这里把它带进用户可见的错误里。
+function onnxStartupErrorMessage(state, fallback, exitCode, signal) {
+  if (state && state.fatalError) return state.fatalError;
+  if (!onnxDiagnose) return fallback;
+  return onnxDiagnose.startupErrorDetail({
+    stderrTail: state ? state.stderrTail : "",
+    exitCode,
+    signal,
+    platform: process.platform,
+    systemRoot: process.env.SystemRoot || process.env.windir || "",
+    existsSync: fs.existsSync,
+    fallback
+  });
+}
+
 // ONNX 依赖 ESM 原生模块，渲染进程 preload 的动态 import() 走浏览器解析
 // （报 process is not defined），因此放在 Electron 自带 Node 的子进程里跑：
 // process.execPath + ELECTRON_RUN_AS_NODE=1，无需系统安装 Node。
@@ -1258,6 +1277,17 @@ function ensureOnnxServer() {
   const scriptPath = path.join(getOnnxRuntimeDir(), "onnx_ocr_server.mjs");
   if (!fs.existsSync(scriptPath)) {
     throw new Error("ONNX OCR 服务脚本缺失，请重新下载引擎");
+  }
+  // 平台二进制预检：安装时按 trimPlatformBin 只保留当前 platform/arch 那一份。
+  // 若宿主 Electron 的架构在包内没有对应二进制（如 32 位 Electron），整个 bin
+  // 目录会被裁空，表现是「引擎显示已安装但永远起不来」且没有任何原因。
+  if (onnxDiagnose) {
+    const binDir = onnxDiagnose.nativeBinDir(getOnnxRuntimeDir(), process.platform, process.arch);
+    if (!fs.existsSync(binDir)) {
+      throw new Error(
+        `ONNX 运行库缺少当前平台的二进制（${process.platform}/${process.arch}），请重置 ONNX 引擎后重试`
+      );
+    }
   }
   // 启动前同步最新服务脚本：识别逻辑修复不依赖模型重下载。
   // 动态扫描 bin/*.mjs（避免新增模块后漏同步导致 import 失败），异常时回退静态列表。
@@ -1340,7 +1370,7 @@ function ensureOnnxServer() {
       onnxServerState = null;
     }
   };
-  proc.on("exit", () => failAll(new Error(state.fatalError || "ONNX OCR 服务进程已退出")));
+  proc.on("exit", (code, signal) => failAll(new Error(onnxStartupErrorMessage(state, "ONNX OCR 服务进程已退出", code, signal))));
   proc.on("error", (error) => failAll(error));
   onnxServerState = state;
   return state;
@@ -1356,7 +1386,7 @@ function waitOnnxServerReady(state, timeoutMs = 90000) {
         return;
       }
       if (state.proc.exitCode !== null) {
-        reject(new Error(state.fatalError || "ONNX OCR 服务进程启动失败"));
+        reject(new Error(onnxStartupErrorMessage(state, "ONNX OCR 服务进程启动失败", state.proc.exitCode, null)));
         return;
       }
       if (state.fatalError) {
@@ -1730,7 +1760,7 @@ function ensureOnnxFormulaServer() {
       onnxFormulaServerState = null;
     }
   };
-  proc.on("exit", () => failAll(new Error(state.fatalError || "公式识别服务进程已退出")));
+  proc.on("exit", (code, signal) => failAll(new Error(onnxStartupErrorMessage(state, "公式识别服务进程已退出", code, signal))));
   proc.on("error", (error) => failAll(error));
   onnxFormulaServerState = state;
   return state;
@@ -1835,7 +1865,7 @@ function ensureOnnxMixedServer() {
       onnxMixedServerState = null;
     }
   };
-  proc.on("exit", () => failAll(new Error(state.fatalError || "图文混排服务进程已退出")));
+  proc.on("exit", (code, signal) => failAll(new Error(onnxStartupErrorMessage(state, "图文混排服务进程已退出", code, signal))));
   proc.on("error", (error) => failAll(error));
   onnxMixedServerState = state;
   return state;
@@ -2215,6 +2245,14 @@ window.nativeOcr = {
   recognizeVision,
   isVisionAvailable,
   getVisionSupportDetail,
+  // Windows 微信 OCR（复用本机微信自带的 wxocr.dll）
+  recognizeWeChatWin,
+  isWeChatWinAvailable(force = false) {
+    return probeWeChatWin(force).available;
+  },
+  getWeChatWinDetail(force = false) {
+    return { ...probeWeChatWin(force) };
+  },
   recognizeOnnxOcr,
   isOnnxOcrAvailable,
   installOnnxRuntime,
