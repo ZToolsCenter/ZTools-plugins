@@ -1,9 +1,9 @@
 {
   "name": "json-editor",
   "description": "JSON 编辑器",
-  "version": "1.7.2",
-  "main": "index.html",
-  "preload": "preload.js",
+  "version": "1.7.3",
+  "main": "dist/index.html",
+  "preload": "preload/services.js",
   "logo": "logo.png",
   "pluginSetting": {
     "single": false
@@ -23,5 +23,8 @@
       ]
     }
   ],
-  "title": "json-editor"
+  "title": "json-editor",
+  "development": {
+    "main": "http://127.0.0.1:5173/"
+  }
 }

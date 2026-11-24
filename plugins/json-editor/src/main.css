@@ -1,0 +1,250 @@
+html,
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+html,
+body,
+#app,
+.editor-shell {
+  background: transparent;
+}
+
+.editor-shell {
+  --border: rgba(0, 0, 0, 0.1);
+  --label: #666;
+  --field-text: #333;
+  --icon: rgba(0, 0, 0, 0.54);
+  --icon-hover: rgba(0, 0, 0, 0.04);
+  --divider: rgba(0, 0, 0, 0.12);
+  --notification-info: #0288d1;
+  --notification-error: #d32f2f;
+  --notification-text: #fff;
+
+  position: fixed;
+  inset: 0;
+}
+
+.content {
+  position: absolute;
+  inset: 0 0 38px;
+}
+
+.content > div {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+#inputEditor {
+  left: 0;
+  border-right: 1px solid var(--border);
+}
+
+#outputEditor {
+  right: 0;
+  width: calc(50% - 10px);
+}
+
+.content > div > .monaco-editor,
+.content > div > .monaco-editor > .overflow-guard :is(
+  .monaco-editor-background, .margin, .lines-decorations, .inputarea.ime-input
+) {
+  background-color: transparent;
+}
+
+.placeholder {
+  position: absolute;
+  top: 24px;
+  left: 60px;
+  color: #888;
+  font-weight: 200;
+}
+
+.footer {
+  position: absolute;
+  inset: auto 0 0;
+  height: 38px;
+  display: flex;
+  border-top: 1px solid var(--border);
+}
+
+.footer .left {
+  width: 40px;
+  height: 100%;
+  text-align: center;
+  line-height: 38px;
+  font-size: 16px;
+  color: var(--label);
+  user-select: none;
+}
+
+.footer .right {
+  flex: 1;
+  min-width: 0;
+}
+
+.footer input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding-right: 50px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--field-text);
+  font: 14px Consolas, 'Courier New', monospace;
+}
+
+.footer input::placeholder {
+  color: #ababab;
+  font-size: 13px;
+  user-select: none;
+}
+
+.handle {
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.tool-button,
+.notification-close {
+  padding: 5px;
+  border: 0;
+  border-radius: 50%;
+  margin: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--icon);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.tool-button:hover,
+.tool-button:focus-visible {
+  background-color: var(--icon-hover);
+}
+
+.tool-button:active {
+  background-color: var(--divider);
+}
+
+.tool-button svg,
+.notification svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.toolbar-divider {
+  align-self: stretch;
+  width: 0;
+  border: 0;
+  border-right: 1px solid var(--divider);
+  margin: 8px 4px;
+}
+
+.tool-tooltip {
+  position: fixed;
+  z-index: 3;
+  bottom: 50px;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: rgba(97, 97, 97, 0.92);
+  color: #fff;
+  font: 500 11px/1.4 Roboto, Helvetica, Arial, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: tooltip-appear 150ms 100ms both;
+}
+
+@keyframes tooltip-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.notification {
+  position: absolute;
+  z-index: 2;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  max-width: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 6px 16px;
+  border-radius: 4px;
+  background-color: var(--notification-info);
+  color: var(--notification-text);
+  font: 500 14px/1.43 Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0.15px;
+}
+
+.notification.error {
+  background-color: var(--notification-error);
+  color: #fff;
+}
+
+.notification .notification-icon {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin: 7px 12px 7px 0;
+  opacity: 0.9;
+}
+
+.notification span {
+  padding: 8px 0;
+}
+
+.notification-close {
+  margin: 4px -8px 0 16px;
+  color: inherit;
+}
+
+.notification-close:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.notification-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.message-enter-active,
+.message-leave-active {
+  transition: opacity 160ms ease;
+}
+
+.message-enter-from,
+.message-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 599px) {
+  .notification {
+    top: 8px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .editor-shell {
+    --border: rgba(255, 255, 255, 0.1);
+    --label: #999;
+    --field-text: #f7f8f9;
+    --icon: #fff;
+    --icon-hover: rgba(255, 255, 255, 0.08);
+    --divider: rgba(255, 255, 255, 0.12);
+    --notification-info: #29b6f6;
+    --notification-error: #f44336;
+    --notification-text: rgba(0, 0, 0, 0.87);
+    color: #fff;
+  }
+}
