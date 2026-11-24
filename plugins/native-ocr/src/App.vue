@@ -298,6 +298,10 @@
           <div class="runtime-message">
             {{ wechatWinDetail?.message || '需要在本机安装微信 4.x 桌面版，插件复用其自带的 wxocr.dll' }}
           </div>
+          <!-- 判定依据：命中的路径 / 差在哪一环。只说「不可用」用户没法自助。 -->
+          <div v-if="wechatWinDetail?.detail" class="runtime-diagnostic">
+            {{ wechatWinDetail.detail }}
+          </div>
           <button
             type="button"
             class="runtime-download-button"
@@ -4253,6 +4257,22 @@ onBeforeUnmount(() => {
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* 判定依据：等宽、可换行，长路径不能撑破遮罩。 */
+.runtime-diagnostic {
+  max-width: min(420px, calc(100vw - 48px));
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--switch-bg);
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .runtime-message .exe-path {
