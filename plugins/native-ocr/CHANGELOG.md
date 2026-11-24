@@ -2,9 +2,11 @@
 
 Native OCR 从官方 `wechat-ocr` 插件 fork 而来，作者署名 Samson。以下版本历史已按里程碑整合。
 
-## 1.2.0 - 2026-11-23
+## 1.2.1 - 2026-11-24
 
 次要版本：**调整 Windows 的引擎组合**——移除系统 OCR，加回微信 OCR；同时修掉 ONNX 引擎「起不来又不说原因」的问题。macOS 的引擎组合不变（Vision / ONNX / 图文混排 / 公式 / 微信 OCR）。
+
+本版吸收原 1.2.0 草案（未单独发布），并修复微信 OCR 在真机上「微信已安装却仍提示不可用」的定位缺陷。
 
 ### 变更（仅 Windows）
 
@@ -17,12 +19,16 @@ Native OCR 从官方 `wechat-ocr` 插件 fork 而来，作者署名 Samson。以
 
 - **ONNX 服务启动失败时不再吞掉真实原因**：`onnx_ocr_server.mjs` 顶层是静态 `import 'onnxruntime-node'`，ESM 静态导入在模块求值前解析，原生模块加载失败会在任何 `try/catch` 之前杀掉进程 —— stdout 一个字节都没有，界面只能显示「服务启动失败」，真正的原因只留在被丢弃的 stderr 里。现在预加载脚本会把子进程 stderr 尾部与退出码拼进错误信息，并在 Windows 上识别 `LoadLibrary` 失败后检查 `System32` 下的 `vcruntime140.dll` / `vcruntime140_1.dll` / `msvcp140.dll`，缺哪个报哪个，并直接提示安装 VC++ 2015-2022 x64 运行库。
 - **新增平台二进制预检**：启动前检查 `node_modules/onnxruntime-node/bin/napi-v3/<platform>/<arch>` 是否存在。宿主为 32 位 Electron 时包内没有对应二进制，此前表现为「引擎显示已安装但永远起不来」，现在直接报「缺少当前平台的二进制」。OCR / 公式识别 / 图文混排三个服务统一走这套报错。
+- **微信 OCR 运行时目录取错（真机暴露）**：`wechat_ocr()` 的第二个参数要求的是**带版本号的运行时目录**（`mmmojo_64.dll` 所在处，形如 `C:\Program Files\Tencent\Weixin\4.1.5.30`），此前传的是 `Weixin.exe` 所在的父目录 `...\Tencent\Weixin`。探测能过、调用必挂。现在先定位 `mmmojo_64.dll`，找不到才回退到客户端所在目录。
+- **「不可用」不再只有一句话**：原先四种完全不同的情况都压成「未找到微信 OCR 组件」，用户无从下手。现在分开判定并给出对应处置——`wechat-not-found`（没装微信）、`legacy-wechat-3x`（装了 3.x，其 `WeChatOCR.exe` 接口不兼容）、`wxocr-dll-missing`（微信 4.x 已在，但 OCR 组件尚未下发，需先在微信里对图片用一次「提取文字」）、`wechat-dir-missing`（缺 `mmmojo_64.dll`，安装可能不完整）。遮罩上同时显示判定依据（实际命中的路径 / 差在哪一环），等宽小字展示。
+- **组件查找改为按 XPlugin 子树递归**：不再假定 `<build>\extracted\wxocr.dll` 这一固定层级，改为在 `XPlugin` 下递归找 `wxocr.dll` 并取最新写入的一份。同时**只递归 `XPlugin`**，不碰 `%APPDATA%\Tencent` 整体——后者存放聊天数据库，全量递归会慢到不可接受。
 
 ### 工程
 
 - 新增 `tests/onnx-diagnose.mjs`（16 项）：把「进程崩溃时错误信息必须包含 stderr 原因」和「运行库齐全时不得误导用户去装」写成不变量断言。
 - 新增 `tests/wechat-result.mjs`（20 项）：锁定微信返回值的容错范围（`results` / `ocr_result` / 根数组、多边形与 `x/y/w/h` 框、`Text` 大写键）、**原点左下的归一化坐标**、`errcode != 0` 必须报错而不是伪装成「图里没字」、以及 GBK 字节回退（UTF-8 严格解码失败后按 936 解）。
-- `winrt-payload.cjs` 更名为 `ps-ocr-payload.cjs`（它现在服务微信 OCR 通道，不再与 WinRT 绑定）；`npm test` 现串联 8 个文件。
+- 新增 `tests/wechat-win-discovery.mjs`（8 项）：`bin/ocr-wechat-win.ps1` 无法在 macOS 上执行，故对其做静态不变量断言——必须纯 ASCII、必须用 `mmmojo_64.dll` 定位运行时目录、**脚本能吐出的每个 `reasonCode` 在 `preload.js` 里都必须有中文文案**（否则用户看到裸英文码）、组件查找不得越出 `XPlugin` 子树。
+- `winrt-payload.cjs` 更名为 `ps-ocr-payload.cjs`（它现在服务微信 OCR 通道，不再与 WinRT 绑定）；`npm test` 现串联 9 个文件。
 
 ### 排查结论（真机已确认）
 
