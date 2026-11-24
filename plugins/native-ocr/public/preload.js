@@ -674,9 +674,16 @@ const WECHAT_WIN_SCRIPT = "ocr-wechat-win.ps1";
 // 微信 OCR 在 Windows 上复用本机微信自带的 wxocr.dll（不随插件分发），
 // 因此目标机必须装微信 4.x。原因码 → 中文文案：脚本侧保持纯 ASCII
 // （PowerShell 5.1 会用 ANSI 读取无 BOM 的 UTF-8 文件），文案统一放这里。
+//
+// 四种失败要分开讲，因为用户要做的事完全不同：
+//   没装微信 → 去装；装了 3.x → 去升级；装了 4.x 但没有插件 → 去微信里用一次「提取文字」。
 const WECHAT_WIN_REASONS = {
-  "wxocr-dll-missing": "未找到微信 OCR 组件 wxocr.dll，请安装并登录微信 4.x 桌面版后重试",
-  "wechat-dir-missing": "未找到微信安装目录（Weixin.exe），请确认微信 4.x 已正确安装"
+  "wechat-not-found": "未检测到微信桌面版。请先安装微信 4.x，再点「重新检测」",
+  "legacy-wechat-3x": "检测到微信 3.x。它的 OCR 组件（WeChatOCR.exe）与本插件调用的接口不同，请升级到微信 4.x",
+  "wxocr-dll-missing": "微信已安装，但 OCR 组件尚未下载。请先在微信里对任意图片使用一次「提取文字」（右键图片 → 提取文字），组件会随之下发，然后再点「重新检测」",
+  "wechat-dir-missing": "已找到 OCR 组件，但缺少微信运行时目录（mmmojo_64.dll）。微信可能安装不完整，建议修复安装后再试",
+  "unsupported-platform": "微信 OCR 仅在 Windows 上可用",
+  "probe-failed": "无法执行微信 OCR 探测脚本，请确认系统允许运行 PowerShell"
 };
 
 function localizeWeChatWinError(message) {
@@ -721,9 +728,24 @@ function runPowerShellOcrScript(scriptName, args) {
 // 探测结果缓存：微信是否安装不会在会话中途变化，每次识别都跑一次 PowerShell 太贵。
 let wechatWinProbeCache = null;
 
+// 探测失败的统一形状：所有字段都齐全，UI 不必做存在性判断。
+function wechatProbeFailure(reasonCode, detail) {
+  return {
+    available: false,
+    reasonCode,
+    detail: String(detail || ""),
+    wxocrDll: "",
+    wechatDir: "",
+    clientExe: "",
+    legacyExe: "",
+    pluginRoots: [],
+    message: localizeWeChatWinError(reasonCode)
+  };
+}
+
 function probeWeChatWin(force = false) {
   if (process.platform !== "win32") {
-    return { available: false, reasonCode: "unsupported-platform", detail: "not win32" };
+    return wechatProbeFailure("unsupported-platform", "not win32");
   }
   if (!force && wechatWinProbeCache) return wechatWinProbeCache;
   let probe;
@@ -739,7 +761,7 @@ function probeWeChatWin(force = false) {
       encoding: "latin1"
     });
   } catch (error) {
-    return { available: false, reasonCode: "probe-failed", detail: error.message };
+    return wechatProbeFailure("probe-failed", error.message);
   }
   const outBuf = Buffer.from(String((probe && probe.stdout) || ""), "latin1");
   let payload = null;
@@ -750,19 +772,26 @@ function probeWeChatWin(force = false) {
   }
   if (!payload) {
     const stderrText = Buffer.from(String((probe && probe.stderr) || ""), "latin1").toString("utf8").trim();
-    return {
-      available: false,
-      reasonCode: "probe-failed",
-      detail: stderrText.slice(0, 300) || "探测脚本没有返回结果"
-    };
+    return wechatProbeFailure(
+      "probe-failed",
+      stderrText.slice(0, 300) || "探测脚本没有返回结果"
+    );
   }
+  const reasonCode = String(payload.reasonCode || (payload.available ? "ok" : "unknown"));
+  const available = Boolean(payload.available);
   const result = {
-    available: Boolean(payload.available),
-    reasonCode: String(payload.reasonCode || (payload.available ? "ok" : "unknown")),
+    available,
+    reasonCode,
+    // detail 是脚本侧给出的、可直接给用户看的排查事实（实际命中的路径，
+    // 或「客户端装了但插件目录里没有 dll」这类判定依据）。UI 会把它作为
+    // 第二行展示 —— 只说「不可用」而不给依据，用户无法自助。
     detail: String(payload.detail || ""),
     wxocrDll: String(payload.wxocrDll || ""),
     wechatDir: String(payload.wechatDir || ""),
-    message: localizeWeChatWinError(String(payload.reasonCode || ""))
+    clientExe: String(payload.clientExe || ""),
+    legacyExe: String(payload.legacyExe || ""),
+    pluginRoots: Array.isArray(payload.pluginRoots) ? payload.pluginRoots.map(String) : [],
+    message: available ? "" : localizeWeChatWinError(reasonCode)
   };
   wechatWinProbeCache = result;
   return result;
