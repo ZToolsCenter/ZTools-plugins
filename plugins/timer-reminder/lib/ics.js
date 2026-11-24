@@ -255,7 +255,7 @@ function parseIcs(text) {
 function eventsToItems(events, now) {
   now = now == null ? Date.now() : now;
   const items = [];
-  const report = { total: (events || []).length, added: 0, skippedExpired: 0, skippedInvalid: 0 };
+  const report = { total: (events || []).length, added: 0, expiredKept: 0, doneKept: 0, skippedInvalid: 0 };
   (events || []).forEach((ev) => {
     const title = String(ev.title || '').trim();
     if (!title) {
@@ -296,10 +296,10 @@ function eventsToItems(events, now) {
       data.repeat = norm;
       data.at = null;
       if (next == null) {
-        // 已过 until / 无后续触发：导入为已完成，保留记录
+        // 已过 until / 无后续触发：规则已结束，导入为已完成保留记录
         data.nextRunAt = null;
         data.enabled = false;
-        report.skippedExpired++;
+        report.doneKept++;
       } else {
         data.nextRunAt = next;
       }
@@ -308,9 +308,14 @@ function eventsToItems(events, now) {
       data.at = start;
       data.repeat = null;
       if (start <= now) {
-        data.nextRunAt = null;
-        data.enabled = false;
-        report.skippedExpired++;
+        if (data.enabled === false) {
+          report.doneKept++;
+        } else {
+          // 到期未处理：留在待提醒并标记「已过期未处理」
+          data.nextRunAt = null;
+          data.expiredAt = start;
+          report.expiredKept++;
+        }
       } else {
         data.nextRunAt = start;
       }

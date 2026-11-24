@@ -415,6 +415,11 @@ button:active {
   text-decoration: line-through;
 }
 
+/* 到期未手动关闭：淡红底提示需要处理 */
+.item.expired {
+  background: rgba(229, 72, 77, 0.06);
+}
+
 .item-meta {
   display: flex;
   flex-wrap: wrap;
@@ -439,6 +444,11 @@ button:active {
 .chip.repeat {
   background: rgba(48, 164, 108, 0.14);
   color: var(--ok);
+}
+
+.chip.expired {
+  background: rgba(229, 72, 77, 0.14);
+  color: var(--danger);
 }
 
 .chip.countdown {

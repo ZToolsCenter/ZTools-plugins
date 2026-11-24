@@ -146,7 +146,7 @@ function rowsToItems(rows, now) {
   }
 
   const items = [];
-  const report = { total: rows.length - headerIdx - 1, added: 0, skippedExpired: 0, skippedInvalid: 0 };
+  const report = { total: rows.length - headerIdx - 1, added: 0, expiredKept: 0, doneKept: 0, skippedInvalid: 0 };
 
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const src = rows[i] || [];
@@ -225,10 +225,16 @@ function rowsToItems(rows, now) {
       data.at = at;
       data.nextRunAt = at;
       data.repeat = null;
-      // 已过期的单次提醒导入后不再补发，直接归入已完成
       if (at <= now) {
-        data.enabled = false;
-        report.skippedExpired++;
+        if (data.enabled === false) {
+          // 状态列标为已完成：保持已完成，不补发
+          report.doneKept++;
+        } else {
+          // 到期未处理：留在待提醒并标记「已过期未处理」，不补发
+          data.nextRunAt = null;
+          data.expiredAt = at;
+          report.expiredKept++;
+        }
       }
     }
     report.added++;

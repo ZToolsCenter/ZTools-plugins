@@ -17,7 +17,8 @@
  *     enabled: boolean,
  *     sound: boolean,         // 到点响铃
  *     popup: boolean,         // 到点弹窗强提醒
- *     createdAt, updatedAt, lastFiredAt, firedCount
+ *     createdAt, updatedAt, lastFiredAt, firedCount,
+ *     expiredAt: number | null // 单次到期未处理标记：留在待提醒并显示「已过期未处理」，手动完成时清除
  *   }
  */
 'use strict';
@@ -150,7 +151,8 @@ function createReminder(data) {
     createdAt: now,
     updatedAt: now,
     lastFiredAt: null,
-    firedCount: 0
+    firedCount: 0,
+    expiredAt: data.expiredAt != null ? Number(data.expiredAt) : null
   };
   putDoc(doc);
   return doc;

@@ -54,7 +54,7 @@
   }
 
   function snoozeBy(minutes) {
-    writeDoc({ nextRunAt: Date.now() + minutes * 60 * 1000, enabled: true });
+    writeDoc({ nextRunAt: Date.now() + minutes * 60 * 1000, enabled: true, expiredAt: null });
     window.close();
   }
 
@@ -67,7 +67,7 @@
       );
       writeDoc({ nextRunAt: next, enabled: next != null });
     } else {
-      writeDoc({ nextRunAt: null, enabled: false });
+      writeDoc({ nextRunAt: null, enabled: false, expiredAt: null });
     }
     window.close();
   }
@@ -88,6 +88,20 @@
     if (typeof doc.nextRunAt === 'number' && doc.nextRunAt <= Date.now()) {
       writeDoc({ nextRunAt: Date.now() + settings.snoozeMinutes * 60 * 1000, enabled: true });
     }
+
+    // 外部（主列表 / 其它窗口）处理了该提醒时自动关窗：
+    // 删除 / 完成（enabled=false 或文档消失）立即关；稍后 / 编辑等写入
+    // （_rev 变化且晚于本次占位写入 1s 以上）也关，避免残留空窗
+    var openRev = doc._rev;
+    var openAt = doc.updatedAt || 0;
+    setInterval(function () {
+      var cur = readDoc(id);
+      if (!cur || cur.enabled === false) {
+        window.close();
+        return;
+      }
+      if (cur._rev !== openRev && (cur.updatedAt || 0) > openAt + 1000) window.close();
+    }, 1000);
 
     document.getElementById('alarmTitle').textContent = doc.title || '提醒';
     var firedAt = doc.lastFiredAt || Date.now();

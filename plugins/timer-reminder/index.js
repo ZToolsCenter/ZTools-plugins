@@ -224,7 +224,9 @@
   }
 
   function buildRow(item, now, isActive) {
-    var li = el('li', 'item' + (isActive ? '' : ' disabled'));
+    // 到期未手动关闭即标红：弹窗待处理期间的占位 nextRunAt 不影响判定（稍后/完成会清 expiredAt）
+    var expired = isActive && !!item.expiredAt;
+    var li = el('li', 'item' + (isActive ? '' : ' disabled') + (expired ? ' expired' : ''));
     li.dataset.id = item._id;
 
     // 开关
@@ -244,7 +246,11 @@
     main.appendChild(el('div', 'item-title', item.title));
     var meta = el('div', 'item-meta');
 
-    if (isActive && item.nextRunAt) {
+    if (expired) {
+      // 到期未手动关闭：留在待提醒，标「已过期未处理」
+      meta.appendChild(el('span', 'chip expired', '已过期未处理'));
+      meta.appendChild(el('span', 'chip', '应于 ' + Fmt.formatHuman(item.at || item.expiredAt, now)));
+    } else if (isActive && item.nextRunAt) {
       var human = el('span', 'chip time', Fmt.formatHuman(item.nextRunAt, now));
       var countdown = el('span', 'chip countdown', Fmt.formatCountdown(item.nextRunAt - now));
       meta.appendChild(human);
@@ -373,7 +379,7 @@
     var next = null;
     for (var i = 0; i < state.items.length; i++) {
       var it = state.items[i];
-      if (it.enabled !== false && it.nextRunAt) { next = it; break; }
+      if (it.enabled !== false && it.nextRunAt && !it.expiredAt) { next = it; break; }
     }
 
     var text;
@@ -769,7 +775,8 @@
       var rep = r.report;
       toast(
         '导入完成：新增 ' + rep.added + ' 条' +
-          (rep.skippedExpired ? '，过期归入已完成 ' + rep.skippedExpired + ' 条' : '') +
+          (rep.expiredKept ? '，过期未处理 ' + rep.expiredKept + ' 条' : '') +
+          (rep.doneKept ? '，已完成 ' + rep.doneKept + ' 条' : '') +
           (rep.skippedInvalid ? '，无效跳过 ' + rep.skippedInvalid + ' 条' : ''),
         'ok'
       );
@@ -794,7 +801,8 @@
       var rep = r.report;
       toast(
         'ICS 导入完成：新增 ' + rep.added + ' 条' +
-          (rep.skippedExpired ? '，过期归入已完成 ' + rep.skippedExpired + ' 条' : '') +
+          (rep.expiredKept ? '，过期未处理 ' + rep.expiredKept + ' 条' : '') +
+          (rep.doneKept ? '，已完成 ' + rep.doneKept + ' 条' : '') +
           (rep.skippedInvalid ? '，无效跳过 ' + rep.skippedInvalid + ' 条' : ''),
         'ok'
       );
