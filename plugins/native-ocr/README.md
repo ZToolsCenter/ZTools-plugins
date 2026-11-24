@@ -16,7 +16,7 @@ ZTools 本地多引擎 OCR 插件。macOS 支持 Vision / ONNX OCR（PP-OCR v4�
 | 系统 OCR | macOS Vision | — | 系统内置能力，零依赖；小图自动放大提升识别率 |
 | 微信 OCR | ✅（下载运行时） | ✅（需微信 4.x） | macOS 下载微信离线 OCR 运行时；Windows 复用本机微信自带的 wxocr.dll（P/Invoke，无需 Python / 原生构建） |
 
-Windows 平台默认展示 ONNX OCR，切换引擎后自动用新引擎重新识别当前图片。**Windows 系统 OCR（WinRT）自 1.2.0 起移除**：识别质量明显弱于 ONNX / 微信 OCR，且依赖中文语言包。
+Windows 平台默认展示 ONNX OCR，切换引擎后自动用新引擎重新识别当前图片。**Windows 系统 OCR（WinRT）自 1.2.1 起移除**：识别质量明显弱于 ONNX / 微信 OCR，且依赖中文语言包。
 
 ## 功能
 
@@ -34,7 +34,7 @@ Windows 平台默认展示 ONNX OCR，切换引擎后自动用新引擎重新识
 | 能力 | 依赖 |
 | --- | --- |
 | 系统 OCR（macOS Vision） | 首次运行会用 `swiftc -O` 把 `bin/ocr-vision.swift` 编译成二进制（按脚本内容指纹缓存，脚本变更后自动重编；编译失败会回退用 `swift` 解释执行）。因此**需要安装 Xcode Command Line Tools**（`xcode-select --install`） |
-| 微信 OCR（Windows） | 需安装并登录**微信 4.x 桌面版**：插件直接调用微信自带的 `wxocr.dll`（位于 `%APPDATA%\Tencent\xwechat\XPlugin\plugins\WeChatOcr\<版本>\extracted`），不随插件分发。依赖系统内置的 **Windows PowerShell 5.1**（调用 `powershell.exe`，未适配 `pwsh`）；找不到微信时该引擎置灰并给出原因 |
+| 微信 OCR（Windows） | 需安装**微信 4.x 桌面版**：插件直接调用微信自带的 `wxocr.dll`（位于 `%APPDATA%\Tencent\xwechat\XPlugin\plugins\WeChatOcr\<build>\extracted`，`<build>` 是 8011 / 8075 这类内部版本号），不随插件分发。**该组件由微信按需下发**——若从未用过微信的图片取字功能，插件目录可能为空；先在微信里对任意图片用一次「提取文字」（右键图片 → 提取文字），再回插件的「重新检测」。另需系统内置的 **Windows PowerShell 5.1**（调用 `powershell.exe`，未适配 `pwsh`）。**注意微信 3.x 不可用**：它的 OCR 组件是 `WeChatOCR.exe`，接口与 `wxocr.dll` 不兼容。找不到组件时该引擎置灰并给出具体原因 |
 | ONNX OCR / 公式识别 / 图文混排 | 无需额外环境（Electron 自带 Node 子进程）；首次使用需联网下载模型 |
 | 微信 OCR（macOS） | 复用微信自带离线 OCR 运行时（按需下载） |
 | OCR 后翻译 | 需联网 |
