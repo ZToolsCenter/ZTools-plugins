@@ -150,8 +150,10 @@ function fire(item, now, settings, options) {
       patch.nextRunAt = next;
     }
   } else {
-    patch.enabled = false;
+    // 单次：到期不自动关闭——保留在「待提醒」并标记已过期未处理，
+    // 由用户手动「完成」/关开关/删除来关闭；nextRunAt 置空后调度不会重复触发
     patch.nextRunAt = null;
+    patch.expiredAt = now;
   }
 
   const updated = store.updateReminder(item._id, patch);
@@ -295,7 +297,7 @@ function status() {
 function snooze(id, minutes, settings) {
   const mins = minutes != null ? minutes : (settings || store.getSettings()).snoozeMinutes;
   const next = Date.now() + Math.max(1, mins | 0) * 60 * 1000;
-  const updated = store.updateReminder(id, { nextRunAt: next, enabled: true });
+  const updated = store.updateReminder(id, { nextRunAt: next, enabled: true, expiredAt: null });
   if (updated) emit({ type: 'changed', reminder: updated });
   return updated;
 }
@@ -314,7 +316,7 @@ function complete(id) {
     );
     updated = store.updateReminder(id, { nextRunAt: next, enabled: next != null });
   } else {
-    updated = store.updateReminder(id, { enabled: false, nextRunAt: null });
+    updated = store.updateReminder(id, { enabled: false, nextRunAt: null, expiredAt: null });
   }
   if (updated) emit({ type: 'changed', reminder: updated });
   return updated;
