@@ -37,7 +37,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$scriptVersion = "1.0.0"
+$scriptVersion = "1.1.0"
 
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { [Console]::ErrorEncoding = [System.Text.Encoding]::UTF8 } catch {}
@@ -58,49 +58,103 @@ function Fail($code, $message) {
 # ---------------------------------------------------------------------------
 # Locate WeChat 4.x
 # ---------------------------------------------------------------------------
+#
+# WeChat 4.x ships its OCR engine as wxocr.dll inside the per-build plugin
+# folder:
+#   %APPDATA%\Tencent\xwechat\XPlugin\plugins\WeChatOcr\<build>\extracted\wxocr.dll
+# (<build> is a number such as 8011 / 8075, not a semver.)
+#
+# WeChat 3.x ships WeChatOCR.exe instead, with an incompatible interface, so we
+# detect it only to explain the situation accurately.
+#
+# We never recurse over the whole Tencent data directory: it holds the message
+# databases and can contain hundreds of thousands of files. The XPlugin subtree
+# is small and is the only place these components live.
 
-# wxocr.dll lives under the WeChat plugin data directory, one folder per build.
-# Newest build wins; we never execute it, only LoadLibrary it.
+$PLUGIN_SUBTREES = @(
+    'Tencent\xwechat\XPlugin',
+    'Tencent\WeChat\XPlugin',
+    'Tencent\Weixin\XPlugin'
+)
+
+function Get-PluginRoots {
+    $roots = @()
+    foreach ($base in @($env:APPDATA, $env:LOCALAPPDATA)) {
+        if (-not $base) { continue }
+        foreach ($sub in $PLUGIN_SUBTREES) {
+            $candidate = Join-Path $base $sub
+            if (Test-Path -LiteralPath $candidate) { $roots += $candidate }
+        }
+    }
+    return $roots
+}
+
+# Newest build wins: folders left behind by an older WeChat can linger.
 function Find-WxOcrDll {
-    $roots = @()
-    if ($env:APPDATA) { $roots += $env:APPDATA }
-    if ($env:LOCALAPPDATA) { $roots += $env:LOCALAPPDATA }
-    foreach ($root in $roots) {
-        foreach ($plugin in @('Tencent\xwechat\XPlugin\plugins\WeChatOcr', 'Tencent\WeChat\XPlugin\plugins\WeChatOcr')) {
-            $base = Join-Path $root $plugin
-            if (-not (Test-Path -LiteralPath $base)) { continue }
-            $versions = Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue |
-                Sort-Object -Property Name -Descending
-            foreach ($version in $versions) {
-                $dll = Join-Path $version.FullName 'extracted\wxocr.dll'
-                if (Test-Path -LiteralPath $dll) { return $dll }
-            }
+    $hits = @()
+    foreach ($root in (Get-PluginRoots)) {
+        $found = Get-ChildItem -LiteralPath $root -Recurse -Depth 5 -Filter 'wxocr.dll' `
+            -File -Force -ErrorAction SilentlyContinue
+        foreach ($item in $found) { $hits += $item }
+    }
+    if ($hits.Count -eq 0) { return "" }
+    return ($hits | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1).FullName
+}
+
+# Present only for WeChat 3.x; used purely for diagnosis.
+function Find-WeChatLegacyExe {
+    foreach ($root in (Get-PluginRoots)) {
+        $found = Get-ChildItem -LiteralPath $root -Recurse -Depth 5 -Filter 'WeChatOCR.exe' `
+            -File -Force -ErrorAction SilentlyContinue |
+            Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
+        if ($found) { return $found.FullName }
+    }
+    return ""
+}
+
+# Any installed client, regardless of version / OCR payload.
+function Find-WeChatClient {
+    foreach ($base in @($env:ProgramW6432, $env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+        if (-not $base) { continue }
+        foreach ($name in @('Tencent\Weixin\Weixin.exe', 'Tencent\WeChat\WeChat.exe')) {
+            $candidate = Join-Path $base $name
+            if (Test-Path -LiteralPath $candidate) { return $candidate }
         }
     }
     return ""
 }
 
-# wechat_ocr() also takes the client install directory (used by wxocr.dll to
-# resolve its own dependencies), so we look for the client executable.
-function Find-WeChatDir {
-    $roots = @()
-    if ($env:ProgramW6432) { $roots += $env:ProgramW6432 }
-    if ($env:ProgramFiles) { $roots += $env:ProgramFiles }
-    if (${env:ProgramFiles(x86)}) { $roots += ${env:ProgramFiles(x86)} }
-    foreach ($root in $roots) {
+# wechat_ocr() needs the *versioned* runtime directory -- the one that holds
+# mmmojo_64.dll -- not the parent that holds Weixin.exe:
+#   C:\Program Files\Tencent\Weixin\4.1.5.30      <- this one
+#   C:\Program Files\Tencent\Weixin\Weixin.exe    <- not this
+function Find-WeChatRuntime {
+    $vendors = @()
+    foreach ($base in @($env:ProgramW6432, $env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+        if (-not $base) { continue }
         foreach ($name in @('Tencent\Weixin', 'Tencent\WeChat')) {
-            $base = Join-Path $root $name
-            if (-not (Test-Path -LiteralPath $base)) { continue }
-            foreach ($exe in @('Weixin.exe', 'WeChat.exe')) {
-                $found = Get-ChildItem -LiteralPath $base -Filter $exe -Recurse -Depth 3 -ErrorAction SilentlyContinue |
-                    Sort-Object -Property FullName -Descending |
-                    Select-Object -First 1
-                if ($found) { return $found.DirectoryName }
-            }
+            $candidate = Join-Path $base $name
+            if (Test-Path -LiteralPath $candidate) { $vendors += $candidate }
+        }
+    }
+    foreach ($vendor in $vendors) {
+        $mmmojo = Get-ChildItem -LiteralPath $vendor -Recurse -Depth 3 -Filter 'mmmojo_64.dll' `
+            -File -Force -ErrorAction SilentlyContinue |
+            Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
+        if ($mmmojo) { return $mmmojo.DirectoryName }
+    }
+    # Fallback for builds that keep mmmojo elsewhere: the client's own folder.
+    foreach ($vendor in $vendors) {
+        foreach ($exe in @('Weixin.exe', 'WeChat.exe')) {
+            $found = Get-ChildItem -LiteralPath $vendor -Recurse -Depth 3 -Filter $exe `
+                -File -Force -ErrorAction SilentlyContinue |
+                Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
+            if ($found) { return $found.DirectoryName }
         }
     }
     return ""
 }
+
 
 # ---------------------------------------------------------------------------
 # P/Invoke bridge
@@ -175,24 +229,42 @@ public static class WcOcrNative
 
 function Get-WxOcrState {
     $dll = Find-WxOcrDll
-    $dir = Find-WeChatDir
+    $dir = Find-WeChatRuntime
+    $client = Find-WeChatClient
+    $legacy = ""
     # Machine-readable reason code; the Chinese wording lives in preload.js so
     # this file can stay pure ASCII (see the header note).
     $reasonCode = "ok"
     $detail = ""
     if (-not $dll) {
-        $reasonCode = "wxocr-dll-missing"
-        $detail = "wxocr.dll not found under %APPDATA%\\Tencent\\xwechat\\XPlugin\\plugins\\WeChatOcr"
+        # Distinguish the four ways this can legitimately fail. "WeChat is
+        # installed but the plugin folder is empty" is by far the most common:
+        # the OCR payload is fetched lazily the first time the user asks WeChat
+        # to extract text from an image.
+        $legacy = Find-WeChatLegacyExe
+        if ($legacy) {
+            $reasonCode = "legacy-wechat-3x"
+            $detail = "found WeChatOCR.exe (WeChat 3.x) at " + $legacy + "; wxocr.dll requires WeChat 4.x"
+        } elseif (-not $client) {
+            $reasonCode = "wechat-not-found"
+            $detail = "no Weixin.exe or WeChat.exe under Program Files\Tencent"
+        } else {
+            $reasonCode = "wxocr-dll-missing"
+            $detail = "client at " + $client + " but no wxocr.dll under any XPlugin\plugins\WeChatOcr folder"
+        }
     } elseif (-not $dir) {
         $reasonCode = "wechat-dir-missing"
-        $detail = "Weixin.exe not found under Program Files\\Tencent"
+        $detail = "wxocr.dll at " + $dll + " but no runtime directory containing mmmojo_64.dll"
     }
     return @{
         wxocrDll = $dll
         wechatDir = $dir
+        clientExe = $client
+        legacyExe = $legacy
         available = [bool]($dll -and $dir)
         reasonCode = $reasonCode
         detail = $detail
+        pluginRoots = @(Get-PluginRoots)
     }
 }
 
@@ -205,6 +277,9 @@ if ($Probe) {
         detail = $state.detail
         wxocrDll = $state.wxocrDll
         wechatDir = $state.wechatDir
+        clientExe = $state.clientExe
+        legacyExe = $state.legacyExe
+        pluginRoots = $state.pluginRoots
     }
     exit 0
 }
