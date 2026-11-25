@@ -43,6 +43,7 @@
   --color-warning: #D97706;
   --color-danger: #DC2626;
   --color-info: #2563EB;
+  --emerald: var(--color-success);
 
   /* Priority colors */
   --priority-high: #DC2626;
@@ -65,6 +66,12 @@
   --font-size-xl: 1.5rem;      /* 24px */
   --font-size-2xl: 2rem;       /* 32px */
 
+  /* Semantic type aliases used by component styles */
+  --text-xs: var(--font-size-xs);
+  --text-sm: var(--font-size-sm);
+  --text-base: var(--font-size-base);
+  --text-lg: var(--font-size-lg);
+
   /* ═══════════════════════════════════════════════════════════
      SPACING
      ═══════════════════════════════════════════════════════════ */
@@ -75,6 +82,7 @@
   --sp-5: 1.25rem;   /* 20px */
   --sp-6: 1.5rem;    /* 24px */
   --sp-8: 2rem;      /* 32px */
+  --sp-12: 3rem;     /* 48px */
 
   /* Legacy spacing aliases */
   --spacing-xs: var(--sp-1);

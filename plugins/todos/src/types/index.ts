@@ -82,5 +82,9 @@ export interface StorageData {
   currentWorkspace: Workspace;
   workspaceConfigs: WorkspaceConfig[];
   viewMode: 'week' | 'month';
+  /** 布局模式：日历 + 待办（split）/ 仅待办池（pool-only），属于用户偏好，需要跨重启保留 */
+  layoutMode: 'split' | 'pool-only';
+  /** 日历内任务的展示密度：紧凑标签（tag）/ 详细（block） */
+  taskViewMode: 'tag' | 'block';
   currentDate: string;
 }

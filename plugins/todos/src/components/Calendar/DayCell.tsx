@@ -27,9 +27,13 @@ interface DayCellProps {
   onMouseLeave?: () => void;
 }
 
+const MAX_VISIBLE_TASKS = 2;
+
 export function DayCell({ date, tasks, isToday, accentColor, isCurrentMonth, isHoveredWeek, dropTarget, hoveredTaskId, selectedTaskId, onHoverTask, onSelectTask, onComplete, onDelete, onDragStart, onDragEnd, onRemoveDate, onDragOver, onDragLeave, onDrop, onClick, onMouseEnter, onMouseLeave }: DayCellProps) {
   const dateObj = new Date(date);
   const dayNum = dateObj.getDate();
+  const visibleTasks = tasks.slice(0, MAX_VISIBLE_TASKS);
+  const hiddenTaskCount = tasks.length - visibleTasks.length;
 
   const handleRemove = (taskId: string) => {
     onRemoveDate?.(taskId, date);
@@ -54,7 +58,7 @@ export function DayCell({ date, tasks, isToday, accentColor, isCurrentMonth, isH
         <span className={`cell-date ${isToday ? 'today' : ''}`}>{dayNum}</span>
       </div>
       <div className="cell-tasks">
-        {tasks.map(task => (
+        {visibleTasks.map(task => (
           <TaskChip
             key={task.id}
             task={task}
@@ -67,6 +71,11 @@ export function DayCell({ date, tasks, isToday, accentColor, isCurrentMonth, isH
             onComplete={onComplete}
           />
         ))}
+        {hiddenTaskCount > 0 && (
+          <span className="cell-more" title={`还有 ${hiddenTaskCount} 项任务`}>
+            +{hiddenTaskCount}
+          </span>
+        )}
       </div>
     </div>
   );

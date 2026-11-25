@@ -62,6 +62,14 @@ export function WeekView({ hoveredTaskId, onHoverTask, onSelectTask }: WeekViewP
     completeTask(taskId);
   };
 
+  const handleDragStart = (taskId: string) => {
+    dispatch({ type: 'SET_DRAG_STATE', payload: { taskId, dropTarget: null } });
+  };
+
+  const handleDragEnd = () => {
+    dispatch({ type: 'SET_DRAG_STATE', payload: { taskId: null, dropTarget: null } });
+  };
+
   return (
     <div className="week-view">
       {weekDays.map(dayDate => {
@@ -81,6 +89,8 @@ export function WeekView({ hoveredTaskId, onHoverTask, onSelectTask }: WeekViewP
             onSelectTask={onSelectTask}
             onRemoveDate={handleRemoveDate}
             onComplete={handleComplete}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
             onDragOver={(e) => handleDragOver(dayDate, e)}
             onDragLeave={(e) => handleDragLeave(dayDate, e)}
             onDrop={(e) => handleDrop(dayDate, e)}

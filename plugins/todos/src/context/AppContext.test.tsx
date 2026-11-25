@@ -25,9 +25,28 @@ function TestComponent() {
     <div>
       <span data-testid="currentWorkspace">{state.currentWorkspace}</span>
       <span data-testid="viewMode">{state.viewMode}</span>
+      <span data-testid="layoutMode">{state.layoutMode}</span>
+      <button
+        data-testid="toggleLayout"
+        onClick={() => {
+          dispatch({
+            type: 'SET_LAYOUT_MODE',
+            payload: { layoutMode: state.layoutMode === 'split' ? 'pool-only' : 'split' },
+          });
+        }}
+      >
+        Layout
+      </button>
       <button
         data-testid="switchWorkspace"
-        onClick={() => dispatch({ type: 'SWITCH_WORKSPACE', payload: { workspace: 'life' } })}
+        onClick={() => {
+          const next = state.currentWorkspace === 'work'
+            ? 'life'
+            : state.currentWorkspace === 'life'
+              ? 'study'
+              : 'work';
+          dispatch({ type: 'SWITCH_WORKSPACE', payload: { workspace: next } });
+        }}
       >
         Switch
       </button>
@@ -70,6 +89,37 @@ describe('AppContext', () => {
     );
     expect(screen.getByTestId('currentWorkspace')).toHaveTextContent('study');
     expect(screen.getByTestId('viewMode')).toHaveTextContent('month');
+  });
+
+  it('should restore the saved layout mode on startup', () => {
+    mockedLoadData.mockReturnValue({ layoutMode: 'pool-only' });
+    render(
+      <AppProvider>
+        <TestComponent />
+      </AppProvider>
+    );
+    expect(screen.getByTestId('layoutMode')).toHaveTextContent('pool-only');
+  });
+
+  it('should persist layout mode changes', () => {
+    mockedLoadData.mockReturnValue(null);
+    render(
+      <AppProvider>
+        <TestComponent />
+      </AppProvider>
+    );
+    expect(screen.getByTestId('layoutMode')).toHaveTextContent('split');
+
+    act(() => {
+      screen.getByTestId('toggleLayout').click();
+    });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(mockedSaveData).toHaveBeenCalledWith(
+      expect.objectContaining({ layoutMode: 'pool-only' })
+    );
   });
 
   it('should throw error when useAppContext used outside provider', () => {

@@ -5,8 +5,8 @@ import { BottomLegend } from './BottomLegend';
 describe('BottomLegend', () => {
   it('renders all legend items', () => {
     render(<BottomLegend onShowShortcuts={() => {}} />);
-    expect(screen.getByText('右键右滑 完成')).toBeInTheDocument();
-    expect(screen.getByText('右键左滑 删除')).toBeInTheDocument();
+    expect(screen.getByText('右上 完成')).toBeInTheDocument();
+    expect(screen.getByText('右下 删除')).toBeInTheDocument();
     expect(screen.getByText('双击编辑')).toBeInTheDocument();
     expect(screen.getByText('拖拽分配日期')).toBeInTheDocument();
   });

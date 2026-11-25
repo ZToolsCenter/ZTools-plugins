@@ -88,7 +88,7 @@
 
 .empty-state-description {
   font-size: var(--text-sm);
-  color: var(--clay);
+  color: var(--graphite);
   max-width: 240px;
   line-height: 1.5;
 }

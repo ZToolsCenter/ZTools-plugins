@@ -12,10 +12,9 @@ export function Header() {
   const { viewMode } = state;
   const [showSettings, setShowSettings] = useState(false);
 
-  const handleToggleView = useCallback(() => {
-    const newMode = viewMode === 'week' ? 'month' : 'week';
-    dispatch({ type: 'SET_VIEW_MODE', payload: { viewMode: newMode } });
-  }, [dispatch, viewMode]);
+  const handleChangeView = useCallback((mode: 'week' | 'month') => {
+    dispatch({ type: 'SET_VIEW_MODE', payload: { viewMode: mode } });
+  }, [dispatch]);
 
   const handleWorkspaceChange = useCallback((workspace: string) => {
     dispatch({ type: 'SWITCH_WORKSPACE', payload: { workspace } });
@@ -46,7 +45,7 @@ export function Header() {
           placeholder="搜索任务..."
           className="header-search"
         />
-        <ViewToggle isExpanded={viewMode === 'month'} onToggle={handleToggleView} />
+        <ViewToggle viewMode={viewMode} onChange={handleChangeView} />
         <button
           className="settings-btn"
           onClick={() => setShowSettings(true)}
