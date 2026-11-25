@@ -8,9 +8,11 @@
  * 挂到 window 上的三块能力：
  *   window.__ZNOTES      笔记数据层（笔记/目录/排序/只读/附件），实现见 preload/ndb.js
  *   window.__znotesGit 版本控制（init/adopt/commit/push/pull/sync/日志），见 preload/git-service.js
- *   window.services   导出、剪贴板、图片、文件杂项，见 preload/services.js
+ *   window.services   只剩剪贴板 / 附件临时文件 / 图片杂项，见 preload/ports/services.js
+ *                     （导出四件套已从这里删掉：两套同名实现语义不同，是导出静默失效的根源）
  *
- * 另加 window.__CMARK 作为本版本新增的控制面（配置读写、选目录、重扫）。
+ * window.__CMARK 是唯一控制面：笔记/目录/排序、导出（md/html/pdf/图片）、
+ * 选目录、打开笔记、配置读写、重扫，全部在这里。导出链路只能调它。
  */
 // 宿主适配必须在一切之前：uTools 只注入 window.utools，ZTools 只注入 window.ztools，
 // 补齐之后下面的代码才能统一用 window.ztools.xxx（两套 API 名字一致）
@@ -44,7 +46,12 @@ function readJSON(p) {
 function writeJSON(p, obj) {
   try {
     fs.mkdirSync(path.dirname(p), { recursive: true })
-    fs.writeFileSync(p, JSON.stringify(obj, null, 2), 'utf8')
+    // 原子写：先写 tmp 再 rename。直写时一旦掉电/被并发读到半截，
+    // loadConfig 会解析失败退回默认对象，紧接着任何一次 saveConfig 都会把
+    // workspace / theme / repoDir 一起抹掉（导出目录记忆让写盘频率变得很高，必须防）
+    const tmp = p + '.tmp'
+    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), 'utf8')
+    fs.renameSync(tmp, p)
     return true
   } catch (e) {
     console.error('[cmark] 写配置失败', e)
@@ -72,7 +79,11 @@ function loadConfig() {
 }
 
 function saveConfig(patch) {
-  const next = Object.assign({}, loadConfig(), patch || {})
+  // 基底用磁盘上的那份：loadConfig 在文件读坏时会退回「迁移对象/空对象」，
+  // 拿它当基底去 merge 会把 workspace / theme / repoDir 一起覆盖掉
+  const disk = readJSON(CFG_PATH)
+  const base = disk && typeof disk === 'object' ? disk : (config || loadConfig())
+  const next = Object.assign({}, base, patch || {})
   writeJSON(CFG_PATH, next)
   return next
 }
@@ -381,7 +392,7 @@ try {
 /* ---------------- 控制面 ---------------- */
 window.__CMARK = {
 
-  // ================= 导出（从 V1.0.0 window.services 原样移植） =================
+  // ================= 导出（唯一实现，调用方是 src/service/export/export-note.ts） =================
 
   /** 写笔记文件：dir 为空时弹保存框，带附件时按文件夹写 */
   _writeNoteFile(dir, name, content, attachments, ext, withKatex) {
@@ -407,10 +418,15 @@ window.__CMARK = {
       }
       target = path.join(dir, name + '.' + ext)
       for (const f of list) {
+        // 附件项可以是纯路径，也可以是 { from, name }：渲染层对同名图片改过名
+        // （a.png → a-2.png），只传路径时这里按 basename 落盘会把两张图写成同一个名字
+        const from = typeof f === 'string' ? f : (f && f.from)
+        const toName = typeof f === 'string' ? path.basename(f) : (f && f.name) || path.basename(String(from || ''))
+        if (!from) continue
         try {
-          fs.copyFileSync(f, path.join(dir, path.basename(f)))
+          fs.copyFileSync(from, path.join(dir, toName))
         } catch (e) {
-          console.warn('[export] 附件拷贝失败', f, e.message)
+          console.warn('[export] 附件拷贝失败', from, e.message)
         }
       }
     } else if (dir) {
@@ -423,6 +439,18 @@ window.__CMARK = {
       target = window.ztools.showSaveDialog({ defaultPath: dft, filters: [{ name: ext, extensions: [ext] }] })
       if (!target) return { ok: false, canceled: true }
     }
+
+    // 第二道保护：目标落在笔记库内且已存在 → 拒绝写入。
+    // 导出到别处覆盖上次的导出是正常的，但覆盖笔记库里的 .md 是不可逆的
+    // （渲染层导出前会改写图片引用，原笔记会被写成断图版本）
+    try {
+      if (target && fs.existsSync(target) && workspace) {
+        const relToWs = path.relative(path.resolve(workspace), path.resolve(target))
+        if (relToWs && !relToWs.startsWith('..') && !path.isAbsolute(relToWs)) {
+          return { ok: false, message: '目标文件已在笔记库中，为避免覆盖笔记已取消：' + target }
+        }
+      }
+    } catch (e) {}
 
     try {
       fs.writeFileSync(target, content, 'utf8')
@@ -564,7 +592,7 @@ window.__CMARK = {
       defaultPath: dft,
       filters: [{ name: kind || ext.replace('.', ''), extensions: [kind === 'image' ? 'png' : kind || ext.replace('.', '')] }],
     })
-    if (!target) return
+    if (!target) return null
     const reveal = () => {
       setTimeout(() => {
         try {
@@ -584,10 +612,12 @@ window.__CMARK = {
         } catch (e2) {}
       } catch (e3) {
         window.ztools.showNotification('导出保存失败：' + e3.message)
-        return
+        // 失败要能和「用户取消」区分开：都返回 null 时界面只能报「已取消导出」
+        return { ok: false, message: e3.message }
       }
     }
     reveal()
+    return { ok: true, path: target }
   },
   configPath: CFG_PATH,
 
@@ -740,17 +770,6 @@ window.__CMARK = {
     return out
   },
 
-  /**
-   * 在系统默认浏览器里打开笔记。
-   *
-   * 不能直接把 .md 的 file:// 交给 openExternal —— Electron 在 Windows 上通常
-   * 转给文件关联程序（可能是编辑器而不是浏览器）。这里改成写一个临时 HTML，
-   * 用 file:// 打开它，系统一定会用浏览器。
-   */
-  /**
-   * 用系统默认程序打开真实的笔记文件（用户浏览器装了 Markdown 渲染插件）。
-   * 走 shell.openExternal + file:// 而不是 shellOpenPath：后者会把插件窗口藏到后台。
-   */
   /** 取 katex 样式文本：导出时公式排版全靠它，缺了上标会乱 */
   getKatexCss() {
     try {
@@ -768,13 +787,53 @@ window.__CMARK = {
   openNoteInBrowser(rel) {
     try {
       const abs = path.resolve(workspace, String(rel || ''))
-      if (!fs.existsSync(abs)) return { ok: false, message: '文件不存在：' + rel }
-      const url = 'file:///' + abs.replace(/\\/g, '/')
-      if (window.ztools && window.ztools.shellOpenExternal) window.ztools.shellOpenExternal(url)
-      else require('electron').shell.openExternal(url)
-      return { ok: true, path: abs, url }
+      if (!fs.existsSync(abs)) return Promise.resolve({ ok: false, message: '文件不存在：' + rel })
+      const url = require('url').pathToFileURL(abs).href
+      let ee = null
+      try { ee = require('electron') } catch (e) {}
+      // 首选 electron.shell.openPath：它吃真实文件路径，中文/空格原样交给 ShellExecute。
+      // 宿主的 shellOpenExternal 只能吃 file:// URL，中文路径实测直接失败：
+      //   shellOpenExternal('file:///D:/CMark/Notes/%E7%91%9E%E6%88%BF2025/...md')
+      //   → { success:false, error:'Failed to open: 系统找不到指定的文件。 (0x2)' }
+      // 而 ASCII 路径（IWAN/Cloudflare.md）能成功 —— 这就是「只有那一篇能打开」的原因。
+      // openPath 返回 Promise<string>：空串 = 成功，非空 = 系统给的错误信息，必须回传给界面，
+      // 否则打不开时用户看到的仍然是「已在浏览器中打开」。
+      if (ee && ee.shell && typeof ee.shell.openPath === 'function') {
+        return Promise.resolve(ee.shell.openPath(abs)).then(
+          function (errMsg) {
+            return errMsg ? { ok: false, message: String(errMsg) } : { ok: true, path: abs, url: url }
+          },
+          function (err) {
+            return { ok: false, message: (err && err.message) || String(err) }
+          }
+        )
+      }
+      // 兜底：没有 electron.shell 时走宿主通道（中文路径这条会失败，别无选择）。
+      // 宿主对失败有两种表达：{success:false,error} 或错误字符串，必须检查，
+      // 否则 uTools 上的「打不开」会被报成「已在浏览器中打开」。
+      try {
+        // host.js 在宿主未注入时会挂一个惰性 Proxy，任何属性都返回 no-op 函数，
+        // 直接 typeof 判断会恒真 → 必须先把这种情况排除掉
+        const isStub = !!(window.ztools && window.ztools.__cmark_host_proxy__)
+        let ret = null
+        if (!isStub && window.ztools && typeof window.ztools.shellOpenExternal === 'function') {
+          ret = window.ztools.shellOpenExternal(url)
+        } else if (ee && ee.shell && ee.shell.openExternal) {
+          ret = ee.shell.openExternal(url)
+        } else {
+          return Promise.resolve({ ok: false, message: '当前宿主没有可用的打开接口' })
+        }
+        return Promise.resolve(ret).then(function (v) {
+          if (v === false) return { ok: false, message: '宿主拒绝打开' }
+          if (v && typeof v === 'object' && v.success === false) return { ok: false, message: v.error || '打开失败' }
+          if (typeof v === 'string' && v) return { ok: false, message: v }
+          return { ok: true, path: abs, url: url }
+        })
+      } catch (e) {
+        return Promise.resolve({ ok: false, message: e.message })
+      }
     } catch (e) {
-      return { ok: false, message: e.message }
+      return Promise.resolve({ ok: false, message: e.message })
     }
   },
 
@@ -792,7 +851,7 @@ window.__CMARK = {
       } catch (e) {}
       const tmp = path.join(dir, `${safe}-${tag}.html`)
       fs.writeFileSync(tmp, html, 'utf8')
-      const url = 'file:///' + tmp.replace(/\\/g, '/')
+      const url = require('url').pathToFileURL(tmp).href
       require('electron').shell.openExternal(url)
       return { ok: true, path: tmp }
     } catch (e) {
@@ -1383,12 +1442,23 @@ window.__CMARK = {
   /** 选一个导出目录：Electron 渲染进程禁用 window.prompt，必须走宿主对话框 */
   pickExportDir() {
     try {
-      const r = window.ztools.showOpenDialog({
+      const opt = {
         title: '选择导出目录',
         properties: ['openDirectory', 'createDirectory'],
-      })
+      }
+      // 记住上次选的目录：导出是高频操作，每次都要从头翻文件夹很烦
+      const last = config && config.exportDir
+      try {
+        if (last && fs.existsSync(last)) opt.defaultPath = last
+        else {
+          const dft = window.ztools.getPath('downloads') || window.ztools.getPath('documents')
+          if (dft) opt.defaultPath = dft
+        }
+      } catch (e) {}
+      const r = window.ztools.showOpenDialog(opt)
       const dir = Array.isArray(r) ? r[0] : r
       if (!dir) return { ok: false, canceled: true }
+      try { config = saveConfig({ exportDir: dir }) } catch (e) {}
       return { ok: true, dir }
     } catch (e) {
       return { ok: false, message: e.message }
@@ -1623,7 +1693,9 @@ window.__CMARK = {
 
   resolveImageUrl(src, noteRel) {
     try {
-      const raw = String(src || '')
+      let raw = String(src || '')
+      // 正文里可能写成 my%20pic.png（部分编辑器/粘贴流程会编码），不解码会找不到文件
+      try { raw = decodeURIComponent(raw) } catch (e) {}
       if (!raw) return ''
       if (/^(https?:|data:|file:)/i.test(raw)) return raw
 
@@ -1635,7 +1707,7 @@ window.__CMARK = {
         if (!/^[a-f0-9]{16,64}$/i.test(digest)) return ''
         const s = window.services
         const p = s && s.getAttachmentTempPath ? s.getAttachmentTempPath(digest) : null
-        return p ? 'file:///' + p.replace(/\\/g, '/') : ''
+        return p ? require('url').pathToFileURL(p).href : ''
       }
 
       // 相对路径要多基线探测：笔记里有三种并存写法
@@ -1655,7 +1727,7 @@ window.__CMARK = {
         if (!b) continue
         const abs = path.resolve(b, raw)
         if (root && abs !== root && !abs.startsWith(root + path.sep)) continue
-        if (fs.existsSync(abs)) return 'file:///' + abs.replace(/\\/g, '/')
+        if (fs.existsSync(abs)) return require('url').pathToFileURL(abs).href
       }
       return ''
     } catch (e) {
@@ -1859,7 +1931,9 @@ try {
   /** 把 Markdown 渲染成图片/PDF，返回文件路径 */
   function renderToFile(markdown, format) {
     return new Promise((resolve) => {
-      const S = window.services
+      // 只认 __CMARK：window.services 那份同名实现已删（两套并存的后果是
+      // 调用方拿到语义不同的返回值，整条导出链路静默失效）
+      const S = window.__CMARK
       if (!S || typeof S.exportFile !== 'function') {
         resolve({ ok: false, message: '当前环境不支持渲染导出' })
         return

@@ -1,11 +1,13 @@
 /**
- * services.js —— 导出、附件、剪贴板、文件杂项
+ * services.js —— 附件、剪贴板、图片、文件杂项
  *
- * V1.1.0 新写。行为对齐 V1.0.0（用户已习惯的交互），实现全部按功能规格重写：
- *   - 导出 md：内容 + 附件一起落到目标目录
- *   - 导出 html：包一层带样式的文档，公式用 KaTeX 的 CSS
- *   - 导出 pdf / 图片：开一个隐藏窗口渲染 HTML 再抓图/打印
+ * 这里**不再有导出**（writeMarkdownFile / writeHtmlFile / exportFile /
+ * dialogSaveExportFile 已迁到 preload.js 的 window.__CMARK）。
+ * 原因：两套同名实现语义不同（一个返回 {ok,path}，一个返回路径字符串），
+ * 调用方取错桥时整条导出链路静默失效，排查成本极高。导出只认 window.__CMARK。
+ *
  *   - 图片附件：按内容 md5 命名，同一张图多处引用只存一份
+ *   - 剪贴板读写、图片选择
  */
 const fs = require('fs')
 const path = require('path')
@@ -44,7 +46,6 @@ function ensureDir(dir) {
 }
 
 
-const { exportDocCss } = require('./export-css')
 function attachmentCacheDir(win) {
   const base = path.join(win.ztools.getPath('temp') || os.tmpdir(), 'cmark.attachments')
   return ensureDir(base)
@@ -261,161 +262,6 @@ module.exports = function installServices(win) {
         }
       }
       return target
-    },
-
-    /* ---------------- 导出 ---------------- */
-    _exportDir: '',
-
-    /** 导出 Markdown：正文 + 附件一起复制 */
-    writeMarkdownFile(dir, name, content, attachmentPaths) {
-      const base = safeName(name, Date.now())
-      let targetDir = dir
-      if (!targetDir) {
-        targetDir = win.ztools.showSaveDialog({
-          defaultPath: path.join(win.ztools.getPath('downloads') || '', base),
-        })
-        if (!targetDir) return null
-        ensureDir(targetDir)
-      }
-      for (const a of attachmentPaths || []) {
-        try {
-          fs.copyFileSync(a, path.join(targetDir, path.basename(a)))
-        } catch (e) {}
-      }
-      const file = path.join(targetDir, base + '.md')
-      fs.writeFileSync(file, content, 'utf8')
-      return file
-    },
-
-    /** 导出 HTML：套一层文档壳，样式内联 */
-    writeHtmlFile(dir, name, html, attachmentPaths, withKatex, selfContained, theme) {
-      const base = safeName(name, Date.now())
-      const katexCss = withKatex
-        ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">'
-        : ''
-      const doc = [
-        '<!doctype html>',
-        '<html lang="zh-CN">',
-        '<head>',
-        '<meta charset="utf-8"/>',
-        '<meta name="viewport" content="width=device-width,initial-scale=1"/>',
-        '<title>' + base + '</title>',
-        katexCss,
-        '<style>',
-        exportDocCss(theme),
-        '</style>',
-        '</head>',
-        '<body><article class="markdown-body">',
-        String(html || ''),
-        '</article></body></html>',
-      ].join('\n')
-
-      let targetDir = dir
-      if (!targetDir) {
-        const picked = win.ztools.showSaveDialog({
-          defaultPath: path.join(win.ztools.getPath('downloads') || '', base),
-        })
-        if (!picked) return null
-        targetDir = ensureDir(picked)
-      }
-      for (const a of attachmentPaths || []) {
-        try {
-          fs.copyFileSync(a, path.join(targetDir, path.basename(a)))
-        } catch (e) {}
-      }
-      const file = path.join(targetDir, base + '.html')
-      fs.writeFileSync(file, doc, 'utf8')
-      return file
-    },
-
-    /**
-     * 导出 PDF / 图片：开隐藏窗口渲染 HTML，再抓图或打印
-     * type: 'pdf' | 'image'
-     */
-    exportFile(type, html, extraCss, cb, outDir, theme) {
-      const done = typeof cb === 'function' ? cb : () => {}
-      if (!win.ztools.createBrowserWindow) {
-        done(new Error('当前平台不支持静默渲染，请改用导出 HTML'))
-        return
-      }
-      const shell = [
-        '<!doctype html><html><head><meta charset="utf-8"/>',
-        '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">',
-        '<style>',
-        exportDocCss(theme),
-        extraCss || '',
-        '</style></head><body><article class="markdown-body"></article></body></html>',
-      ].join('\n')
-
-      const tmpHtml = path.join(attachmentCacheDir(win), 'export-' + Date.now() + '.html')
-      fs.writeFileSync(tmpHtml, shell, 'utf8')
-
-      let bw
-      try {
-        bw = win.ztools.createBrowserWindow(
-          'file://' + tmpHtml.replace(/\\/g, '/'),
-          { width: 980, height: 1200, show: false },
-          async () => {
-            try {
-              await bw.webContents.executeJavaScript(
-                'document.querySelector(".markdown-body").innerHTML = ' + JSON.stringify(String(html || ''))
-              )
-              // 等图片解码，最多 3 秒
-              await bw.webContents.executeJavaScript(
-                'Promise.all(Array.from(document.images).map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r })))'
-              )
-
-              let payload
-              if (type === 'image') {
-                const h = await bw.webContents.executeJavaScript('document.body.scrollHeight')
-                bw.setContentSize(980, Math.min(h + 30, 20000))
-                const img = await bw.webContents.capturePage()
-                payload = img.toPNG()
-              } else {
-                payload = await bw.webContents.printToPDF({
-                  printBackground: true,
-                  pageSize: 'A4',
-                  landscape: false,
-                  marginsType: 0,
-                })
-              }
-
-              const dir = outDir || win.ztools.getPath('temp')
-              const ext = type === 'image' ? '.png' : '.pdf'
-              const out = path.join(dir, 'cmark-export-' + Date.now() + ext)
-              fs.writeFileSync(out, payload)
-              try {
-                bw.destroy()
-              } catch (e) {}
-              done(null, out)
-            } catch (e) {
-              try {
-                bw.destroy()
-              } catch (e2) {}
-              done(e)
-            }
-          }
-        )
-      } catch (e) {
-        done(e)
-      }
-    },
-
-    /** 把导出的临时文件"另存为"到用户选的位置 */
-    dialogSaveExportFile(tempPath, name, ext) {
-      const base = safeName(name, Date.now())
-      const realExt = ext === 'image' ? 'png' : ext
-      const target = win.ztools.showSaveDialog({
-        defaultPath: path.join(win.ztools.getPath('downloads') || '', base + '.' + realExt),
-        filters: [{ name: realExt.toUpperCase(), extensions: [realExt] }],
-      })
-      if (!target) return null
-      try {
-        fs.copyFileSync(tempPath, target)
-        return target
-      } catch (e) {
-        return null
-      }
     },
   }
 
