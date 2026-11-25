@@ -1,5 +1,5 @@
 import React from 'react';
-import { MousePointerClick, Pencil, ArrowRight } from 'lucide-react';
+import { ArrowRight, Check, MousePointerClick, Pencil, Trash2 } from 'lucide-react';
 import './KeyboardShortcutPanel.css';
 
 interface KeyboardShortcutPanelProps {
@@ -55,15 +55,15 @@ export function KeyboardShortcutPanel({ visible, onClose }: KeyboardShortcutPane
             <h4>手势操作</h4>
             <div className="gesture-item">
               <div className="gesture-icon complete">
-                <MousePointerClick size={12} />
+                <Check size={12} />
               </div>
-              <span className="gesture-label">右键右滑 → 完成</span>
+              <span className="gesture-label">右上 → 完成</span>
             </div>
             <div className="gesture-item">
               <div className="gesture-icon delete">
-                <MousePointerClick size={12} />
+                <Trash2 size={12} />
               </div>
-              <span className="gesture-label">右键左滑 → 删除</span>
+              <span className="gesture-label">右下 → 删除</span>
             </div>
             <div className="gesture-item">
               <div className="gesture-icon edit">
@@ -76,6 +76,12 @@ export function KeyboardShortcutPanel({ visible, onClose }: KeyboardShortcutPane
                 <ArrowRight size={12} />
               </div>
               <span className="gesture-label">拖拽 → 分配日期</span>
+            </div>
+            <div className="gesture-item">
+              <div className="gesture-icon drag">
+                <MousePointerClick size={12} />
+              </div>
+              <span className="gesture-label">鼠标右键滑动（备用）</span>
             </div>
           </div>
         </div>

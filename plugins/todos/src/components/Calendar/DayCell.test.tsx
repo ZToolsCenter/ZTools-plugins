@@ -71,7 +71,7 @@ describe('DayCell', () => {
     expect(container.querySelector('.day-cell')).toHaveClass('other-month');
   });
 
-  it('renders up to 3 tasks', () => {
+  it('renders up to 2 tasks and shows the remaining count', () => {
     const tasks = [
       createMockTask({ id: '1', title: 'Task 1', priority: 'high' }),
       createMockTask({ id: '2', title: 'Task 2', priority: 'medium' }),
@@ -90,11 +90,12 @@ describe('DayCell', () => {
     );
     expect(screen.getByText('Task 1')).toBeInTheDocument();
     expect(screen.getByText('Task 2')).toBeInTheDocument();
-    expect(screen.getByText('Task 3')).toBeInTheDocument();
+    expect(screen.queryByText('Task 3')).not.toBeInTheDocument();
     expect(screen.queryByText('Task 4')).not.toBeInTheDocument();
+    expect(screen.getByText('+2')).toBeInTheDocument();
   });
 
-  it('shows more count when more than 3 tasks', () => {
+  it('shows the remaining count when more than 2 tasks', () => {
     const tasks = [
       createMockTask({ id: '1', title: 'Task 1', priority: 'high' }),
       createMockTask({ id: '2', title: 'Task 2', priority: 'medium' }),
@@ -112,15 +113,15 @@ describe('DayCell', () => {
         onDelete={() => {}}
       />
     );
-    expect(screen.getByText('+2 更多')).toBeInTheDocument();
+    expect(screen.getByText('+3')).toBeInTheDocument();
   });
 
-  it('does not show more count when 3 or fewer tasks', () => {
+  it('does not show a more count when 2 or fewer tasks', () => {
     const tasks = [
       createMockTask({ id: '1', title: 'Task 1', priority: 'high' }),
       createMockTask({ id: '2', title: 'Task 2', priority: 'medium' }),
     ];
-    render(
+    const { container } = render(
       <DayCell
         date="2026-07-08"
         tasks={tasks}
@@ -130,10 +131,10 @@ describe('DayCell', () => {
         onDelete={() => {}}
       />
     );
-    expect(screen.queryByText(/更多/)).not.toBeInTheDocument();
+    expect(container.querySelector('.cell-more')).toBeNull();
   });
 
-  it('applies priority class to cell tasks', () => {
+  it('uses the task priority color for the chip indicator', () => {
     const tasks = [
       createMockTask({ id: '1', title: 'Task 1', priority: 'high' }),
     ];
@@ -147,8 +148,9 @@ describe('DayCell', () => {
         onDelete={() => {}}
       />
     );
-    const cellTask = container.querySelector('.cell-task');
-    expect(cellTask).toHaveClass('high');
+    const chip = container.querySelector('.task-chip') as HTMLElement;
+    expect(chip.style.getPropertyValue('--task-color')).toBe('#DC2626');
+    expect(container.querySelector('.priority-bar')).toHaveAttribute('aria-label', '优先级：高');
   });
 
   it('sets data-date attribute', () => {

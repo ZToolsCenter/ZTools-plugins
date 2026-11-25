@@ -6,6 +6,8 @@ import { TaskPool } from './Task/TaskPool';
 import { WorkspaceGradient } from './WorkspaceGradient';
 import { DevRefreshButton } from './DevRefreshButton';
 import { BottomLegend } from './BottomLegend';
+import { DragActionDock } from './Task/DragActionDock';
+import { TaskDragController } from './Task/TaskDragController';
 import { KeyboardShortcutPanel } from './KeyboardShortcutPanel';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useAppContext } from '../context/AppContext';
@@ -62,6 +64,8 @@ function TodoAppContent() {
         <TaskPool hoveredTaskId={hoveredTaskId} onHoverTask={handleHoverTask} />
         <WorkspaceGradient />
       </div>
+      <TaskDragController />
+      <DragActionDock />
       <BottomLegend onShowShortcuts={toggleShortcuts} />
       <KeyboardShortcutPanel visible={showShortcuts} onClose={closeShortcuts} />
       <DevRefreshButton />

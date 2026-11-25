@@ -25,6 +25,15 @@ describe('KeyboardShortcutPanel', () => {
     expect(screen.getByRole('heading', { name: '手势操作' })).toBeInTheDocument();
   });
 
+  it('shows drag action hints', () => {
+    render(
+      <KeyboardShortcutPanel visible={true} onClose={mockOnClose} />
+    );
+    expect(screen.getByText('右上 → 完成')).toBeInTheDocument();
+    expect(screen.getByText('右下 → 删除')).toBeInTheDocument();
+    expect(screen.getByText('拖拽 → 分配日期')).toBeInTheDocument();
+  });
+
   it('calls onClose when overlay is clicked', () => {
     render(
       <KeyboardShortcutPanel visible={true} onClose={mockOnClose} />

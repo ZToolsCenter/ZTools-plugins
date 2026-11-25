@@ -5,7 +5,7 @@ import { TaskGroup } from './TaskGroup';
 import { EmptyState } from '../Common/EmptyState';
 import { isToday, isThisWeek } from '../../utils/dateUtils';
 import { getTaskStatus, searchTasks } from '../../utils/taskUtils';
-import { FileText } from 'lucide-react';
+import { FileText, Search } from 'lucide-react';
 import './Task.css';
 
 interface TaskPoolProps {
@@ -40,6 +40,8 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
 
   const tasks = getCurrentTasks();
   const filteredTasks = searchTasks(tasks, state.searchQuery);
+  const hasSearch = state.searchQuery.trim().length > 0;
+  const hasSearchResults = filteredTasks.length > 0;
 
   // 自动调整 textarea 高度
   useEffect(() => {
@@ -199,6 +201,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
             {pendingTasks.length > 0 && (
               <button
                 className="status-item pending"
+                aria-label={`待办 ${pendingTasks.length}`}
                 onClick={() => {
                   setExpandedGroups(prev => ({ ...prev, completed: false }));
                   setTimeout(() => pendingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
@@ -212,6 +215,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
             {completedTasks.length > 0 && (
               <button
                 className="status-item done"
+                aria-label={`已完成 ${completedTasks.length}`}
                 onClick={() => {
                   setExpandedGroups(prev => ({ ...prev, completed: true }));
                   setTimeout(() => completedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
@@ -228,6 +232,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
             {overdueTasks.length > 0 && (
               <button 
                 className="status-item overdue"
+                aria-label={`逾期 ${overdueTasks.length}`}
                 onClick={() => handleStatusClick('overdue')}
               >
                 <span className="status-dot"></span>
@@ -238,6 +243,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
             {todayTasks.length > 0 && (
               <button 
                 className="status-item today"
+                aria-label={`今天 ${todayTasks.length}`}
                 onClick={() => handleStatusClick('today')}
               >
                 <span className="status-dot"></span>
@@ -248,6 +254,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
             {thisWeekTasks.length > 0 && (
               <button 
                 className="status-item week"
+                aria-label={`本周 ${thisWeekTasks.length}`}
                 onClick={() => handleStatusClick('week')}
               >
                 <span className="status-dot"></span>
@@ -258,6 +265,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
             {unscheduledTasks.length > 0 && (
               <button 
                 className="status-item unscheduled"
+                aria-label={`未安排 ${unscheduledTasks.length}`}
                 onClick={() => handleStatusClick('unscheduled')}
               >
                 <span className="status-dot"></span>
@@ -270,7 +278,17 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
       </div>
 
       <div className="task-pool-content" ref={contentRef}>
-        {tasks.length === 0 ? (
+        {hasSearch && !hasSearchResults ? (
+          <EmptyState
+            icon={Search}
+            title="没有找到任务"
+            description="换个关键词试试，或清空搜索。"
+            action={{
+              label: '清空搜索',
+              onClick: () => dispatch({ type: 'SET_SEARCH_QUERY', payload: { query: '' } }),
+            }}
+          />
+        ) : tasks.length === 0 ? (
           <EmptyState
             icon={FileText}
             title="暂无任务"
@@ -299,6 +317,8 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 tasks={completedTasks}
                 onComplete={completeTask}
                 onDelete={deleteTask}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
                 collapsed={!expandedGroups.completed}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}
@@ -385,6 +405,8 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 tasks={completedTasks}
                 onComplete={completeTask}
                 onDelete={deleteTask}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
                 collapsed={!expandedGroups.completed}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}

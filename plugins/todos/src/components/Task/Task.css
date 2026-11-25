@@ -165,7 +165,7 @@
 .task-group-count {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--clay);
+  color: var(--graphite);
   background: transparent;
   padding: 0 var(--sp-2);
   border-radius: var(--radius-sm);
@@ -398,7 +398,7 @@
 .task-dates {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--clay);
+  color: var(--graphite);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -438,4 +438,10 @@
 .task-pool-input textarea {
   resize: none;
   line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .task-status-distribution {
+    display: none;
+  }
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MousePointerClick, Pencil, ArrowRight } from 'lucide-react';
+import { ArrowRight, Check, Pencil, Trash2 } from 'lucide-react';
 import './BottomLegend.css';
 
 interface BottomLegendProps {
@@ -10,16 +10,16 @@ export function BottomLegend({ onShowShortcuts }: BottomLegendProps) {
   return (
     <div className="bottom-legend">
       <div className="legend-item">
-        <span className="legend-icon swipe-right">
-          <MousePointerClick size={10} />
+        <span className="legend-icon complete">
+          <Check size={10} strokeWidth={2.5} />
         </span>
-        <span>右键右滑 完成</span>
+        <span>右上 完成</span>
       </div>
       <div className="legend-item">
-        <span className="legend-icon swipe-left">
-          <MousePointerClick size={10} />
+        <span className="legend-icon delete">
+          <Trash2 size={10} strokeWidth={2.5} />
         </span>
-        <span>右键左滑 删除</span>
+        <span>右下 删除</span>
       </div>
       <div className="legend-item">
         <span className="legend-icon edit">

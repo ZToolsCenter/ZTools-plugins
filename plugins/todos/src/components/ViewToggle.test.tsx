@@ -2,25 +2,27 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ViewToggle } from './ViewToggle';
 
 describe('ViewToggle', () => {
-  it('renders toggle button', () => {
-    const { container } = render(<ViewToggle isExpanded={false} onToggle={() => {}} />);
-    expect(container.querySelector('.lucide-maximize-2')).toBeInTheDocument();
+  it('renders week and month options', () => {
+    render(<ViewToggle viewMode="week" onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: '周' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '月' })).toBeInTheDocument();
   });
 
-  it('renders minimize icon when expanded', () => {
-    const { container } = render(<ViewToggle isExpanded={true} onToggle={() => {}} />);
-    expect(container.querySelector('.lucide-minimize-2')).toBeInTheDocument();
+  it('marks the current view as pressed', () => {
+    render(<ViewToggle viewMode="month" onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: '月' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '周' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('calls onToggle when clicked', () => {
-    const handleToggle = jest.fn();
-    const { container } = render(<ViewToggle isExpanded={false} onToggle={handleToggle} />);
-    fireEvent.click(container.querySelector('.view-btn')!);
-    expect(handleToggle).toHaveBeenCalled();
+  it('calls onChange with the selected view', () => {
+    const handleChange = jest.fn();
+    render(<ViewToggle viewMode="week" onChange={handleChange} />);
+    fireEvent.click(screen.getByRole('button', { name: '月' }));
+    expect(handleChange).toHaveBeenCalledWith('month');
   });
 
   it('renders with correct container class', () => {
-    const { container } = render(<ViewToggle isExpanded={false} onToggle={() => {}} />);
+    const { container } = render(<ViewToggle viewMode="week" onChange={() => {}} />);
     expect(container.firstChild).toHaveClass('view-toggle');
   });
 });

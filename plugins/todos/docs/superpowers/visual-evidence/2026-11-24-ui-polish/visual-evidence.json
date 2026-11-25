@@ -1,0 +1,151 @@
+{
+  "schemaVersion": "uizze.visual-evidence.v1",
+  "scope": "Todos UI polish: restore missing type/spacing tokens, semantic priority colors, week/month control, month-view density, search empty state, and secondary-text contrast. Existing Quiet Paper visual system preserved.",
+  "platform": "web",
+  "comparison": "existing-system",
+  "sources": [
+    {
+      "path": "../../../../src/styles/variables.css",
+      "sha256": "1c2a946c6b16d14de8929977ab3d291686fecd24515a6799525a663cec1ae240"
+    },
+    {
+      "path": "../../../../src/utils/colorUtils.ts",
+      "sha256": "177b0d4d01ef4291d9da9e93eafa887700c7c7885c72337145f8414d2f72e828"
+    },
+    {
+      "path": "../../../../src/components/Task/TaskItem.tsx",
+      "sha256": "3ad90eb935e8d24ea48bc09d4a4979b5c96d562ca0fecd831c741f2a5d7837fe"
+    },
+    {
+      "path": "../../../../src/components/Task/TaskChip.tsx",
+      "sha256": "97afb8b4cac8051a0dc8ca8fc3925846654af2ea9bd94d0a0a02160c5e4a9e79"
+    },
+    {
+      "path": "../../../../src/components/Task/TaskBlock.tsx",
+      "sha256": "ced3487c7d1515589b62349df26bb8127ef4500224ba870cd9b63c3e63446f12"
+    },
+    {
+      "path": "../../../../src/components/Task/Task.css",
+      "sha256": "d7cde9cfe89605128c37f7f100ddd8eaf7dc279d788667dc1fc695dcb1e183b8"
+    },
+    {
+      "path": "../../../../src/components/Task/TaskPool.tsx",
+      "sha256": "c5abc178f13e20ef1c4b9d409413d43667ebb42fceb37b653d11c28ba5b2f2f2"
+    },
+    {
+      "path": "../../../../src/components/Calendar/DayCell.tsx",
+      "sha256": "12b6fa3d4c1e474350052edaca43bc2dd84936eac6c625d9040d536ceb6f7a6a"
+    },
+    {
+      "path": "../../../../src/components/Calendar/Calendar.css",
+      "sha256": "1506877cddd0ade7b9c21ddbb6f0b0aad745e76b21a6110e471a2286a7fea656"
+    },
+    {
+      "path": "../../../../src/components/ViewToggle.tsx",
+      "sha256": "09ddf94649cec4bb41fae7932f199d29277bc8d00a7a2011d2fef964f2b0e4b4"
+    },
+    {
+      "path": "../../../../src/components/ViewToggle.test.tsx",
+      "sha256": "af91e479f94c0c2dbb6a749af258fa1c4f5ba89eea952e2fa75d095a52a800da"
+    },
+    {
+      "path": "../../../../src/components/Header.tsx",
+      "sha256": "c8c98e6a5c1e362ac936d13bb9ab806be1f66b318fbd71e192c3b77da073ba47"
+    },
+    {
+      "path": "../../../../src/components/Header.css",
+      "sha256": "627ac0a71a051e4d3f4d5d1196cba98f595e5e4d2f50ab7520486ef09969f5e1"
+    },
+    {
+      "path": "../../../../src/components/Common/Common.css",
+      "sha256": "8e10801a7afc83f4d6631655358715a4bd53bb9f6090dc945033e35ab1ac0f90"
+    },
+    {
+      "path": "../../../../src/components/BottomLegend.css",
+      "sha256": "c2348cbc68be8ac2e511cbfd56d378c1de59279e96485918485c1565bf6034b0"
+    }
+  ],
+  "requiredChecks": [
+    {
+      "id": "week-default",
+      "kind": "visual"
+    },
+    {
+      "id": "month-view",
+      "kind": "interaction"
+    },
+    {
+      "id": "search-empty",
+      "kind": "interaction"
+    }
+  ],
+  "checks": [
+    {
+      "id": "week-default",
+      "status": "pass",
+      "state": "Week view, work workspace, default task pool",
+      "environment": {
+        "kind": "browser",
+        "name": "Chromium (OpenCode in-app)",
+        "width": 1000,
+        "height": 700
+      },
+      "observed": "Logo 18px, workspace tabs 11px, task titles 12px, dates 11px graphite, semantic red/amber/green priority bars, 周/月 segmented control visible.",
+      "artifacts": [
+        {
+          "path": "week-1000x700.jpeg",
+          "kind": "image",
+          "sha256": "697156b8d3b19a21e4c69bbe0ebbd2a9e959f8843063121afed49b824b7cb5e4"
+        }
+      ]
+    },
+    {
+      "id": "month-view",
+      "status": "pass",
+      "state": "Month view after selecting 月",
+      "environment": {
+        "kind": "browser",
+        "name": "Chromium (OpenCode in-app)",
+        "width": 1000,
+        "height": 700
+      },
+      "observed": "Month grid headers 11px; task chips compact with priority bars; each cell shows up to two tasks plus +N overflow count.",
+      "steps": [
+        "Clicked 月 in the header view toggle",
+        "Captured the month grid"
+      ],
+      "artifacts": [
+        {
+          "path": "month-1000x700.jpeg",
+          "kind": "image",
+          "sha256": "d5fa6a47415129d892116f089234c71393bb177e781fd78024ca7584d536f86f"
+        }
+      ]
+    },
+    {
+      "id": "search-empty",
+      "status": "pass",
+      "state": "Search query with no matching tasks",
+      "environment": {
+        "kind": "browser",
+        "name": "Chromium (OpenCode in-app)",
+        "width": 1000,
+        "height": 700
+      },
+      "observed": "Task pool shows a composed “没有找到任务” empty state with a clear-search action; no blank panel remains.",
+      "steps": [
+        "Typed zzzz-no-result in the header search",
+        "Waited for debounced filtering",
+        "Captured the empty state"
+      ],
+      "artifacts": [
+        {
+          "path": "search-empty-1000x700.jpeg",
+          "kind": "image",
+          "sha256": "069ce2f87e1058bdbc602393582711191bb8fff3bb8ad7ba7affd2b04a9fd5bb"
+        }
+      ]
+    }
+  ],
+  "unresolved": []
+}

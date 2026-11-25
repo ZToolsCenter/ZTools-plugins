@@ -123,18 +123,19 @@
    ═══════════════════════════════════════════════════════════ */
 .view-toggle {
   display: flex;
-  background: transparent;
-  border-radius: var(--radius-md);
-  padding: 2px;
+  gap: 1px;
+  padding: 1px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
 }
 
 .view-btn {
-  padding: 2px var(--sp-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--graphite);
-  border-radius: var(--radius-sm);
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--clay);
+  border-radius: 2px;
   transition: all var(--duration-fast) var(--ease-out);
 }
 
@@ -143,7 +144,12 @@
 }
 
 .view-btn.active {
-  background: transparent;
+  background: var(--color-hover-bg);
   color: var(--ink);
-  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .header-search {
+    width: 120px;
+  }
 }

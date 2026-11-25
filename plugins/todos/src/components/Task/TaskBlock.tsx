@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Task } from '../../types';
-import { getTaskColor } from '../../utils/colorUtils';
+import { getPriorityColor, getPriorityLabel } from '../../utils/colorUtils';
 import './TaskBlock.css';
 
 interface TaskBlockProps {
@@ -18,13 +18,12 @@ export const TaskBlock = React.memo(function TaskBlock({
   task,
   isHighlighted,
   onHover,
-  onDragStart,
-  onDragEnd,
   onRemove,
   onComplete,
   onSelect
 }: TaskBlockProps) {
-  const taskColor = getTaskColor(task.id);
+  const taskColor = getPriorityColor(task.priority);
+  const priorityLabel = getPriorityLabel(task.priority);
   const blockRef = useRef<HTMLDivElement>(null);
   const callbacksRef = useRef({ onComplete, onRemove });
   callbacksRef.current = { onComplete, onRemove };
@@ -229,29 +228,23 @@ export const TaskBlock = React.memo(function TaskBlock({
     };
   }, [task.id]);
 
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', task.id);
-    e.dataTransfer.effectAllowed = 'move';
-    onDragStart?.(task.id);
-  };
-
   return (
     <div
       ref={blockRef}
       data-task-id={task.id}
       className={`task-block ${task.status === 'done' ? 'done' : ''} ${isHighlighted ? 'highlighted' : ''}`}
       style={{ '--task-color': taskColor } as React.CSSProperties}
+      title={task.title}
       onClick={(e) => { if (e.button === 0) onSelect?.(task.id); }}
       onMouseEnter={() => onHover?.(task.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <div
-        className="block-drag-area"
-        draggable
-        onDragStart={handleDragStart}
-        onDragEnd={onDragEnd}
-      >
-        <span className="priority-bar"></span>
+      <div className="block-drag-area">
+        <span
+          className="priority-bar"
+          role="img"
+          aria-label={`优先级：${priorityLabel}`}
+        ></span>
         <div className="block-content">
           <span className="block-title">{task.title}</span>
           {task.description && (

@@ -1,20 +1,28 @@
 import React from 'react';
-import { Maximize2, Minimize2 } from 'lucide-react';
 
 interface ViewToggleProps {
-  isExpanded: boolean;
-  onToggle: () => void;
+  viewMode: 'week' | 'month';
+  onChange: (mode: 'week' | 'month') => void;
 }
 
-export function ViewToggle({ isExpanded, onToggle }: ViewToggleProps) {
+export function ViewToggle({ viewMode, onChange }: ViewToggleProps) {
   return (
-    <div className="view-toggle">
+    <div className="view-toggle" role="group" aria-label="日历视图">
       <button
-        className="view-btn"
-        onClick={onToggle}
-        title={isExpanded ? '缩小' : '全屏'}
+        className={`view-btn ${viewMode === 'week' ? 'active' : ''}`}
+        onClick={() => onChange('week')}
+        aria-pressed={viewMode === 'week'}
+        title="周视图"
       >
-        {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        周
+      </button>
+      <button
+        className={`view-btn ${viewMode === 'month' ? 'active' : ''}`}
+        onClick={() => onChange('month')}
+        aria-pressed={viewMode === 'month'}
+        title="月视图"
+      >
+        月
       </button>
     </div>
   );
