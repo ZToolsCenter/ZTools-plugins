@@ -1,0 +1,5 @@
+# 这里是插件源码：依赖与构建产物都不入库
+node_modules/
+app/
+.tmp/
+*.tgz
