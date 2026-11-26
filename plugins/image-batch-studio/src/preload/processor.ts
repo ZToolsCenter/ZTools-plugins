@@ -26,6 +26,7 @@ import {
 } from "./processing-limits";
 import { sharp } from "./sharp-runtime";
 import { prepareCompatibleImageInput } from "./heic-bridge";
+import { decideCompressionFallback, hasPrivateMetadata } from "./compression-fallback";
 
 const imageExtensions = new Set(["jpg", "jpeg", "png", "webp", "avif", "heif", "heic", "tif", "tiff", "gif"]);
 
@@ -114,15 +115,13 @@ function outputFormat(settings: ImageJobSettings, inputPath: string): ImageForma
   return settings.format?.type ?? formatFromPath(inputPath);
 }
 
-function shouldKeepOriginalWhenCompressing(
+function isCompressionFallbackEligible(
   settings: ImageJobSettings,
   inputPath: string,
-  format: ImageFormat,
-  inputBytes: number,
-  outputBytes: number
+  format: ImageFormat
 ): boolean {
-  // 当用户处于纯压缩或未修改尺寸/裁剪/水印/旋转/格式等几何或内容变换时，
-  // 若压缩后体积反而大于或等于原始文件体积，则保留原始文件防止“越压越大”。
+  // 纯压缩、同格式、无尺寸/裁剪/水印/旋转等几何或内容变换时，才有资格回退原图防止“越压越大”；
+  // 是否真正回退还要经过 decideCompressionFallback 的元数据隐私判定。
   const hasContentTransform = Boolean(
     settings.resize?.width ||
       settings.resize?.height ||
@@ -138,12 +137,7 @@ function shouldKeepOriginalWhenCompressing(
   const inputExtFormat = formatFromPath(inputPath);
   const isSameFormat = format === inputExtFormat;
 
-  return Boolean(
-    settings.compression &&
-      !hasContentTransform &&
-      isSameFormat &&
-      outputBytes >= inputBytes
-  );
+  return Boolean(settings.compression && !hasContentTransform && isSameFormat);
 }
 
 function applyResize(image: Sharp, settings: ImageJobSettings, width?: number, height?: number): Sharp {
@@ -440,7 +434,8 @@ async function processOne(
 
     image = await applyWatermark(image, settings);
 
-    if (settings.format?.keepMetadata || settings.compression?.keepMetadata) {
+    const keepMetadata = Boolean(settings.format?.keepMetadata || settings.compression?.keepMetadata);
+    if (keepMetadata) {
       image = image.withMetadata();
     }
 
@@ -448,15 +443,16 @@ async function processOne(
     image = applyOutputFormat(image, format, settings);
     const inputStat = await fs.stat(inputPath);
     const { data: encodedBuffer, info: outMetadata } = await image.toBuffer({ resolveWithObject: true });
-    const outputBuffer = shouldKeepOriginalWhenCompressing(
-      settings,
-      inputPath,
-      format,
-      inputStat.size,
-      encodedBuffer.byteLength
-    )
-      ? await fs.readFile(inputPath)
-      : encodedBuffer;
+    const fallback = await decideCompressionFallback({
+      eligible: isCompressionFallbackEligible(settings, inputPath, format),
+      keepMetadata,
+      inputBytes: inputStat.size,
+      outputBytes: encodedBuffer.byteLength,
+      // 回退写出的是原始文件本身，所以必须检查原始文件（而非 HEIC 兼容中间文件）的元数据。
+      sourceHasPrivateMetadata: async () =>
+        hasPrivateMetadata(await sharp(inputPath, sharpInputOptions).metadata())
+    });
+    const outputBuffer = fallback.useOriginal ? await fs.readFile(inputPath) : encodedBuffer;
     const outputPath = buildOutputPath({
       inputPath,
       outputDirectory: settings.output.directory,
@@ -478,7 +474,8 @@ async function processOne(
       width: outMetadata.width,
       height: outMetadata.height,
       inputBytes: inputStat.size,
-      outputBytes: outputStat.size
+      outputBytes: outputStat.size,
+      ...(fallback.outputLargerForPrivacy ? { metadataStrippedLarger: true } : {})
     };
   } catch (error) {
     return {

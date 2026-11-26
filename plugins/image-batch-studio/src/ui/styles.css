@@ -650,6 +650,11 @@ input[type="color"] {
   text-overflow: ellipsis;
 }
 
+.result-row .result-note {
+  font-style: normal;
+  color: #92400e;
+}
+
 .module-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));

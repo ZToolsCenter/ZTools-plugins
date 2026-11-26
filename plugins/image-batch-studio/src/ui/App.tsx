@@ -352,7 +352,12 @@ function ImageBatchWorkbench() {
       );
       setResults(processed);
       const okCount = processed.filter((item) => item.ok).length;
-      notify(`${activeModuleLabel()}已完成 ${okCount}/${processed.length}`);
+      const strippedLarger = processed.filter((item) => item.ok && item.metadataStrippedLarger).length;
+      notify(
+        strippedLarger > 0
+          ? `${activeModuleLabel()}已完成 ${okCount}/${processed.length}，其中 ${strippedLarger} 张为移除元数据体积略增`
+          : `${activeModuleLabel()}已完成 ${okCount}/${processed.length}`
+      );
     } catch (error) {
       showOperationError(selectedFile?.path ?? "", error);
     } finally {
@@ -644,7 +649,10 @@ function ImageBatchWorkbench() {
                   results.map((result) => (
                     <button key={`${result.inputPath}-${result.outputPath}`} className="result-row" draggable={Boolean(result.outputPath && window.services.canStartDrag())} onDragStart={(event) => result.outputPath && void dragResult(event, result.outputPath)} onClick={() => result.outputPath && window.services.reveal(result.outputPath)}>
                       {result.ok ? <Check size={14} /> : <PanelRight size={14} />}
-                      <span>{result.ok ? basename(result.outputPath) : result.error}</span>
+                      <span title={result.metadataStrippedLarger ? "已移除 EXIF/GPS 等元数据，输出比原图略大" : undefined}>
+                        {result.ok ? basename(result.outputPath) : result.error}
+                        {result.metadataStrippedLarger && <em className="result-note"> · 已去元数据，体积略增</em>}
+                      </span>
                     </button>
                   ))
                 )}
