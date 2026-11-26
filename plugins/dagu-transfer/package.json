@@ -1,0 +1,22 @@
+{
+  "name": "dagu-transfer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "大古快传：把图片或文件快速上传到本地目录、SSH 服务器，或从 SSH 服务器下载文件",
+  "scripts": {
+    "dev": "vite --port 5174 --strictPort",
+    "build": "vite build && node scripts/copy-plugin-files.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "logo": "node scripts/generate-logo.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "lucide-static": "^1.45.0",
+    "vite": "^8.0.10"
+  }
+}

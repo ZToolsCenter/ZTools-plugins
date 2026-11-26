@@ -1,0 +1,93 @@
+/* ZTools aligned base theme. Runtime host values may override --primary-color. */
+:root {
+  color-scheme: light;
+  --bg-color: #f4f4f4;
+  --surface: #ffffff;
+  --surface-muted: #f9fafb;
+  --hover-bg: #f3f4f6;
+  --active-bg: rgba(2, 132, 199, .10);
+  --text-color: #333333;
+  --text-secondary: #616161;
+  --placeholder-color: #8a8f98;
+  --border-color: #e5e7eb;
+  --divider-color: rgba(0, 0, 0, .08);
+  --primary-color: #0284c7;
+  --primary-hover: #0369a1;
+  --primary-contrast: #ffffff;
+  --accent-soft: rgba(2, 132, 199, .10);
+  --focus-ring: rgba(2, 132, 199, .28);
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --danger-color: #ef4444;
+  --warning-bg: rgba(245, 158, 11, .10);
+  --warning-border: rgba(245, 158, 11, .28);
+  --overlay-bg: rgba(15, 23, 42, .36);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 24px rgba(15, 23, 42, .04);
+  --shadow-pop: 0 16px 48px rgba(15, 23, 42, .14);
+
+  /* Compatibility aliases used by existing component styles. */
+  --canvas: var(--bg-color);
+  --ink: var(--text-color);
+  --muted: var(--text-secondary);
+  --line: var(--border-color);
+  --teal: var(--primary-color);
+  --teal-dark: var(--primary-hover);
+  --orange: var(--warning-color);
+  --danger: var(--danger-color);
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --control-height: 36px;
+  --transition-fast: 150ms ease;
+  --transition: 180ms ease;
+}
+
+html.dark {
+  color-scheme: dark;
+  --bg-color: #303133;
+  --surface: #374151;
+  --surface-muted: #414b56;
+  --hover-bg: rgba(255, 255, 255, .06);
+  --active-bg: rgba(14, 165, 233, .18);
+  --text-color: #f3f4f6;
+  --text-secondary: #bfc0c3;
+  --placeholder-color: #9ca3af;
+  --border-color: #4b5563;
+  --divider-color: rgba(255, 255, 255, .10);
+  --primary-color: #0ea5e9;
+  --primary-hover: #38bdf8;
+  --primary-contrast: #062c3a;
+  --accent-soft: rgba(14, 165, 233, .18);
+  --focus-ring: rgba(14, 165, 233, .38);
+  --success-color: #34d399;
+  --warning-color: #fbbf24;
+  --danger-color: #f87171;
+  --warning-bg: rgba(251, 191, 36, .14);
+  --warning-border: rgba(251, 191, 36, .32);
+  --overlay-bg: rgba(0, 0, 0, .46);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .16), 0 10px 28px rgba(0, 0, 0, .16);
+  --shadow-pop: 0 18px 52px rgba(0, 0, 0, .28);
+}
+/* Named host themes. A runtime custom color still wins via --primary-color. */
+.theme-blue { --primary-color: #0284c7; --primary-hover: #0369a1; --accent-soft: rgba(2, 132, 199, .10); --focus-ring: rgba(2, 132, 199, .28); }
+.theme-purple { --primary-color: #7c3aed; --primary-hover: #6d28d9; --accent-soft: rgba(124, 58, 237, .10); --focus-ring: rgba(124, 58, 237, .28); }
+.theme-green { --primary-color: #059669; --primary-hover: #047857; --accent-soft: rgba(5, 150, 105, .10); --focus-ring: rgba(5, 150, 105, .28); }
+.theme-orange { --primary-color: #ea580c; --primary-hover: #c2410c; --accent-soft: rgba(234, 88, 12, .10); --focus-ring: rgba(234, 88, 12, .28); }
+.theme-red { --primary-color: #dc2626; --primary-hover: #b91c1c; --accent-soft: rgba(220, 38, 38, .10); --focus-ring: rgba(220, 38, 38, .28); }
+.theme-pink { --primary-color: #db2777; --primary-hover: #be185d; --accent-soft: rgba(219, 39, 119, .10); --focus-ring: rgba(219, 39, 119, .28); }
+
+html.dark.theme-blue { --primary-color: #0ea5e9; --primary-hover: #38bdf8; --accent-soft: rgba(14, 165, 233, .18); --focus-ring: rgba(14, 165, 233, .38); }
+html.dark.theme-purple { --primary-color: #a78bfa; --primary-hover: #c4b5fd; --accent-soft: rgba(167, 139, 250, .18); --focus-ring: rgba(167, 139, 250, .38); }
+html.dark.theme-green { --primary-color: #34d399; --primary-hover: #6ee7b7; --accent-soft: rgba(52, 211, 153, .18); --focus-ring: rgba(52, 211, 153, .38); }
+html.dark.theme-orange { --primary-color: #fb923c; --primary-hover: #fdba74; --accent-soft: rgba(251, 146, 60, .18); --focus-ring: rgba(251, 146, 60, .38); }
+html.dark.theme-red { --primary-color: #f87171; --primary-hover: #fca5a5; --accent-soft: rgba(248, 113, 113, .18); --focus-ring: rgba(248, 113, 113, .38); }
+html.dark.theme-pink { --primary-color: #f472b6; --primary-hover: #f9a8d4; --accent-soft: rgba(244, 114, 182, .18); --focus-ring: rgba(244, 114, 182, .38); }
+
