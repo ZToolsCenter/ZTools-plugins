@@ -1,0 +1,28 @@
+{
+  "name": "top-screenshot-ztools-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vue-tsc --noEmit && vite build && vite build --config vite.preload.config.ts",
+    "package": "npm run build && tsx scripts/package-plugin.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "create:logo": "node scripts/create-logo.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "latest",
+    "@vue/test-utils": "latest",
+    "jsdom": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest",
+    "vue": "latest",
+    "vue-tsc": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest"
+  }
+}
