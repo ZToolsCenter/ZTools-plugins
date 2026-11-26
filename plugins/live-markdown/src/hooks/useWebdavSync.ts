@@ -146,7 +146,8 @@ export function useWebdavSync({
         const res = await bridge.pushWebdavDocument(
           webdavConfig,
           doc.name || "Untitled.md",
-          doc.content
+          doc.content,
+          { localPath: doc.path }
         );
         if (res.ok) {
           setWebdavSyncState("success");
@@ -159,7 +160,8 @@ export function useWebdavSync({
           setWebdavSyncState("error");
           const errMsg = res.error || "WebDAV 上传失败";
           setWebdavStatusMessage(errMsg);
-          if (!silent) showToast(errMsg);
+          // 同名冲突即使在保存后静默同步时也要告知用户，否则云端与本地会悄悄分叉。
+          if (!silent || res.conflict) showToast(errMsg);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -172,6 +174,7 @@ export function useWebdavSync({
       bridge,
       doc.content,
       doc.name,
+      doc.path,
       handleOpenWebdavSettings,
       handleRefreshWebdavFiles,
       showToast,
@@ -196,7 +199,7 @@ export function useWebdavSync({
             path: res.path,
             name: res.name,
             dir: res.dir || targetLocalDir || doc.dir,
-            content: res.content,
+            content: res.content ?? "",
             isDirty: false,
             mtimeMs: res.mtimeMs || Date.now()
           });
@@ -315,6 +318,16 @@ export function useWebdavSync({
           }
         }
 
+        const conflicts = Array.isArray(res.conflicts) ? res.conflicts : [];
+        if (conflicts.length > 0) {
+          const detail =
+            conflicts.length === 1
+              ? conflicts[0].message
+              : `${res.message}。冲突文件：${conflicts.map((c) => c.name).join("、")}`;
+          setWebdavStatusMessage(detail);
+          showToast(detail);
+          return;
+        }
         showToast(res.message);
       } else {
         setWebdavSyncState("error");
