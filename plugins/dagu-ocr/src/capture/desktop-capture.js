@@ -73,6 +73,21 @@ export function displayPixelSize(display) {
   };
 }
 
+export function isWindowsHost(nav) {
+  const platform = String(nav?.userAgentData?.platform || nav?.platform || '');
+  return /win/i.test(platform);
+}
+
+// HDR 显示器（只在 Windows 判断）：ZTools 给插件的桌面捕获源走 DXGI 桌面复制，HDR 下交出来的是
+// 没做色调映射的画面；宿主自带的截图走 GDI，由系统映射成 SDR。插件接口里拿不到映射后的整帧，
+// 所以这类显示器不抓桌面帧，直接用宿主截图。宿主返回的显示器对象里，Chromium 在 HDR 开启时
+// 报 10 位色深、scRGB 色彩空间。macOS / Linux 的采集链路没有这个问题，且 macOS 的广色域屏也报 10 位。
+export function isHdrDisplay(display, nav) {
+  if (!display || typeof display !== 'object' || !isWindowsHost(nav)) return false;
+  if (Number(display.depthPerComponent) > 8) return true;
+  return /scrgb|\bpq\b|hdr/i.test(String(display.colorSpace || ''));
+}
+
 export function pickSourceForDisplay(sources, display) {
   const list = Array.isArray(sources) ? sources.filter(Boolean) : [];
   if (!list.length) return null;
@@ -112,6 +127,9 @@ export async function captureDisplay(win, display) {
   const host = hostApi(win);
   if (typeof host?.desktopCaptureSources !== 'function') {
     throw new Error('当前环境不支持屏幕捕获');
+  }
+  if (isHdrDisplay(display, win?.navigator)) {
+    throw new Error('HDR 显示器的桌面捕获画面异常，已改用系统截图');
   }
   const requested = displayPixelSize(display);
   const sources = await host.desktopCaptureSources({ types: ['screen'], thumbnailSize: requested });

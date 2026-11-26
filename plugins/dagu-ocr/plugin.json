@@ -1,12 +1,12 @@
 {
   "name": "dagu-ocr",
   "title": "大古截图",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "description": "截图、OCR 文字识别与图片翻译，从图片中提取并翻译文字",
   "author": "beierweiwei",
   "logo": "icon.png",
   "main": "index.html",
-  "preload": "preload.js",
+  "preload": "preload.cjs",
   "development": {
     "main": "http://127.0.0.1:5173/index.html"
   },

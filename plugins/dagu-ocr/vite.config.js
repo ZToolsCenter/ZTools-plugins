@@ -14,6 +14,12 @@ export default defineConfig({
     },
   },
   base: './',
+  // 宿主的开发入口是 http://127.0.0.1:5173/index.html（见 plugin.json 的 development.main）。
+  // 不指定 host 时 vite 监听 localhost，Node 17+ 在 Windows 上把它解析成 IPv6 的 ::1，
+  // 宿主连 127.0.0.1 会被拒绝，页面空白。
+  server: {
+    host: '127.0.0.1',
+  },
   build: {
     outDir: 'dist',
     rollupOptions: {

@@ -80,6 +80,7 @@ export function createToolbar({ root, getSettings, onToolChange, onAction, onSet
       <span class="capture-sep"></span>
       ${button({ id: 'capture-ocr', className: 'capture-btn capture-flow', title: '识别当前图片文字', html: 'OCR' })}
       ${button({ id: 'capture-translate', className: 'capture-btn capture-flow', title: '识别并翻译当前图片', html: '翻译' })}
+      ${button({ id: 'capture-share', className: 'capture-btn capture-flow', title: '分享到大古快传', html: '分享' })}
       <span class="capture-sep"></span>
       ${button({ id: 'capture-close', title: '取消 (Esc)', html: icon('close') })}
       ${button({ id: 'capture-pin', title: '固定到屏幕', html: icon('pin') })}
@@ -212,6 +213,7 @@ export function createToolbar({ root, getSettings, onToolChange, onAction, onSet
       'capture-redo': 'redo',
       'capture-ocr': 'ocr',
       'capture-translate': 'translate',
+      'capture-share': 'share',
       'capture-close': 'close',
       'capture-pin': 'pin',
       'capture-save': 'save',

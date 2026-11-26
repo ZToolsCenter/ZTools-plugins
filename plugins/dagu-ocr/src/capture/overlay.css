@@ -141,15 +141,16 @@ html, body {
 .capture-btn:disabled:hover { background: transparent; }
 .capture-btn svg { width: 20px; height: 20px; }
 
+/* 工具条跟随深浅色：界面颜色一律取主题变量，只有压在截图上的元素（尺寸标签、就地文字框）固定配色。 */
 .capture-tool.active,
 .capture-toggle.active {
   background: var(--capture-accent);
-  color: #ffffff;
+  color: var(--primary-contrast, #ffffff);
 }
 
 .capture-btn.capture-primary {
   background: var(--capture-accent);
-  color: #ffffff;
+  color: var(--primary-contrast, #ffffff);
 }
 
 .capture-btn.capture-primary:hover { background: var(--capture-accent-hover); }
@@ -174,7 +175,7 @@ html, body {
   gap: 2px;
   padding: 2px;
   border-radius: var(--radius-sm, 8px);
-  background: rgba(15, 23, 42, .06);
+  background: var(--hover-bg, rgba(15, 23, 42, .06));
 }
 
 .capture-toggle {
@@ -220,7 +221,7 @@ html, body {
   padding: 0 6px;
   border: 1px solid var(--capture-toolbar-border);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--surface, #ffffff);
   color: var(--capture-icon);
   font: inherit;
   font-size: 12px;
@@ -235,7 +236,7 @@ html, body {
 .capture-color {
   width: 18px;
   height: 18px;
-  border: 1px solid rgba(15, 23, 42, .18);
+  border: 1px solid var(--border-color, rgba(15, 23, 42, .18));
   border-radius: 4px;
   cursor: pointer;
   padding: 0;
@@ -255,7 +256,7 @@ html, body {
   border-radius: 6px;
   overflow: hidden;
   cursor: pointer;
-  background: rgba(15, 23, 42, .06);
+  background: var(--hover-bg, rgba(15, 23, 42, .06));
 }
 
 .capture-custom-color input {

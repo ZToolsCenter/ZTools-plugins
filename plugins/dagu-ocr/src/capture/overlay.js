@@ -14,6 +14,7 @@ import { createTextEditor } from './text-editor.js';
 import { createToolController } from './tool-controller.js';
 import { createToolbar } from './toolbar.js';
 import { selectionSizeLabel } from './geometry.js';
+import { handoffToTransfer } from '../share/handoff.js';
 
 const win = globalThis.window;
 const CHANNEL = 'dagu-ocr-editor';
@@ -338,6 +339,53 @@ function pinImage() {
   finish();
 }
 
+// 交给大古快传后由它接手：覆盖层直接关闭且不发 closed，主窗口只做本地清理，
+// 不再恢复窗口或退出插件，免得把刚打开的大古快传关掉。
+let sharing = false;
+
+async function shareImage() {
+  const dataUrl = composeImage();
+  if (!dataUrl) {
+    showHint('没有可分享的内容');
+    return;
+  }
+  if (sharing || state.finished) return;
+  sharing = true;
+  showHint('正在打开「大古快传」…', { sticky: true });
+  let storage = null;
+  try {
+    storage = win.localStorage;
+  } catch {
+    // 本地存储不可用时只能依赖跳转接口的返回值。
+  }
+  let result;
+  try {
+    result = await handoffToTransfer({
+      host: host(),
+      prepare: win.__daguOcrPrepareShare,
+      discard: win.__daguOcrDiscardShare,
+      acked: win.__daguOcrShareAcked,
+      storage,
+      dataUrl
+    });
+  } finally {
+    sharing = false;
+  }
+  if (!result.ok) {
+    showHint(result.message, { sticky: true });
+    return;
+  }
+  state.finished = true;
+  send('shared');
+  setTimeout(() => {
+    try {
+      win.close();
+    } catch {
+      // 窗口已关闭时忽略。
+    }
+  }, 150);
+}
+
 function sendResult(action) {
   const dataUrl = composeImage();
   if (!dataUrl) {
@@ -384,6 +432,8 @@ async function handleAction(action) {
     saveImage();
   } else if (action === 'pin') {
     pinImage();
+  } else if (action === 'share') {
+    await shareImage();
   } else if (action === 'ocr' || action === 'translate') {
     sendResult(action);
   }
