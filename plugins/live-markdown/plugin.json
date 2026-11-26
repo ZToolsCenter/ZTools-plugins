@@ -3,7 +3,7 @@
   "title": "Live Markdown",
   "description": "高性能沉浸式所见即所得 Markdown 编辑器：支持实时预览/源码模式切换、大纲与文件树、全局搜索、数学公式、Mermaid 图表、交互式表格、专注模式、打字机模式与 6 套经典排版主题",
   "author": "harris",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "dist/index.html",
   "preload": "preload/services.cjs",
   "logo": "logo.svg",

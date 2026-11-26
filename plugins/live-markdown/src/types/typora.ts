@@ -203,26 +203,46 @@ export interface WebdavListResult {
   syncedAt: number;
 }
 
+/** 同名冲突原因：写入会覆盖本设备未同步过的内容时，同步引擎拒绝写入。 */
+export type WebdavConflictReason =
+  | "bound-elsewhere"
+  | "remote-changed"
+  | "unknown-remote"
+  | "local-modified"
+  | "local-unknown";
+
+export interface WebdavConflict {
+  name: string;
+  direction: "push" | "pull";
+  reason: WebdavConflictReason;
+  message: string;
+}
+
 export interface WebdavPushResult {
   ok: boolean;
   name: string;
-  remoteUrl: string;
-  status: number;
-  size: number;
+  remoteUrl?: string;
+  status?: number;
+  size?: number;
   syncedAt: number;
   error?: string;
+  conflict?: boolean;
+  reason?: WebdavConflictReason;
 }
 
 export interface WebdavPullResult {
   ok: boolean;
   name: string;
-  content: string;
+  /** 冲突被拦截时不返回内容。 */
+  content?: string;
   path: string | null;
   dir: string;
-  size: number;
-  mtimeMs: number;
+  size?: number;
+  mtimeMs?: number;
   syncedAt: number;
   error?: string;
+  conflict?: boolean;
+  reason?: WebdavConflictReason;
 }
 
 export interface WebdavSyncResult {
@@ -232,6 +252,8 @@ export interface WebdavSyncResult {
   downloaded: string[];
   downloadedPaths?: string[];
   skipped: string[];
+  /** 因同名冲突被拦截、未写入任何一侧的文件。 */
+  conflicts?: WebdavConflict[];
   remoteFiles: WebdavRemoteFile[];
   syncedAt: number;
   message: string;
@@ -423,7 +445,8 @@ export interface TyporaBridgeApi {
   pushWebdavDocument?: (
     config: WebdavConfig,
     docName: string,
-    content: string
+    content: string,
+    options?: { localPath?: string | null }
   ) => Promise<WebdavPushResult>;
   pullWebdavDocument?: (
     config: WebdavConfig,

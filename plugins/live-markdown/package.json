@@ -1,6 +1,6 @@
 {
   "name": "ztools-live-markdown",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "High-performance live-preview Markdown editor built in React 19 & TypeScript for ZTools.",

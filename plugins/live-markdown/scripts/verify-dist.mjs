@@ -20,7 +20,9 @@ const requiredFiles = [
   "preload/services.cjs",
   "preload/fs-workspace.cjs",
   "preload/exporter.cjs",
-  "preload/webdav-sync.cjs"
+  "preload/webdav-sync.cjs",
+  "preload/webdav-transport.cjs",
+  "preload/webdav-sync-ledger.cjs"
 ];
 
 for (const relativePath of requiredFiles) {

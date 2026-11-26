@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.1 - 2026-11-25
+
+### Fixed
+
+- 修复 WebDAV 同步时不同工作区的同名文件会映射到同一远端路径、互相覆盖的问题：本设备记录每个云端文件绑定的本地文件和上次同步的内容，上传或拉取前先核对；会覆盖未同步内容时按冲突跳过并提示原因。
+- 本地与云端在上次同步后都被修改时视为冲突，两侧都不写入；升级后首次同步时，内容不一致且没有同步记录的文件会被拦下，内容一致的文件直接建立绑定。
+- 保存后自动上传遇到同名冲突时也会提示，避免本地与云端悄悄分叉。
+
+### Changed
+
+- 拆分 WebDAV 同步模块为传输层、同步记录与冲突判定、同步流程三部分；每次上传前先读取云端内容用于核对。
+
 ## 0.1.0 - 2026-11-17
 
 ### 工作区多文件夹支持与默认工作区移除（2026-11-17）
