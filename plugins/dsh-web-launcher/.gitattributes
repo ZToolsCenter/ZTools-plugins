@@ -1,0 +1,5 @@
+# 统一使用 LF，避免 Windows 上 autocrlf 造成增量发布的 diff 抖动
+* text=auto eol=lf
+
+# 二进制文件不参与换行符转换
+*.png binary
