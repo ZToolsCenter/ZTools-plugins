@@ -1,0 +1,126 @@
+// ════════════════════════════════════════════════════════════
+// 样式重置与初始化
+// 消除浏览器默认样式差异，统一元素基线行为，滚动条视觉归一
+// ════════════════════════════════════════════════════════════
+@use 'variables' as *;
+
+// ── 盒模型 & 内外边距归零 ──
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+// ── 根元素与 body ──
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+// ── 标题 / 段落：继承字号字重，不使用浏览器默认加粗阶梯 ──
+h1, h2, h3, h4, h5, h6,
+p, figure, blockquote, dl, dd {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+// ── 列表：去标记点 ──
+ul, ol {
+  list-style: none;
+}
+
+// ── 链接：继承颜色、去下划线 ──
+a {
+  color: inherit;
+  text-decoration: none;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+// ── 按钮 / 输入控件：继承字体，去原生边框 ──
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  min-height: 28px;
+}
+
+// ── 表格：边框合并、宽度撑满 ──
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+// ── 媒体元素：块级、不溢出 ──
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+// ── 焦点环：鼠标点击移除，键盘 Tab 保留（WCAG 2.1） ──
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+// ── 滚动条美化（WebKit） ──
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba($color-ink, 0.15);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba($color-ink, 0.25);
+}
+
+// ── 文本选中色 ──
+::selection {
+  background: var(--accent-soft-2);
+  color: var(--ink-1);
+}
+
+// ── 减少动画偏好（无障碍） ──
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
