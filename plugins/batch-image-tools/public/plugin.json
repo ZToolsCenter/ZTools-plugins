@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/@ztools-center/ztools-api-types/resource/ztools.schema.json",
+  "name": "batch-image-tools",
+  "title": "批量图片处理",
+  "description": "批量压缩、格式转换、缩放图片，支持拖入文件、文件夹或粘贴图片",
+  "author": "xgs",
+  "version": "1.1.0",
+  "main": "index.html",
+  "preload": "preload/services.js",
+  "logo": "logo.png",
+  "development": {
+    "main": "http://127.0.0.1:5173/index.html"
+  },
+  "features": [
+    {
+      "code": "batch",
+      "explain": "批量压缩、转换格式、缩放图片",
+      "icon": "logo.png",
+      "cmds": [
+        "批量图片",
+        "图片处理",
+        "图片压缩",
+        {
+          "type": "files",
+          "label": "批量图片处理",
+          "fileType": "file",
+          "extensions": ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tiff", "tif", "avif"],
+          "minLength": 1
+        },
+        {
+          "type": "files",
+          "label": "批量图片处理(文件夹)",
+          "fileType": "directory",
+          "minLength": 1,
+          "maxLength": 1
+        },
+        {
+          "type": "img",
+          "label": "图片处理"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "batch-image-tools-preload",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "gifenc": "^1.0.3",
+    "pdfkit": "^0.17.2",
+    "sharp": "^0.34.5"
+  }
+}
