@@ -1,0 +1,14 @@
+{
+  "name": "dbx-ssh-batch-exec-backend",
+  "version": "1.0.0",
+  "author": "木子",
+  "description": "DBX SSH 批量执行插件的 Node Sidecar",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "ssh2": "^1.15.0"
+  }
+}

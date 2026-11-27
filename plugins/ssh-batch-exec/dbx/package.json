@@ -1,0 +1,23 @@
+{
+  "name": "dbx-ssh-batch-exec",
+  "version": "1.0.0",
+  "author": "木子",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "watch": "vite build --watch",
+    "check": "vue-tsc --noEmit",
+    "test": "node --test tests/*.test.mjs backend/tests/*.test.js"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vue-tsc": "^2.2.0"
+  }
+}

@@ -6,6 +6,13 @@
 .vite/
 *.tsbuildinfo
 
+# DBX 构建/开发工具依赖（backend/node_modules 为 Sidecar 运行时依赖，需随源码保留）
+/dbx/node_modules/
+/dbx/.dbx-dev/
+
+# 本地 AI 文档
+/.trae/
+
 # 其他
 *.log
 .DS_Store
