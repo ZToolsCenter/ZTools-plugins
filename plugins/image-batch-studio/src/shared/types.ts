@@ -126,6 +126,8 @@ export interface ProcessResult {
   height?: number;
   inputBytes?: number;
   outputBytes?: number;
+  /** 关闭「保留元数据」时为去除 EXIF/GPS 等信息而重新编码，输出体积超过原图。 */
+  metadataStrippedLarger?: boolean;
   error?: string;
 }
 
