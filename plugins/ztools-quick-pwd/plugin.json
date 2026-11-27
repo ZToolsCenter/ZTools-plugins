@@ -1,0 +1,29 @@
+{
+  "name": "ztools-quick-pwd",
+  "pluginName": "ztools-quick-pwd",
+  "title": "快速密码填充",
+  "description": "本地 AES-256-GCM 加密存储密码，长按鼠标中键或快捷指令一键将密码填入当前光标所在输入框",
+  "version": "0.0.1",
+  "author": "wangtao",
+  "homepage": "https://github.com",
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "categories": ["productivity"],
+  "platform": ["win32", "darwin", "linux"],
+  "pluginSetting": {
+    "single": false
+  },
+  "features": [
+    {
+      "code": "pwd-manager",
+      "explain": "打开密码管理器",
+      "cmds": ["密码", "pwd", "填密", "密码管理", "password"]
+    },
+    {
+      "code": "pwd-quick-fill",
+      "explain": "快速选择并填充密码",
+      "cmds": ["填密码", "快速填充", "quick pwd"]
+    }
+  ]
+}

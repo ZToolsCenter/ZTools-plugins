@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>快速密码填充</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <!-- ================= 视图 1：解锁 / 首次设置主密码 ================= -->
+  <div id="view-unlock" class="view">
+    <div class="unlock-box">
+      <img src="logo.png" alt="Logo" class="unlock-logo">
+      <div id="unlock-title" class="unlock-title">快速密码填充</div>
+      <div id="unlock-desc" class="unlock-desc">请输入您的安全主密码 PIN</div>
+
+      <div class="pwd-input-group unlock-input-group">
+        <input type="password" id="unlock-pin" placeholder="输入主密码 PIN (至少4位)" autocomplete="off" autofocus>
+        <button type="button" id="btn-toggle-unlock-pin" class="pwd-toggle-btn" title="显示/隐藏主密码" tabindex="-1"></button>
+      </div>
+
+      <div id="unlock-pin-confirm-wrap" class="pwd-input-group unlock-input-group" style="display: none;">
+        <input type="password" id="unlock-pin-confirm" placeholder="请再次确认主密码 PIN" autocomplete="off">
+        <button type="button" id="btn-toggle-unlock-confirm" class="pwd-toggle-btn" title="显示/隐藏确认密码" tabindex="-1"></button>
+      </div>
+
+      <button id="btn-unlock-submit" class="btn btn-primary btn-submit">解锁保险库</button>
+      <button type="button" id="btn-skip-master-pin" class="btn-text unlock-skip-btn" style="display: none;">暂不设置主密码，直接免密使用</button>
+    </div>
+  </div>
+
+  <!-- ================= 视图 2：极简快捷选密 ================= -->
+  <div id="view-quick" class="view">
+    <div class="quick-search-bar">
+      <svg viewBox="0 0 24 24"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
+      <input type="text" id="quick-filter-input" placeholder="输入名称、账号或备注即时检索（空格多词）..." autocomplete="off">
+      <button type="button" id="btn-quick-mode-toggle" class="quick-mode-pill" title="点击切换默认回车填充策略">回车: 双填</button>
+      <button type="button" id="btn-quick-open-mgr" class="btn-text quick-mgr-btn" title="在独立窗口中打开完整管理面板">
+        <svg style="width: 15px; height: 15px; fill: currentColor;" viewBox="0 0 24 24"><path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z"/></svg>
+      </button>
+    </div>
+    <ul id="quick-list" class="quick-list">
+      <!-- 动态填充条目 -->
+    </ul>
+    <div id="quick-footer" class="quick-footer">
+      <span id="quick-footer-primary"><kbd>↵</kbd> 双填(光标放账号框)</span>
+      <span><kbd>⇧↵</kbd> 仅密码</span>
+      <span><kbd>⌥↵</kbd> 仅账号</span>
+      <span class="hide-narrow"><kbd>Ctrl+C</kbd> 复制密码</span>
+      <span class="hide-narrow"><kbd>Alt+1~9</kbd> 直选</span>
+      <span><kbd>Esc</kbd> 关闭</span>
+    </div>
+  </div>
+
+  <!-- ================= 视图 3：完整密码管理 ================= -->
+  <div id="view-manager" class="view">
+    <header class="mgr-header">
+      <div class="mgr-title-area">
+        <img src="logo.png" alt="Logo" class="mgr-logo">
+        <span class="mgr-title">密码管理器</span>
+        <span id="mgr-count" class="mgr-count">0 条</span>
+      </div>
+      <div class="mgr-actions">
+        <button id="btn-detach-window" class="btn btn-text" title="在独立桌面窗口中打开">
+          <svg style="width: 18px; height: 18px; fill: currentColor;" viewBox="0 0 24 24"><path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z"/></svg>
+        </button>
+        <button id="btn-open-settings" class="btn btn-text" title="设置">
+          <svg style="width: 18px; height: 18px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
+        </button>
+        <button id="btn-open-guide" class="btn btn-text" title="使用指南 (超级面板与长按中键)">
+          <svg style="width: 18px; height: 18px; fill: currentColor;" viewBox="0 0 24 24"><path d="M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/></svg>
+        </button>
+        <button id="btn-lock-vault" class="btn btn-text" title="锁定保险库">
+          <svg style="width: 18px; height: 18px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="mgr-toolbar">
+      <div class="mgr-search">
+        <svg style="width: 16px; height: 16px; fill: var(--text-muted);" viewBox="0 0 24 24"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
+        <input type="text" id="mgr-search-input" placeholder="搜索名称、账号或备注（支持空格多词）...">
+      </div>
+      <button id="btn-add-entry" class="btn btn-primary">+ 添加新密码</button>
+    </div>
+
+    <div class="mgr-content">
+      <table class="mgr-table">
+        <thead>
+          <tr>
+            <th style="width: 28%;">平台/网站名称</th>
+            <th style="width: 26%;">用户名/账号 (点击复制)</th>
+            <th style="width: 22%;">更新时间</th>
+            <th style="width: 24%; text-align: right;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="mgr-table-body">
+          <!-- 动态渲染密码条目 -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= 弹窗：新增 / 编辑密码 ================= -->
+  <div id="modal-entry" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span id="modal-entry-title">添加密码条目</span>
+        <button id="btn-close-entry-modal" class="btn-text" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="entry-id">
+        <div class="form-group">
+          <label for="entry-label">平台/网站名称 <span style="color: var(--danger-color);">*</span></label>
+          <input type="text" id="entry-label" placeholder="如：GitHub、知乎、企业OA" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="entry-username">用户名 / 账号</label>
+          <input type="text" id="entry-username" placeholder="如：user@example.com 或 admin" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="entry-password">密码明文 <span id="entry-pwd-required" style="color: var(--danger-color);">*</span></label>
+          <div class="pwd-input-group pwd-input-with-tools">
+            <input type="password" id="entry-password" placeholder="请输入密码" autocomplete="off">
+            <button type="button" id="btn-gen-entry-pwd" class="pwd-tool-btn" title="生成16位随机强密码" tabindex="-1"></button>
+            <button type="button" id="btn-toggle-entry-pwd" class="pwd-toggle-btn" title="查看/隐藏明文" tabindex="-1"></button>
+          </div>
+          <div id="entry-pwd-strength" class="pwd-strength-wrap" style="display: none;">
+            <div class="pwd-strength-track">
+              <div id="entry-pwd-strength-fill" class="pwd-strength-fill"></div>
+            </div>
+            <span id="entry-pwd-strength-text" class="pwd-strength-text"></span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="entry-note">备注 / 网址（可选）</label>
+          <input type="text" id="entry-note" placeholder="如：内网测试环境、登录地址或安全提示" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-entry" class="btn">取消</button>
+        <button id="btn-save-entry" class="btn btn-primary">保存条目</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 弹窗：查看明文与详情 ================= -->
+  <div id="modal-view-pwd" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>密码详情</span>
+        <button id="btn-close-view-modal" class="btn-text" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>平台/名称</label>
+          <input type="text" id="view-label" readonly>
+        </div>
+        <div class="form-group">
+          <label>用户名/账号</label>
+          <div class="pwd-input-group">
+            <input type="text" id="view-username" readonly>
+            <button type="button" id="btn-copy-view-user" class="btn btn-text view-copy-btn">复制</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>明文密码</label>
+          <div class="pwd-input-group">
+            <input type="text" id="view-plain-pwd" readonly>
+            <button type="button" id="btn-copy-view-pwd" class="btn btn-text view-copy-btn">复制</button>
+          </div>
+        </div>
+        <div class="form-group" id="view-note-group" style="display: none;">
+          <label>备注 / 网址</label>
+          <input type="text" id="view-note" readonly>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-close-view-btn" class="btn btn-primary">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 弹窗：设置抽屉 ================= -->
+  <div id="modal-settings" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>首选项设置</span>
+        <button id="btn-close-settings-modal" class="btn-text" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-section-title">填充行为</div>
+        <div class="settings-item">
+          <div class="settings-label-group">
+            <span class="settings-title">双输入框自动填充</span>
+            <span class="settings-subtitle">双填需先将光标放在<strong>账号框</strong>（自动填账号 ➔ Tab ➔ 填密码）；若光标已在密码框请选「仅填密码」</span>
+          </div>
+          <select id="setting-fill-strategy" class="settings-select">
+            <option value="both" selected>账号 ➔ Tab ➔ 密码 (默认双填)</option>
+            <option value="password_only">仅填密码 (填充当前焦点框)</option>
+          </select>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label-group">
+            <span class="settings-title">自动填充模式</span>
+            <span class="settings-subtitle">快速粘贴（推荐）；若遇到禁止粘贴的银行/政企网页请切换模拟键盘</span>
+          </div>
+          <select id="setting-fill-mode" class="settings-select">
+            <option value="paste">快速粘贴 (Ctrl+V / ⌘+V，默认推荐)</option>
+            <option value="type">模拟键盘逐字键入 (绕过禁止粘贴限制)</option>
+          </select>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label-group">
+            <span class="settings-title">前台焦点恢复等待时长</span>
+            <span class="settings-subtitle">呼出插件隐去后等待原窗口恢复聚焦的时间，复杂编辑器建议 ≥450ms</span>
+          </div>
+          <select id="setting-fill-delay" class="settings-select">
+            <option value="300">300ms (极速，适合普通网页)</option>
+            <option value="450" selected>450ms (推荐，兼顾速度与稳定性)</option>
+            <option value="600">600ms (高稳定，适合复杂软件)</option>
+            <option value="800">800ms (终极兼容)</option>
+          </select>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label-group">
+            <span class="settings-title">Tab 切换等待时长</span>
+            <span class="settings-subtitle">双框填充敲击 Tab 后等待焦点切入密码框的时间，网页响应慢可调高</span>
+          </div>
+          <select id="setting-tab-delay" class="settings-select">
+            <option value="120">120ms (极速)</option>
+            <option value="180" selected>180ms (推荐，防止双框串位)</option>
+            <option value="260">260ms (稳健，适合慢速表单)</option>
+            <option value="400">400ms (超长等待)</option>
+          </select>
+        </div>
+
+        <div class="settings-section-title">安全与窗口</div>
+        <div class="settings-item">
+          <div class="settings-label-group">
+            <span class="settings-title">启用主密码解锁保护</span>
+            <span class="settings-subtitle">开启后启动或锁定时需输入主密码 PIN；关闭后无需解锁直接进入（随时可重新开启）</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-require-pin" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label-group">
+            <span class="settings-title">自动清空剪贴板 (秒)</span>
+            <span class="settings-subtitle">填充或复制密码后自动清理剪贴板，若期间复制了其他文本不会误清</span>
+          </div>
+          <input type="number" id="setting-clear-clipboard" class="settings-number" min="3" max="60" step="1" value="10">
+        </div>
+        <div class="settings-item" id="settings-item-auto-lock">
+          <div class="settings-label-group">
+            <span class="settings-title">空闲自动锁定</span>
+            <span class="settings-subtitle">无操作超过指定时间后自动锁定保险库，保护本地凭据安全</span>
+          </div>
+          <select id="setting-auto-lock" class="settings-select">
+            <option value="0" selected>不自动锁定</option>
+            <option value="15">15 分钟后锁定</option>
+            <option value="30">30 分钟后锁定</option>
+            <option value="60">60 分钟后锁定</option>
+          </select>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label-group">
+            <span class="settings-title">默认以独立桌面窗口打开</span>
+            <span class="settings-subtitle">在搜索栏输入密码/pwd时，是否默认弹出独立桌面窗口（默认关闭）</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-open-standalone">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="settings-section-title">安全与数据备份</div>
+        <div class="settings-action-row">
+          <button type="button" id="btn-open-change-pin" class="btn">修改主密码</button>
+          <button type="button" id="btn-export-vault" class="btn">导出加密备份</button>
+          <button type="button" id="btn-import-vault" class="btn">导入加密备份</button>
+          <input type="file" id="input-import-vault" accept=".json,application/json" style="display: none;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 弹窗：修改 / 开启主密码 ================= -->
+  <div id="modal-change-pin" class="modal-overlay">
+    <div class="modal-box" style="max-width: 420px;">
+      <div class="modal-header">
+        <span id="change-pin-title">修改主密码 PIN</span>
+        <button id="btn-close-change-pin-modal" class="btn-text" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" id="change-old-pin-group">
+          <label for="change-old-pin">当前主密码</label>
+          <input type="password" id="change-old-pin" placeholder="请输入当前使用的主密码" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="change-new-pin">新主密码 (至少4位)</label>
+          <input type="password" id="change-new-pin" placeholder="请输入新主密码" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="change-confirm-pin">确认新主密码</label>
+          <input type="password" id="change-confirm-pin" placeholder="请再次输入新主密码" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-change-pin" class="btn">取消</button>
+        <button id="btn-submit-change-pin" class="btn btn-primary">确认修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 弹窗：自定义内联确认框 ================= -->
+  <div id="modal-confirm" class="modal-overlay" style="z-index: 200;">
+    <div class="modal-box confirm-box">
+      <div class="modal-header">
+        <span id="confirm-title">确认操作</span>
+        <button id="btn-close-confirm-modal" class="btn-text" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message" class="confirm-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-confirm-cancel" class="btn">取消</button>
+        <button id="btn-confirm-ok" class="btn btn-primary">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 弹窗：使用手册 / 超级面板指南 ================= -->
+  <div id="modal-guide" class="modal-overlay">
+    <div class="modal-box" style="max-width: 520px;">
+      <div class="modal-header">
+        <span style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+          <span>📖</span> 使用手册：长按中键呼出超级面板
+        </span>
+        <button id="btn-close-guide-modal" class="btn-text" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size: 13px; line-height: 1.6; max-height: 440px; overflow-y: auto; padding: 12px 16px;">
+        <div style="background: rgba(59, 130, 246, 0.08); border-left: 3px solid var(--accent-color); padding: 8px 12px; border-radius: 4px; margin-bottom: 14px;">
+          <strong>🎯 光标位置口诀：</strong>使用<strong>「账号+密码」双填</strong>时，请把光标放在<strong>账号框</strong>（插件会自动填账号 ➔ 按 Tab ➔ 填密码）；若光标已在<strong>密码框</strong>，请按 <code>Shift+Enter</code> 或点击<strong>「密码」</strong>按钮！
+        </div>
+
+        <h4 style="margin: 12px 0 6px 0; color: var(--text-primary); font-size: 13px;">⚙️ 第一步：在 ZTools 中开启超级面板</h4>
+        <ol style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+          <li>按 <code>Alt + 空格</code> 唤出 ZTools，点击右上角进入 <strong>「设置」 ➔ 「超级面板」</strong>；</li>
+          <li>勾选 <strong>「开启超级面板」</strong>；</li>
+          <li>触发方式选择 <strong>「长按鼠标中键」</strong>（推荐触发时长设为 <strong>400ms ~ 500ms</strong>）。</li>
+        </ol>
+
+        <h4 style="margin: 14px 0 6px 0; color: var(--text-primary); font-size: 13px;">📌 第二步：将「快速选择并填充密码」固定到超级面板</h4>
+        <ol style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+          <li>在 ZTools 搜索框输入 <code>填密码</code> 或 <code>pwd</code>；</li>
+          <li>在搜索结果中的 <strong>「快速选择并填充密码」</strong> 条目上 <strong>单击鼠标右键</strong>；</li>
+          <li>在右键菜单中点击 <strong>「固定到超级面板」</strong>（右下角将出现图钉标）。</li>
+        </ol>
+
+        <h4 style="margin: 14px 0 6px 0; color: var(--text-primary); font-size: 13px;">🚀 第三步：日常极速填密与快捷键</h4>
+        <ol style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+          <li>将光标点入登录页的<strong>账号框</strong>（或单密码框），<strong>按住鼠标中键约 0.5 秒</strong>呼出超级面板，点击图标打开快捷选密；</li>
+          <li>直接打字过滤（支持空格分隔多个关键词）或按 <code>↑</code> <code>↓</code> 移动；</li>
+          <li><code>Enter</code> 按当前默认策略填充，<code>Shift+Enter</code> 仅填密码，<code>Alt+Enter</code> 仅填账号；</li>
+          <li><code>Alt+1~9</code> 可一键直选第 1~9 条，<code>Ctrl+C</code> 可直接复制当前选中密码（剪贴板会在设定秒数后智能清空）。</li>
+        </ol>
+
+        <div style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--border-color); font-size: 12px; color: var(--text-muted);">
+          💡 <strong>贴士</strong>：若遇到某些网站或特殊终端禁止粘贴，可在「设置」中将填充模式改为「模拟键盘逐字键入」；若目标软件以管理员身份运行，请同时以管理员权限运行 ZTools。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-close-guide-btn" class="btn btn-primary">我知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 提示框 -->
+  <div id="toast"></div>
+
+  <script src="index.js"></script>
+</body>
+</html>
