@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { WorkspaceConfig } from '../types';
+import { TaskColorMode, WorkspaceConfig } from '../types';
 import { COLOR_SCHEMES } from '../constants/colorSchemes';
 import './WorkspaceSettings.css';
 
@@ -8,10 +8,12 @@ interface WorkspaceSettingsProps {
   onUpdate: (configs: WorkspaceConfig[]) => void;
   layoutMode: 'split' | 'pool-only';
   onChangeLayoutMode: (mode: 'split' | 'pool-only') => void;
+  colorMode: TaskColorMode;
+  onChangeColorMode: (mode: TaskColorMode) => void;
   onClose: () => void;
 }
 
-export function WorkspaceSettings({ configs, onUpdate, layoutMode, onChangeLayoutMode, onClose }: WorkspaceSettingsProps) {
+export function WorkspaceSettings({ configs, onUpdate, layoutMode, onChangeLayoutMode, colorMode, onChangeColorMode, onClose }: WorkspaceSettingsProps) {
   const [editingConfig, setEditingConfig] = useState<WorkspaceConfig | null>(null);
   const [newName, setNewName] = useState('');
   const [selectedScheme, setSelectedScheme] = useState('teal');
@@ -143,6 +145,41 @@ export function WorkspaceSettings({ configs, onUpdate, layoutMode, onChangeLayou
                     </svg>
                   </span>
                   <span className="layout-label">仅待办池</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="layout-section">
+              <h3>任务颜色</h3>
+              <div className="layout-options">
+                <button
+                  className={`layout-option ${colorMode === 'status' ? 'active' : ''}`}
+                  onClick={() => onChangeColorMode('status')}
+                  title="按完成状态取色：一眼看出哪些任务还没完成"
+                >
+                  <span className="layout-icon">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <rect x="2" y="4" width="3" height="12" rx="1.5" fill="#0F766E" />
+                      <rect x="8.5" y="4" width="3" height="12" rx="1.5" fill="#DC2626" />
+                      <rect x="15" y="4" width="3" height="12" rx="1.5" fill="#A8A29E" />
+                    </svg>
+                  </span>
+                  <span className="layout-label">按完成状态</span>
+                </button>
+                <button
+                  className={`layout-option ${colorMode === 'random' ? 'active' : ''}`}
+                  onClick={() => onChangeColorMode('random')}
+                  title="按任务取色：用不同颜色区分多任务，方便总览"
+                >
+                  <span className="layout-icon">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <circle cx="6" cy="6" r="3" fill="#7DD3FC" />
+                      <circle cx="14" cy="6" r="3" fill="#C4B5FD" />
+                      <circle cx="6" cy="14" r="3" fill="#86EFAC" />
+                      <circle cx="14" cy="14" r="3" fill="#FDBA74" />
+                    </svg>
+                  </span>
+                  <span className="layout-label">按任务配色</span>
                 </button>
               </div>
             </div>

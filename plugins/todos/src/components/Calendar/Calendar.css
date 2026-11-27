@@ -308,6 +308,8 @@
   opacity: 0.5;
   text-decoration: line-through;
   color: var(--graphite);
+  /* 已完成任务留在排期里，但整体去色，避免和未完成任务抢注意力 */
+  filter: grayscale(1);
 }
 
 .task-chip.ghost {

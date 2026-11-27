@@ -98,6 +98,36 @@ function formatSingleDate(dateStr: string): string {
 }
 
 /**
+ * 只保留主任务（没有 parentId 的任务）
+ * @param tasks 任务数组
+ */
+export function getTopLevelTasks(tasks: Task[]): Task[] {
+  return tasks.filter(task => !task.parentId);
+}
+
+/**
+ * 按主任务 id 归组子任务
+ * @param tasks 任务数组
+ */
+export function groupSubtasksByParent(tasks: Task[]): Map<string, Task[]> {
+  const map = new Map<string, Task[]>();
+
+  for (const task of tasks) {
+    if (!task.parentId) {
+      continue;
+    }
+    const list = map.get(task.parentId);
+    if (list) {
+      list.push(task);
+    } else {
+      map.set(task.parentId, [task]);
+    }
+  }
+
+  return map;
+}
+
+/**
  * 按优先级排序任务（high > medium > low）
  * @param tasks 任务数组
  * @returns 排序后的任务数组
@@ -110,6 +140,18 @@ export function sortTasksByPriority(tasks: Task[]): Task[] {
   };
 
   return [...tasks].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+}
+
+/**
+ * 日历排期用排序：未完成的任务排在前面，已完成的沉到当天最后。
+ * 组内保持原有顺序（Array.prototype.sort 是稳定排序）。
+ * @param tasks 任务数组
+ * @returns 排序后的任务数组
+ */
+export function sortTasksByCompletion(tasks: Task[]): Task[] {
+  return [...tasks].sort(
+    (a, b) => Number(a.status === 'done') - Number(b.status === 'done')
+  );
 }
 
 /**

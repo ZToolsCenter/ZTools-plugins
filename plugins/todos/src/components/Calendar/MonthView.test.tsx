@@ -4,6 +4,8 @@ import { MonthView } from './MonthView';
 import { AppProvider } from '../../context/AppContext';
 import { useAppContext } from '../../context/AppContext';
 import { loadData } from '../../utils/storageUtils';
+import { formatDate } from '../../utils/dateUtils';
+import { DEFAULT_WORKSPACE_CONFIGS } from '../../constants/colorSchemes';
 
 jest.mock('../../utils/storageUtils', () => ({
   loadData: jest.fn(),
@@ -36,6 +38,35 @@ describe('MonthView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedLoadData.mockReturnValue(null);
+  });
+
+  it('keeps completed tasks in the day cell and puts them last', () => {
+    const today = formatDate(new Date());
+    mockedLoadData.mockReturnValue({
+      version: '1.0.0',
+      workspaces: {
+        work: [
+          { id: 'done-1', title: '做完的', priority: 'medium', dates: [today], status: 'done', createdAt: today, updatedAt: today },
+          { id: 'todo-1', title: '没做完的', priority: 'medium', dates: [today], status: 'todo', createdAt: today, updatedAt: today },
+        ],
+        life: [],
+        study: [],
+      },
+      currentWorkspace: 'work',
+      workspaceConfigs: DEFAULT_WORKSPACE_CONFIGS,
+      viewMode: 'month',
+      layoutMode: 'split',
+      taskViewMode: 'tag',
+      taskColorMode: 'random',
+      currentDate: today,
+    });
+
+    const { container } = render(<MonthView />, { wrapper });
+    const cell = container.querySelector(`.day-cell[data-date="${today}"]`)!;
+    const titles = Array.from(cell.querySelectorAll('.chip-title')).map(el => el.textContent);
+
+    expect(titles).toEqual(['没做完的', '做完的']);
+    expect(cell.querySelector('.task-chip.done')).toBeInTheDocument();
   });
 
   it('renders month header with week days', () => {

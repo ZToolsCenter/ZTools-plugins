@@ -26,6 +26,18 @@ function TestComponent() {
       <span data-testid="currentWorkspace">{state.currentWorkspace}</span>
       <span data-testid="viewMode">{state.viewMode}</span>
       <span data-testid="layoutMode">{state.layoutMode}</span>
+      <span data-testid="taskColorMode">{state.taskColorMode}</span>
+      <button
+        data-testid="toggleColorMode"
+        onClick={() => {
+          dispatch({
+            type: 'SET_TASK_COLOR_MODE',
+            payload: { taskColorMode: state.taskColorMode === 'random' ? 'status' : 'random' },
+          });
+        }}
+      >
+        Color
+      </button>
       <button
         data-testid="toggleLayout"
         onClick={() => {
@@ -89,6 +101,28 @@ describe('AppContext', () => {
     );
     expect(screen.getByTestId('currentWorkspace')).toHaveTextContent('study');
     expect(screen.getByTestId('viewMode')).toHaveTextContent('month');
+  });
+
+  it('should persist task color mode changes', () => {
+    mockedLoadData.mockReturnValue(null);
+    render(
+      <AppProvider>
+        <TestComponent />
+      </AppProvider>
+    );
+    expect(screen.getByTestId('taskColorMode')).toHaveTextContent('random');
+
+    act(() => {
+      screen.getByTestId('toggleColorMode').click();
+    });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(screen.getByTestId('taskColorMode')).toHaveTextContent('status');
+    expect(mockedSaveData).toHaveBeenCalledWith(
+      expect.objectContaining({ taskColorMode: 'status' })
+    );
   });
 
   it('should restore the saved layout mode on startup', () => {

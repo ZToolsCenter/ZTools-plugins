@@ -445,3 +445,15 @@
     display: none;
   }
 }
+
+/* 子任务进度：2/3 */
+.task-subtask-progress {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--color-background-light);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--graphite);
+}

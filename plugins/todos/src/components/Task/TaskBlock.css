@@ -88,6 +88,8 @@
 
 .task-block.done {
   opacity: 0.5;
+  /* 已完成任务留在排期里，但整体去色，避免和未完成任务抢注意力 */
+  filter: grayscale(1);
 }
 
 .task-block.done .block-title {

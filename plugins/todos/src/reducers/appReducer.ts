@@ -12,11 +12,13 @@ export const initialState: AppState = {
   viewMode: 'week',
   taskViewMode: 'tag',
   layoutMode: 'split',
+  taskColorMode: 'random',
   currentDate: new Date().toISOString().split('T')[0],
   searchQuery: '',
   selectedTaskId: null,
   draggedTaskId: null,
-  dropTargetDate: null
+  dropTargetDate: null,
+  dragSourceDate: null
 };
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -28,6 +30,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         workspaces: {
           ...state.workspaces,
           [workspace]: [task, ...(state.workspaces[workspace] || [])]
+        }
+      };
+    }
+    
+    case 'ADD_SUBTASK': {
+      const { workspace, task } = action.payload;
+      // 子任务追加到末尾，保持用户输入顺序
+      return {
+        ...state,
+        workspaces: {
+          ...state.workspaces,
+          [workspace]: [...(state.workspaces[workspace] || []), task]
         }
       };
     }
@@ -53,8 +67,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const updatedWorkspaces = { ...state.workspaces };
       
       for (const workspaceKey of Object.keys(updatedWorkspaces) as Array<keyof typeof updatedWorkspaces>) {
+        // 删除主任务时把它的子任务一起删掉
         updatedWorkspaces[workspaceKey] = updatedWorkspaces[workspaceKey].filter(
-          task => task.id !== taskId
+          task => task.id !== taskId && task.parentId !== taskId
         );
       }
       
@@ -70,9 +85,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const updatedWorkspaces = { ...state.workspaces };
       
       for (const workspaceKey of Object.keys(updatedWorkspaces) as Array<keyof typeof updatedWorkspaces>) {
-        updatedWorkspaces[workspaceKey] = updatedWorkspaces[workspaceKey].map(task =>
-          task.id === taskId
-            ? { ...task, status: task.status === 'done' ? 'todo' as const : 'done' as const }
+        const tasks = updatedWorkspaces[workspaceKey];
+        const target = tasks.find(task => task.id === taskId);
+        if (!target) {
+          continue;
+        }
+
+        const nextStatus: Task['status'] = target.status === 'done' ? 'todo' : 'done';
+
+        // 主任务完成 / 取消完成时，子任务跟随同一状态
+        updatedWorkspaces[workspaceKey] = tasks.map(task =>
+          task.id === taskId || task.parentId === taskId
+            ? { ...task, status: nextStatus }
             : task
         );
       }
@@ -153,7 +177,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         draggedTaskId: action.payload.taskId,
-        dropTargetDate: action.payload.dropTarget
+        dropTargetDate: action.payload.dropTarget,
+        dragSourceDate: action.payload.sourceDate ?? null
       };
     
     case 'LOAD_DATA':
@@ -218,6 +243,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         layoutMode: action.payload.layoutMode
+      };
+
+    case 'SET_TASK_COLOR_MODE':
+      return {
+        ...state,
+        taskColorMode: action.payload.taskColorMode
       };
     
     default:

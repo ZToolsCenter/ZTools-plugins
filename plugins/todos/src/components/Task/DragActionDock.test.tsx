@@ -27,21 +27,21 @@ function createTask(overrides: Partial<Task> = {}): Task {
   };
 }
 
-function DraggingTask({ task, children }: { task: Task; children: ReactNode }) {
+function DraggingTask({ task, sourceDate, children }: { task: Task; sourceDate?: string; children: ReactNode }) {
   const { dispatch } = useAppContext();
 
   useEffect(() => {
     dispatch({ type: 'ADD_TASK', payload: { workspace: 'work', task } });
-    dispatch({ type: 'SET_DRAG_STATE', payload: { taskId: task.id, dropTarget: null } });
-  }, [dispatch, task]);
+    dispatch({ type: 'SET_DRAG_STATE', payload: { taskId: task.id, dropTarget: null, sourceDate } });
+  }, [dispatch, task, sourceDate]);
 
   return <>{children}</>;
 }
 
-function renderWithDraggedTask(task: Task) {
+function renderWithDraggedTask(task: Task, sourceDate?: string) {
   return render(
     <AppProvider>
-      <DraggingTask task={task}>
+      <DraggingTask task={task} sourceDate={sourceDate}>
         <DragActionDock />
       </DraggingTask>
     </AppProvider>
@@ -129,5 +129,68 @@ describe('DragActionDock', () => {
     renderWithDraggedTask(createTask({ status: 'done' }));
 
     expect(await screen.findByTestId('drag-action-dock')).toBeInTheDocument();
+  });
+
+  it('labels the right-upper sector as 标记完成 for a pending task', async () => {
+    renderWithDraggedTask(createTask());
+
+    const label = await screen.findByTestId('drag-action-complete-label');
+    expect(label).toHaveAttribute('data-mode', 'complete');
+    expect(label).not.toHaveClass('is-undo');
+    expect(label).toHaveAttribute('aria-label', '标记完成');
+    expect(screen.getByTestId('drag-action-complete')).not.toHaveClass('is-undo');
+  });
+
+  it('labels the right-upper sector as 取消完成 for a completed task', async () => {
+    renderWithDraggedTask(createTask({ status: 'done' }));
+
+    const label = await screen.findByTestId('drag-action-complete-label');
+    expect(label).toHaveAttribute('data-mode', 'undo');
+    expect(label).toHaveClass('is-undo');
+    expect(label).toHaveAttribute('aria-label', '取消完成');
+    expect(screen.getByTestId('drag-action-complete')).toHaveClass('is-undo');
+  });
+
+  it('uses a different icon glyph for undo than for complete', async () => {
+    const first = renderWithDraggedTask(createTask());
+    const completeIcon = (await screen.findByTestId('drag-action-complete-label')).innerHTML;
+    first.unmount();
+
+    renderWithDraggedTask(createTask({ status: 'done' }));
+    const undoIcon = (await screen.findByTestId('drag-action-complete-label')).innerHTML;
+
+    expect(undoIcon).not.toEqual(completeIcon);
+    expect(undoIcon).toContain('lucide-undo');
+  });
+
+  it('treats a pool drag as deleting the whole task', async () => {
+    renderWithDraggedTask(createTask());
+
+    const label = await screen.findByTestId('drag-action-delete-label');
+    expect(label).toHaveAttribute('data-mode', 'delete');
+    expect(label).not.toHaveClass('is-unschedule');
+    expect(label).toHaveAttribute('aria-label', '删除任务');
+  });
+
+  it('treats a calendar drag as removing only that day', async () => {
+    renderWithDraggedTask(createTask(), '2026-11-24');
+
+    const label = await screen.findByTestId('drag-action-delete-label');
+    expect(label).toHaveAttribute('data-mode', 'unschedule');
+    expect(label).toHaveClass('is-unschedule');
+    expect(label).toHaveAttribute('aria-label', '移除当天安排');
+    expect(screen.getByTestId('drag-action-delete')).toHaveClass('is-unschedule');
+  });
+
+  it('uses a different icon glyph for unschedule than for delete', async () => {
+    const poolDrag = renderWithDraggedTask(createTask());
+    const deleteIcon = (await screen.findByTestId('drag-action-delete-label')).innerHTML;
+    poolDrag.unmount();
+
+    renderWithDraggedTask(createTask(), '2026-11-24');
+    const unscheduleIcon = (await screen.findByTestId('drag-action-delete-label')).innerHTML;
+
+    expect(unscheduleIcon).not.toEqual(deleteIcon);
+    expect(unscheduleIcon).toContain('lucide-calendar');
   });
 });

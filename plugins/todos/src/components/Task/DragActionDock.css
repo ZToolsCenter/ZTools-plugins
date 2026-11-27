@@ -3,6 +3,9 @@
   z-index: 900;
   pointer-events: none;
   user-select: none;
+  /* 整体缩小到 60%：几何、图标、阴影一起等比缩放，命中区域仍是缩放后的实际区域 */
+  transform: scale(0.6);
+  transform-origin: center center;
   animation: drag-ring-fade 140ms var(--ease-out);
 }
 
@@ -36,12 +39,30 @@
   fill: url(#drag-complete-gradient-hover);
 }
 
+/* 已完成任务：右上扇形是「取消完成」，用蓝色区分「标记完成」的绿色 */
+.drag-action-ring__sector.complete.is-undo {
+  fill: url(#drag-undo-gradient);
+}
+
+.drag-action-ring__sector.complete.is-undo.is-hovered {
+  fill: url(#drag-undo-gradient-hover);
+}
+
 .drag-action-ring__sector.delete {
   fill: url(#drag-delete-gradient);
 }
 
 .drag-action-ring__sector.delete.is-hovered {
   fill: url(#drag-delete-gradient-hover);
+}
+
+/* 从日历拖出：右下扇形只移除当天安排，用琥珀色区别于整条删除的红色 */
+.drag-action-ring__sector.delete.is-unschedule {
+  fill: url(#drag-unschedule-gradient);
+}
+
+.drag-action-ring__sector.delete.is-unschedule.is-hovered {
+  fill: url(#drag-unschedule-gradient-hover);
 }
 
 .drag-action-ring__dead-zone {
@@ -75,6 +96,17 @@
   transform: translate(-50%, -50%) scale(1.08);
 }
 
+.drag-action-ring__label.complete.is-undo {
+  color: #3f6c9e;
+  background: rgba(63, 108, 158, 0.12);
+}
+
+.drag-action-ring__label.complete.is-undo.is-hovered {
+  color: var(--color-info);
+  background: rgba(37, 99, 235, 0.22);
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
 .drag-action-ring__label.delete {
   color: #b06a6a;
   background: rgba(176, 106, 106, 0.1);
@@ -83,6 +115,17 @@
 .drag-action-ring__label.delete.is-hovered {
   color: var(--color-danger);
   background: rgba(220, 38, 38, 0.22);
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.drag-action-ring__label.delete.is-unschedule {
+  color: #b07c3e;
+  background: rgba(176, 124, 62, 0.12);
+}
+
+.drag-action-ring__label.delete.is-unschedule.is-hovered {
+  color: var(--color-warning);
+  background: rgba(217, 119, 6, 0.22);
   transform: translate(-50%, -50%) scale(1.08);
 }
 

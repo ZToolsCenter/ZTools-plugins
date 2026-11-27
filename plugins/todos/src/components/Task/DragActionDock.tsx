@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import { CalendarMinus, Check, Trash2, Undo2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { DragPoint, getDragStartPoint } from '../../utils/dragUtils';
 import './DragActionDock.css';
@@ -103,6 +103,21 @@ function DragActionDockContent() {
     return null;
   }
 
+  // 已完成任务拖拽时，右上扇形的语义是「取消完成」，与「标记完成」用不同图标和配色区分。
+  const isUndo = draggedTask.status === 'done';
+  // 从日历某一天拖出时，右下扇形只移除当天安排，不删除整条任务。
+  const isUnschedule = Boolean(state.dragSourceDate);
+  const completeState = [isUndo ? 'is-undo' : '', hovered === 'complete' ? 'is-hovered' : '']
+    .filter(Boolean)
+    .join(' ');
+  const deleteState = [isUnschedule ? 'is-unschedule' : '', hovered === 'delete' ? 'is-hovered' : '']
+    .filter(Boolean)
+    .join(' ');
+  const completeSectorClass = `drag-action-ring__sector complete ${completeState}`.trim();
+  const completeLabelClass = `drag-action-ring__label complete ${completeState}`.trim();
+  const deleteSectorClass = `drag-action-ring__sector delete ${deleteState}`.trim();
+  const deleteLabelClass = `drag-action-ring__label delete ${deleteState}`.trim();
+
   return (
     <div
       className="drag-action-ring"
@@ -140,6 +155,28 @@ function DragActionDockContent() {
             <stop offset="100%" stopColor="#16A34A" stopOpacity="0.78" />
           </radialGradient>
           <radialGradient
+            id="drag-undo-gradient"
+            gradientUnits="userSpaceOnUse"
+            cx={CENTER}
+            cy={CENTER}
+            r={OUTER_RADIUS}
+          >
+            <stop offset="0%" stopColor="#3F6C9E" stopOpacity="0" />
+            <stop offset="55%" stopColor="#3F6C9E" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#3F6C9E" stopOpacity="0.38" />
+          </radialGradient>
+          <radialGradient
+            id="drag-undo-gradient-hover"
+            gradientUnits="userSpaceOnUse"
+            cx={CENTER}
+            cy={CENTER}
+            r={OUTER_RADIUS}
+          >
+            <stop offset="0%" stopColor="#2563EB" stopOpacity="0.02" />
+            <stop offset="55%" stopColor="#2563EB" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#2563EB" stopOpacity="0.78" />
+          </radialGradient>
+          <radialGradient
             id="drag-delete-gradient"
             gradientUnits="userSpaceOnUse"
             cx={CENTER}
@@ -161,18 +198,42 @@ function DragActionDockContent() {
             <stop offset="55%" stopColor="#DC2626" stopOpacity="0.26" />
             <stop offset="100%" stopColor="#DC2626" stopOpacity="0.68" />
           </radialGradient>
+          <radialGradient
+            id="drag-unschedule-gradient"
+            gradientUnits="userSpaceOnUse"
+            cx={CENTER}
+            cy={CENTER}
+            r={OUTER_RADIUS}
+          >
+            <stop offset="0%" stopColor="#B07C3E" stopOpacity="0" />
+            <stop offset="55%" stopColor="#B07C3E" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#B07C3E" stopOpacity="0.34" />
+          </radialGradient>
+          <radialGradient
+            id="drag-unschedule-gradient-hover"
+            gradientUnits="userSpaceOnUse"
+            cx={CENTER}
+            cy={CENTER}
+            r={OUTER_RADIUS}
+          >
+            <stop offset="0%" stopColor="#D97706" stopOpacity="0.02" />
+            <stop offset="55%" stopColor="#D97706" stopOpacity="0.26" />
+            <stop offset="100%" stopColor="#D97706" stopOpacity="0.68" />
+          </radialGradient>
         </defs>
 
         <path
-          className={`drag-action-ring__sector complete ${hovered === 'complete' ? 'is-hovered' : ''}`}
+          className={completeSectorClass}
           data-testid="drag-action-complete"
           data-drag-target="complete"
+          data-mode={isUndo ? 'undo' : 'complete'}
           d={COMPLETE_PATH}
         />
         <path
-          className={`drag-action-ring__sector delete ${hovered === 'delete' ? 'is-hovered' : ''}`}
+          className={deleteSectorClass}
           data-testid="drag-action-delete"
           data-drag-target="delete"
+          data-mode={isUnschedule ? 'unschedule' : 'delete'}
           d={DELETE_PATH}
         />
         <circle
@@ -184,19 +245,27 @@ function DragActionDockContent() {
       </svg>
 
       <div
-        className={`drag-action-ring__label complete ${hovered === 'complete' ? 'is-hovered' : ''}`}
+        className={completeLabelClass}
         data-testid="drag-action-complete-label"
+        data-mode={isUndo ? 'undo' : 'complete'}
+        role="img"
+        aria-label={isUndo ? '取消完成' : '标记完成'}
         style={{ left: COMPLETE_LABEL.x, top: COMPLETE_LABEL.y }}
       >
-        <Check size={18} strokeWidth={2.5} />
+        {isUndo ? <Undo2 size={18} strokeWidth={2.5} /> : <Check size={18} strokeWidth={2.5} />}
       </div>
 
       <div
-        className={`drag-action-ring__label delete ${hovered === 'delete' ? 'is-hovered' : ''}`}
+        className={deleteLabelClass}
         data-testid="drag-action-delete-label"
+        data-mode={isUnschedule ? 'unschedule' : 'delete'}
+        role="img"
+        aria-label={isUnschedule ? '移除当天安排' : '删除任务'}
         style={{ left: DELETE_LABEL.x, top: DELETE_LABEL.y }}
       >
-        <Trash2 size={18} strokeWidth={2.5} />
+        {isUnschedule
+          ? <CalendarMinus size={18} strokeWidth={2.5} />
+          : <Trash2 size={18} strokeWidth={2.5} />}
       </div>
     </div>
   );

@@ -38,7 +38,7 @@ export function KeyboardShortcutPanel({ visible, onClose }: KeyboardShortcutPane
               </div>
             </div>
             <div className="shortcut-item">
-              <span className="shortcut-label">提交任务</span>
+              <span className="shortcut-label">聚焦 / 提交任务</span>
               <div className="shortcut-keys">
                 <span className="shortcut-key">Ctrl</span>
                 <span className="shortcut-key">Enter</span>

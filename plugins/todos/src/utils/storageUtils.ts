@@ -278,6 +278,7 @@ export function migrateData(data: any): StorageData {
     viewMode: validateViewMode(data.viewMode),
     layoutMode: validateLayoutMode(data.layoutMode),
     taskViewMode: validateTaskViewMode(data.taskViewMode),
+    taskColorMode: validateTaskColorMode(data.taskColorMode),
     currentDate: data.currentDate || formatDateForStorage(new Date()),
   };
 }
@@ -294,6 +295,7 @@ function createDefaultData(configs: WorkspaceConfig[] = loadWorkspaceConfigs()):
     viewMode: 'week',
     layoutMode: 'split',
     taskViewMode: 'tag',
+    taskColorMode: 'random',
     currentDate: formatDateForStorage(new Date()),
   };
 }
@@ -326,6 +328,10 @@ function migrateToLatest(data: any): StorageData {
 
   if (data.taskViewMode) {
     migrated.taskViewMode = validateTaskViewMode(data.taskViewMode);
+  }
+
+  if (data.taskColorMode) {
+    migrated.taskColorMode = validateTaskColorMode(data.taskColorMode);
   }
 
   if (data.currentDate) {
@@ -392,6 +398,17 @@ function validateTaskViewMode(taskViewMode: any): 'tag' | 'block' {
     return taskViewMode;
   }
   return 'tag';
+}
+
+/**
+ * 验证任务色条取色方式（旧快照没有该字段时回落到默认的按任务配色）
+ * @param taskColorMode 取色方式
+ */
+function validateTaskColorMode(taskColorMode: any): 'status' | 'random' {
+  if (taskColorMode === 'status' || taskColorMode === 'random') {
+    return taskColorMode;
+  }
+  return 'random';
 }
 
 /**

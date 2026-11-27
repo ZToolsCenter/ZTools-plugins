@@ -1,10 +1,11 @@
 import React from 'react';
 import { Task } from '../../types';
-import { TaskItem } from './TaskItem';
+import { TaskNode } from './TaskNode';
 
 interface TaskGroupProps {
   title: string;
   tasks: Task[];
+  subtasksByParent?: Map<string, Task[]>;
   onComplete: (taskId: string) => void;
   onDelete: (taskId: string) => void;
   onDragStart?: (taskId: string) => void;
@@ -21,6 +22,7 @@ interface TaskGroupProps {
 export function TaskGroup({
   title,
   tasks,
+  subtasksByParent,
   onComplete,
   onDelete,
   onDragStart,
@@ -64,18 +66,19 @@ export function TaskGroup({
       {!collapsed && (
         <div className="task-group-list">
           {tasks.map(task => (
-            <TaskItem
+            <TaskNode
               key={task.id}
               task={task}
+              subtasks={subtasksByParent?.get(task.id) ?? []}
               onComplete={onComplete}
               onDelete={onDelete}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               showDates={showDates}
-              isHighlighted={hoveredTaskId === task.id}
-              isSelected={selectedTaskId === task.id}
-              onHover={onHoverTask}
-              onSelect={onSelectTask}
+              hoveredTaskId={hoveredTaskId}
+              selectedTaskId={selectedTaskId}
+              onHoverTask={onHoverTask}
+              onSelectTask={onSelectTask}
             />
           ))}
         </div>

@@ -31,7 +31,7 @@
 
 ### 周视图
 ![img.png](docs/img.png)
-### 日历视图
+### 仅待办视图
 ![img_1.png](docs/img_1.png)
 
 ## 快速开始

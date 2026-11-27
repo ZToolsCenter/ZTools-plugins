@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Task } from '../../types';
-import { getPriorityColor, getPriorityLabel } from '../../utils/colorUtils';
+import { getPriorityLabel, getTaskColor } from '../../utils/colorUtils';
+import { useTaskColorMode } from '../../context/AppContext';
 import './TaskBlock.css';
 
 interface TaskBlockProps {
@@ -22,7 +23,8 @@ export const TaskBlock = React.memo(function TaskBlock({
   onComplete,
   onSelect
 }: TaskBlockProps) {
-  const taskColor = getPriorityColor(task.priority);
+  const colorMode = useTaskColorMode();
+  const taskColor = getTaskColor(task, colorMode);
   const priorityLabel = getPriorityLabel(task.priority);
   const blockRef = useRef<HTMLDivElement>(null);
   const callbacksRef = useRef({ onComplete, onRemove });

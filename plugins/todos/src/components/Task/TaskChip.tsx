@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Task } from '../../types';
-import { getPriorityColor, getPriorityLabel } from '../../utils/colorUtils';
+import { getPriorityLabel, getTaskColor } from '../../utils/colorUtils';
+import { useTaskColorMode } from '../../context/AppContext';
 
 interface TaskChipProps {
   task: Task;
@@ -21,7 +22,8 @@ export const TaskChip = React.memo(function TaskChip({
   onComplete,
   onSelect
 }: TaskChipProps) {
-  const taskColor = getPriorityColor(task.priority);
+  const colorMode = useTaskColorMode();
+  const taskColor = getTaskColor(task, colorMode);
   const priorityLabel = getPriorityLabel(task.priority);
   const chipRef = useRef<HTMLDivElement>(null);
   const callbacksRef = useRef({ onComplete, onRemove });

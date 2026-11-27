@@ -28,6 +28,10 @@ export function Header() {
     dispatch({ type: 'SET_LAYOUT_MODE', payload: { layoutMode: mode } });
   }, [dispatch]);
 
+  const handleChangeColorMode = useCallback((mode: 'status' | 'random') => {
+    dispatch({ type: 'SET_TASK_COLOR_MODE', payload: { taskColorMode: mode } });
+  }, [dispatch]);
+
   return (
     <header className="header">
       <div className="header-left">
@@ -45,7 +49,10 @@ export function Header() {
           placeholder="搜索任务..."
           className="header-search"
         />
-        <ViewToggle viewMode={viewMode} onChange={handleChangeView} />
+        {/* 仅待办池布局里没有日历，周 / 月切换没有意义 */}
+        {state.layoutMode !== 'pool-only' && (
+          <ViewToggle viewMode={viewMode} onChange={handleChangeView} />
+        )}
         <button
           className="settings-btn"
           onClick={() => setShowSettings(true)}
@@ -60,6 +67,8 @@ export function Header() {
           onUpdate={handleUpdateConfigs}
           layoutMode={state.layoutMode}
           onChangeLayoutMode={handleChangeLayoutMode}
+          colorMode={state.taskColorMode}
+          onChangeColorMode={handleChangeColorMode}
           onClose={() => setShowSettings(false)}
         />
       )}

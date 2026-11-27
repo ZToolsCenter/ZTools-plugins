@@ -34,8 +34,17 @@
   color: var(--color-success);
 }
 
+/* 拖拽已完成任务 / 从日历拖出时的语义变体，与操作区配色保持一致 */
+.legend-icon.complete.undo {
+  color: var(--color-info);
+}
+
 .legend-icon.delete {
   color: var(--color-danger);
+}
+
+.legend-icon.delete.unschedule {
+  color: var(--color-warning);
 }
 
 .legend-icon.edit {

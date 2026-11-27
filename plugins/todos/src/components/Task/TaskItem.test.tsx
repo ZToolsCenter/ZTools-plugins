@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TaskItem } from './TaskItem';
 import { Task } from '../../types';
+import { getTaskColor } from '../../utils/colorUtils';
 
 const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   id: '1',
@@ -73,11 +74,13 @@ describe('TaskItem', () => {
     expect(container.querySelector('.task-item')).toHaveClass('today');
   });
 
-  it('renders priority indicator with correct color', () => {
+  it('renders the auto-assigned task color bar', () => {
     const task = createMockTask({ priority: 'high' });
     const { container } = render(<TaskItem task={task} onComplete={() => {}} onDelete={() => {}} />);
     const indicator = container.querySelector('.priority-indicator');
-    expect(indicator).toHaveStyle({ backgroundColor: '#EF4444' });
+    expect(indicator).toHaveStyle({ backgroundColor: getTaskColor(task) });
+    // 颜色不再表示优先级，优先级信息仍保留在提示里
+    expect(indicator).toHaveAttribute('title', '优先级：高');
   });
 
   it('renders dates when showDates is true and task has dates', () => {

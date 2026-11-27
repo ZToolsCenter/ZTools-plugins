@@ -209,6 +209,11 @@
   color: var(--ink);
 }
 
+/* 两个设置分组之间留出呼吸空间 */
+.layout-section + .layout-section {
+  margin-top: 20px;
+}
+
 .layout-options {
   display: flex;
   gap: 8px;
