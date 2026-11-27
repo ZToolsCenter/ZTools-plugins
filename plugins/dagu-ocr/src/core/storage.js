@@ -1,3 +1,5 @@
+import { createKvStore } from './kv.js';
+import { loadSecrets, saveSecrets } from './synced-secrets.js';
 import { normalizeTranslationLanguage } from './translation-languages.js';
 
 export const STORAGE_KEYS = {
@@ -8,6 +10,8 @@ export const STORAGE_KEYS = {
   legacyConfig: 'ocr_config',
   history: 'ocr_history'
 };
+
+const SECRET_KEYS = Object.freeze({ local: STORAGE_KEYS.localSecrets, synced: STORAGE_KEYS.syncedSecrets });
 
 export const DEFAULT_CONFIG = {
   ocrProviderId: '',
@@ -41,30 +45,6 @@ const SECRET_FIELDS = [
   'baiduTranslateSecretKey',
   'myMemoryKey'
 ];
-
-function parseStoredValue(value) {
-  if (value === null || value === undefined || value === '') return null;
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return null;
-    }
-  }
-  return value;
-}
-
-function getGlobalWindow() {
-  return globalThis.window || globalThis;
-}
-
-function getLocalStorage() {
-  try {
-    return getGlobalWindow().localStorage || globalThis.localStorage || null;
-  } catch {
-    return null;
-  }
-}
 
 function pick(source, fields) {
   return fields.reduce((result, field) => {
@@ -107,85 +87,39 @@ function legacyProviderChoices(legacy) {
 
 export class SettingsStore {
   constructor({ win, localStorage } = {}) {
-    this.win = win || getGlobalWindow();
-    this.localStorage = localStorage || getLocalStorage();
+    this.kv = createKvStore({ win, localStorage });
   }
 
   get dbStorage() {
-    return this.win?.ztools?.dbStorage || this.win?.utools?.dbStorage || null;
+    return this.kv.dbStorage;
   }
 
   hasDbStorage() {
-    const storage = this.dbStorage;
-    return Boolean(
-      storage && (
-        typeof storage.getItem === 'function' ||
-        typeof storage.get === 'function' ||
-        typeof storage.setItem === 'function' ||
-        typeof storage.set === 'function'
-      )
-    );
+    return this.kv.hasDbStorage();
   }
 
-  async readDb(key) {
-    const storage = this.dbStorage;
-    if (!storage) return null;
-    if (typeof storage.getItem === 'function') return parseStoredValue(await storage.getItem(key));
-    if (typeof storage.get === 'function') return parseStoredValue(await storage.get(key));
-    return null;
+  readDb(key) {
+    return this.kv.readDb(key);
   }
 
-  async writeDb(key, value) {
-    const storage = this.dbStorage;
-    if (!storage) return false;
-    if (typeof storage.setItem === 'function') {
-      await storage.setItem(key, value);
-      return true;
-    }
-    if (typeof storage.set === 'function') {
-      await storage.set(key, value);
-      return true;
-    }
-    return false;
+  writeDb(key, value) {
+    return this.kv.writeDb(key, value);
   }
 
-  async removeDb(key) {
-    const storage = this.dbStorage;
-    if (!storage) return false;
-    if (typeof storage.removeItem === 'function') {
-      await storage.removeItem(key);
-      return true;
-    }
-    if (typeof storage.delete === 'function') {
-      await storage.delete(key);
-      return true;
-    }
-    return false;
+  removeDb(key) {
+    return this.kv.removeDb(key);
   }
 
   readLocal(key) {
-    try {
-      return parseStoredValue(this.localStorage?.getItem(key));
-    } catch {
-      return null;
-    }
+    return this.kv.readLocal(key);
   }
 
   writeLocal(key, value) {
-    try {
-      this.localStorage?.setItem(key, JSON.stringify(value));
-      return true;
-    } catch {
-      return false;
-    }
+    return this.kv.writeLocal(key, value);
   }
 
   removeLocal(key) {
-    try {
-      this.localStorage?.removeItem?.(key);
-    } catch {
-      // Storage can be unavailable in private browser contexts.
-    }
+    this.kv.removeLocal(key);
   }
 
   async load() {
@@ -194,7 +128,6 @@ export class SettingsStore {
       : null;
     if (!preferences) preferences = this.readLocal(STORAGE_KEYS.localPreferences);
 
-    let localSecrets = this.readLocal(STORAGE_KEYS.localSecrets) || {};
     const legacy = this.readLocal(STORAGE_KEYS.legacyConfig);
     let migrated = false;
 
@@ -206,16 +139,21 @@ export class SettingsStore {
         targetLang: legacy.targetLang || 'zh-CN',
         syncSecrets: false
       };
-      localSecrets = { ...localSecrets, ...pick(legacy, SECRET_FIELDS) };
+      // 旧配置里的密钥并入本机密钥副本。
+      this.writeLocal(STORAGE_KEYS.localSecrets, {
+        ...this.readLocal(STORAGE_KEYS.localSecrets),
+        ...pick(legacy, SECRET_FIELDS)
+      });
       migrated = true;
     }
 
-    const config = normalizeConfig({ ...preferences, ...localSecrets });
-
-    if (config.syncSecrets && this.hasDbStorage()) {
-      const syncedSecrets = await this.readDb(STORAGE_KEYS.syncedSecrets);
-      if (syncedSecrets) Object.assign(config, pick(syncedSecrets, SECRET_FIELDS));
-    }
+    const secrets = await loadSecrets({
+      kv: this.kv,
+      keys: SECRET_KEYS,
+      sync: normalizeConfig(preferences).syncSecrets,
+      fallback: {}
+    });
+    const config = normalizeConfig({ ...preferences, ...pick(secrets, SECRET_FIELDS) });
 
     if (migrated) {
       await this.save(config);
@@ -228,7 +166,6 @@ export class SettingsStore {
   async save(config) {
     const normalized = normalizeConfig(config);
     const preferences = pick(normalized, PREFERENCE_FIELDS);
-    const secrets = pick(normalized, SECRET_FIELDS);
 
     if (this.hasDbStorage()) {
       await this.writeDb(STORAGE_KEYS.preferences, preferences);
@@ -236,12 +173,12 @@ export class SettingsStore {
       this.writeLocal(STORAGE_KEYS.localPreferences, preferences);
     }
 
-    this.writeLocal(STORAGE_KEYS.localSecrets, secrets);
-    if (normalized.syncSecrets && this.hasDbStorage()) {
-      await this.writeDb(STORAGE_KEYS.syncedSecrets, secrets);
-    } else if (this.hasDbStorage()) {
-      await this.removeDb(STORAGE_KEYS.syncedSecrets);
-    }
+    await saveSecrets({
+      kv: this.kv,
+      keys: SECRET_KEYS,
+      secrets: pick(normalized, SECRET_FIELDS),
+      sync: normalized.syncSecrets
+    });
 
     return normalized;
   }

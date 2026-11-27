@@ -3,8 +3,9 @@ import App from './App.vue';
 import './styles.css';
 import { OCRApp } from './ocr.js';
 import { pngSizeFromDataUrl } from './image-size.js';
-import { displayUnderCursor, isDesktopCaptureSupported } from './capture/desktop-capture.js';
+import { displayUnderCursor, isDesktopCaptureSupported, isHdrDisplay } from './capture/desktop-capture.js';
 import { createPrimeKey, primeCaptureFrame } from './capture/prime-frame.js';
+import { acknowledgeHandoff } from './share/handoff.js';
 
 const win = globalThis.window || globalThis;
 const EDITOR_PAGE = 'overlay.html';
@@ -100,7 +101,7 @@ function overlayWindowOptions(bounds, show = false) {
     focusable: true,
     title: '截图',
     webPreferences: {
-      preload: 'preload.js',
+      preload: 'preload.cjs',
       backgroundThrottling: false
     }
   };
@@ -218,7 +219,7 @@ function openPinWindow({ imageUrl, bounds }) {
       alwaysOnTop: false,
       title: '固定截图',
       webPreferences: {
-        preload: 'preload.js',
+        preload: 'preload.cjs',
         backgroundThrottling: false
       }
     }, () => {});
@@ -332,12 +333,20 @@ function startScreenshotFlow() {
   controller.showStatus('正在准备截图...');
   closeOverlayWindow();
 
+  const display = displayUnderCursor(win);
+  // HDR 显示器上桌面捕获源拿不到正常画面，插件接口里也没有映射后的整帧：
+  // 直接用 ZTools 自带的截图框选（它走 GDI，HDR 下颜色正常），选完回到同一套标注界面。
+  if (isHdrDisplay(display, win.navigator)) {
+    console.info('[capture] HDR 显示器，改用系统截图框选:', display?.id, display?.depthPerComponent, display?.colorSpace);
+    startNativeScreenshotFlow();
+    return;
+  }
+
   if (!isDesktopCaptureSupported(win)) {
     startNativeScreenshotFlow();
     return;
   }
 
-  const display = displayUnderCursor(win);
   const bounds = display?.bounds || { x: 0, y: 0, width: 1280, height: 800 };
   // 抓帧与覆盖层窗口创建并行：窗口加载完成时画面通常已就绪，不再等第二轮采集。
   const primeKey = createPrimeKey();
@@ -459,6 +468,11 @@ function handleEditorMessage(message) {
     void controller.handleEditedImage(message.imageUrl, message.action || 'ocr');
     return true;
   }
+  if (message.event === 'shared') {
+    // 图片已交给大古快传：只清理本地记录，不恢复主窗口也不退出插件，避免打断对方。
+    closeOverlayWindow();
+    return true;
+  }
   if (message.event === 'closed') {
     closeOverlayWindow();
     if (message.returnInput || message.returnToInput) showMainWindow();
@@ -483,6 +497,19 @@ if (win?.ztools && typeof win.ztools.onPluginEnter === 'function') {
   win.ztools.onPluginEnter(handlePluginEnter);
 } else if (win?.utools && typeof win.utools.onPluginEnter === 'function') {
   win.utools.onPluginEnter(handlePluginEnter);
+}
+
+// 跳转到别的插件（例如分享到大古快传）时，宿主会让本插件视图退出。
+// 宿主的跳转接口找不到目标时也返回成功，覆盖层要靠这次退出才能确认对方确实接手了。
+const lifecycleHost = win?.ztools || win?.utools;
+if (typeof lifecycleHost?.onPluginOut === 'function') {
+  lifecycleHost.onPluginOut(() => {
+    // 宿主收起插件时（例如截图期间按 Esc，宿主主进程截获「返回搜索页面」），主视图收到 PluginOut，
+    // 但全屏冻结画面是独立子窗口，不会自己退出——不关的话它悬在屏幕上，看起来像「按 Esc 没反应」。
+    // 分享场景例外：acknowledgeHandoff 写下确认标记后，覆盖层按自己的节奏收尾关闭。
+    const acknowledged = acknowledgeHandoff(window.localStorage);
+    if (!acknowledged) closeOverlayWindow();
+  });
 }
 
 window.addEventListener('message', (event) => {
