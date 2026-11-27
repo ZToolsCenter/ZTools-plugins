@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Windows 右键菜单管理</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- 顶部栏 -->
+    <header class="topbar">
+      <div class="tabs" id="scopeTabs">
+        <button class="tab active" data-scope="dir-bg">文件夹空白处</button>
+        <button class="tab" data-scope="file">文件</button>
+        <button class="tab" data-scope="dir">文件夹</button>
+        <button class="tab" data-scope="desktop-bg">桌面空白处</button>
+        <button class="tab" data-scope="all">全部</button>
+      </div>
+      <div class="toolbar">
+        <input id="searchInput" type="text" placeholder="搜索菜单名 / 键名 / 路径..." autocomplete="off" />
+        <select id="statusFilter" title="按状态筛选">
+          <option value="all">全部状态</option>
+          <option value="enabled">仅已启用</option>
+          <option value="disabled">仅已停用</option>
+        </select>
+        <button id="adminSessionBtn" class="btn btn-secondary" title="一次性获取管理员权限，后续切换 HKLM 菜单项免重复 UAC 弹窗">获取管理员权限</button>
+        <button id="refreshBtn" class="btn btn-secondary" title="重新扫描注册表">刷新</button>
+      </div>
+    </header>
+
+    <!-- 提示条（COM 扩展变更需要重启资源管理器时出现） -->
+    <div id="explorerBanner" class="banner hidden">
+      <span>已变更 COM 扩展（shellex）项，重启资源管理器后立即生效。</span>
+      <button id="bannerRestartBtn" class="btn btn-primary btn-sm">立即重启资源管理器</button>
+    </div>
+
+    <!-- 主列表区 -->
+    <main class="content">
+      <div id="loadingBox" class="empty-state">正在扫描系统右键菜单，请稍候...</div>
+      <div id="emptyBox" class="empty-state hidden">当前筛选条件下没有匹配的右键菜单项</div>
+      <div id="itemList" class="item-list"></div>
+    </main>
+
+    <!-- 底部安全操作栏 -->
+    <footer class="footer">
+      <div class="footer-info">
+        <span id="statsText">共 0 项</span>
+        <span class="dot">·</span>
+        <button id="openBackupBtn" class="link-btn" title="打开修改前注册表备份文件夹">查看备份目录</button>
+      </div>
+      <div class="footer-actions">
+        <button id="restartExplorerBtn" class="btn btn-secondary btn-sm">重启资源管理器</button>
+        <button id="restoreAllBtn" class="btn btn-danger btn-sm" disabled>一键还原全部修改 (0)</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- 轻量 Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

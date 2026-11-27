@@ -1,0 +1,18 @@
+{
+  "name": "win-context-menu",
+  "title": "Windows 右键菜单管理",
+  "description": "无损扫描、停用与启用 Windows 10/11 右键菜单项（支持传统 Shell 项、COM 扩展与 Win11 现代扩展，改前自动备份、支持一键还原）",
+  "version": "1.0.0",
+  "author": "Pizalo",
+  "platform": ["win32"],
+  "main": "index.html",
+  "logo": "logo.png",
+  "preload": "preload.js",
+  "features": [
+    {
+      "code": "manage-context-menu",
+      "explain": "管理 Windows 右键菜单（停用/启用/还原）",
+      "cmds": ["右键菜单", "右键管理", "context menu", "youjian", "menu"]
+    }
+  ]
+}
