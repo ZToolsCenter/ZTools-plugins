@@ -4,6 +4,9 @@ import {
   getTaskStatus,
   formatTaskDates,
   sortTasksByPriority,
+  sortTasksByCompletion,
+  getTopLevelTasks,
+  groupSubtasksByParent,
   searchTasks,
 } from './taskUtils';
 import { formatDate } from './dateUtils';
@@ -219,6 +222,80 @@ describe('taskUtils', () => {
       sortTasksByPriority(tasks);
       expect(tasks[0].priority).toBe('low');
       expect(tasks[1].priority).toBe('high');
+    });
+  });
+
+  describe('sortTasksByCompletion', () => {
+    const makeTask = (id: string, title: string, status: Task['status']): Task => ({
+      id,
+      title,
+      priority: 'medium',
+      dates: ['2024-01-01'],
+      status,
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01',
+    });
+
+    it('should move completed tasks to the end', () => {
+      const tasks = [
+        makeTask('1', '已完成 A', 'done'),
+        makeTask('2', '待办 B', 'todo'),
+        makeTask('3', '已完成 C', 'done'),
+        makeTask('4', '待办 D', 'todo'),
+      ];
+
+      expect(sortTasksByCompletion(tasks).map(t => t.id)).toEqual(['2', '4', '1', '3']);
+    });
+
+    it('should keep the original order for tasks with the same status', () => {
+      const tasks = [
+        makeTask('1', 'A', 'todo'),
+        makeTask('2', 'B', 'todo'),
+        makeTask('3', 'C', 'done'),
+      ];
+
+      expect(sortTasksByCompletion(tasks).map(t => t.title)).toEqual(['A', 'B', 'C']);
+    });
+
+    it('should not mutate the original array', () => {
+      const tasks = [makeTask('1', '已完成', 'done'), makeTask('2', '待办', 'todo')];
+
+      sortTasksByCompletion(tasks);
+
+      expect(tasks.map(t => t.id)).toEqual(['1', '2']);
+    });
+  });
+
+  describe('nested tasks', () => {
+    const makeTask = (id: string, title: string, overrides: Partial<Task> = {}): Task => ({
+      id,
+      title,
+      priority: 'medium',
+      dates: ['2024-01-01'],
+      status: 'todo',
+      createdAt: '2024-01-01',
+      updatedAt: '2024-01-01',
+      ...overrides,
+    });
+
+    const parent = makeTask('p1', '主任务');
+    const sub1 = makeTask('s1', '子任务 A', { parentId: 'p1' });
+    const sub2 = makeTask('s2', '子任务 B', { parentId: 'p1' });
+    const other = makeTask('p2', '另一个主任务');
+
+    it('should keep only top-level tasks', () => {
+      expect(getTopLevelTasks([parent, sub1, sub2, other]).map(task => task.id)).toEqual(['p1', 'p2']);
+    });
+
+    it('should group subtasks by their parent', () => {
+      const grouped = groupSubtasksByParent([parent, sub1, sub2, other]);
+
+      expect(grouped.get('p1')?.map(task => task.id)).toEqual(['s1', 's2']);
+      expect(grouped.get('p2')).toBeUndefined();
+    });
+
+    it('should ignore tasks without parentId when grouping', () => {
+      expect(groupSubtasksByParent([parent, other]).size).toBe(0);
     });
   });
 

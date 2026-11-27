@@ -4,6 +4,8 @@ import { WeekView } from './WeekView';
 import { AppProvider } from '../../context/AppContext';
 import { useAppContext } from '../../context/AppContext';
 import { loadData } from '../../utils/storageUtils';
+import { formatDate, getWeekStart } from '../../utils/dateUtils';
+import { DEFAULT_WORKSPACE_CONFIGS } from '../../constants/colorSchemes';
 
 jest.mock('../../utils/storageUtils', () => ({
   loadData: jest.fn(),
@@ -59,6 +61,63 @@ describe('WeekView', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedLoadData.mockReturnValue(null);
+  });
+
+  it('schedules subtasks on their own dates like normal tasks', () => {
+    const today = formatDate(getWeekStart(new Date()));
+    mockedLoadData.mockReturnValue({
+      version: '1.0.0',
+      workspaces: {
+        work: [
+          { id: 'parent-1', title: '主任务', priority: 'medium', dates: [today], status: 'todo', createdAt: today, updatedAt: today },
+          { id: 'sub-1', title: '子任务', priority: 'medium', dates: [today], status: 'todo', createdAt: today, updatedAt: today, parentId: 'parent-1' },
+        ],
+        life: [],
+        study: [],
+      },
+      currentWorkspace: 'work',
+      workspaceConfigs: DEFAULT_WORKSPACE_CONFIGS,
+      viewMode: 'week',
+      layoutMode: 'split',
+      taskViewMode: 'tag',
+      taskColorMode: 'random',
+      currentDate: today,
+    });
+
+    const { container } = render(<WeekView />, { wrapper });
+    const row = container.querySelector(`.day-row[data-date="${today}"]`)!;
+    const titles = Array.from(row.querySelectorAll('.chip-title')).map(el => el.textContent);
+
+    expect(titles).toEqual(['主任务', '子任务']);
+  });
+
+  it('keeps completed tasks in the day row and puts them last', () => {
+    const today = formatDate(getWeekStart(new Date()));
+    mockedLoadData.mockReturnValue({
+      version: '1.0.0',
+      workspaces: {
+        work: [
+          { id: 'done-1', title: '做完的', priority: 'medium', dates: [today], status: 'done', createdAt: today, updatedAt: today },
+          { id: 'todo-1', title: '没做完的', priority: 'medium', dates: [today], status: 'todo', createdAt: today, updatedAt: today },
+        ],
+        life: [],
+        study: [],
+      },
+      currentWorkspace: 'work',
+      workspaceConfigs: DEFAULT_WORKSPACE_CONFIGS,
+      viewMode: 'week',
+      layoutMode: 'split',
+      taskViewMode: 'tag',
+      taskColorMode: 'random',
+      currentDate: today,
+    });
+
+    const { container } = render(<WeekView />, { wrapper });
+    const row = container.querySelector(`.day-row[data-date="${today}"]`)!;
+    const titles = Array.from(row.querySelectorAll('.chip-title')).map(el => el.textContent);
+
+    expect(titles).toEqual(['没做完的', '做完的']);
+    expect(row.querySelector('.task-chip.done')).toBeInTheDocument();
   });
 
   it('renders 7 day rows', () => {

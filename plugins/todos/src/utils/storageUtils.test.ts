@@ -11,6 +11,7 @@ function createStorageData(overrides: Partial<StorageData> = {}): StorageData {
     viewMode: 'week',
     layoutMode: 'split',
     taskViewMode: 'tag',
+    taskColorMode: 'random',
     currentDate: '2024-01-15',
     ...overrides,
   };
@@ -59,6 +60,7 @@ describe('storageUtils', () => {
         viewMode: 'week',
         layoutMode: 'split',
         taskViewMode: 'tag',
+        taskColorMode: 'random',
         currentDate: '2024-01-15',
       };
       localStorage.setItem('todos-data', JSON.stringify(data));
@@ -83,6 +85,7 @@ describe('storageUtils', () => {
         viewMode: 'week',
         layoutMode: 'split',
         taskViewMode: 'tag',
+        taskColorMode: 'random',
         currentDate: '2024-01-15',
       };
 
@@ -235,6 +238,7 @@ describe('storageUtils', () => {
         viewMode: 'month',
         layoutMode: 'pool-only',
         taskViewMode: 'block',
+        taskColorMode: 'status',
         currentDate: '2024-06-01',
       };
       const result = migrateData(data);
@@ -339,6 +343,27 @@ describe('storageUtils', () => {
       );
       expect(result.layoutMode).toBe('pool-only');
       expect(result.taskViewMode).toBe('block');
+    });
+
+    it('should default the task color mode to random for old snapshots', () => {
+      const legacy = {
+        version: '1.0.0',
+        workspaces: { work: [], life: [], study: [] },
+        currentWorkspace: 'work',
+        workspaceConfigs: DEFAULT_WORKSPACE_CONFIGS,
+        viewMode: 'week',
+        layoutMode: 'split',
+        taskViewMode: 'tag',
+        currentDate: '2024-01-01',
+      };
+      expect(migrateData(legacy).taskColorMode).toBe('random');
+    });
+
+    it('should keep a valid task color mode and reject invalid values', () => {
+      expect(migrateData(createStorageData({ taskColorMode: 'status' })).taskColorMode).toBe('status');
+      expect(
+        migrateData({ ...createStorageData(), taskColorMode: 'rainbow' } as any).taskColorMode
+      ).toBe('random');
     });
   });
 });

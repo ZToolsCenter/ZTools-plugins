@@ -25,6 +25,17 @@ function TodoAppContent() {
     dispatch({ type: 'SET_SELECTED_TASK', payload: { taskId } });
   }, [dispatch]);
 
+  // 拖拽中把扇形的真实语义提示到底部图例：已完成任务可取消完成，日历来源只移除当天。
+  const draggedTask = state.draggedTaskId
+    ? (state.workspaces[state.currentWorkspace] || []).find(task => task.id === state.draggedTaskId)
+    : undefined;
+  const dragHint = draggedTask
+    ? {
+        complete: draggedTask.status === 'done' ? ('undo' as const) : ('complete' as const),
+        remove: state.dragSourceDate ? ('unschedule' as const) : ('delete' as const),
+      }
+    : undefined;
+
   const toggleShortcuts = useCallback(() => {
     setShowShortcuts(prev => !prev);
   }, []);
@@ -66,7 +77,7 @@ function TodoAppContent() {
       </div>
       <TaskDragController />
       <DragActionDock />
-      <BottomLegend onShowShortcuts={toggleShortcuts} />
+      <BottomLegend onShowShortcuts={toggleShortcuts} dragHint={dragHint} />
       <KeyboardShortcutPanel visible={showShortcuts} onClose={closeShortcuts} />
       <DevRefreshButton />
     </div>

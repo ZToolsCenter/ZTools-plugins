@@ -4,7 +4,7 @@ import { useAppContext } from '../../context/AppContext';
 import { TaskGroup } from './TaskGroup';
 import { EmptyState } from '../Common/EmptyState';
 import { isToday, isThisWeek } from '../../utils/dateUtils';
-import { getTaskStatus, searchTasks } from '../../utils/taskUtils';
+import { getTaskStatus, getTopLevelTasks, groupSubtasksByParent, searchTasks } from '../../utils/taskUtils';
 import { FileText, Search } from 'lucide-react';
 import './Task.css';
 
@@ -39,9 +39,24 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
   });
 
   const tasks = getCurrentTasks();
-  const filteredTasks = searchTasks(tasks, state.searchQuery);
+  // 子任务只跟在主任务下面展示，不单独参与分组
+  const parentTasks = useMemo(() => getTopLevelTasks(tasks), [tasks]);
+  const subtasksByParent = useMemo(() => groupSubtasksByParent(tasks), [tasks]);
+  const matchedTasks = searchTasks(tasks, state.searchQuery);
   const hasSearch = state.searchQuery.trim().length > 0;
-  const hasSearchResults = filteredTasks.length > 0;
+  const hasSearchResults = matchedTasks.length > 0;
+
+  // 主任务自身命中，或任一子任务命中，都保留这个主任务
+  const filteredTasks = useMemo(() => {
+    if (!hasSearch) {
+      return parentTasks;
+    }
+    const matchedIds = new Set(matchedTasks.map(task => task.id));
+    return parentTasks.filter(parent =>
+      matchedIds.has(parent.id) ||
+      (subtasksByParent.get(parent.id) || []).some(subtask => matchedIds.has(subtask.id))
+    );
+  }, [hasSearch, matchedTasks, parentTasks, subtasksByParent]);
 
   // 自动调整 textarea 高度
   useEffect(() => {
@@ -50,6 +65,38 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [inputValue]);
+
+  // Ctrl/Cmd+Enter：输入框没聚焦时先把光标送进去；已聚焦则交给输入框自己提交。
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) {
+        return;
+      }
+
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        return;
+      }
+
+      // 已聚焦：沿用输入框的 Ctrl+Enter 提交逻辑，避免重复提交
+      if (document.activeElement === textarea) {
+        return;
+      }
+
+      // 弹层打开时不抢焦点
+      if (document.querySelector('.shortcut-panel-overlay, .workspace-settings-overlay')) {
+        return;
+      }
+
+      event.preventDefault();
+      textarea.focus();
+      const end = textarea.value.length;
+      textarea.setSelectionRange(end, end);
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   // 处理提交任务
   const handleSubmit = (e: React.KeyboardEvent) => {
@@ -101,16 +148,20 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
         pendingTasks: filteredTasks.filter(t => t.status !== 'done')
       };
     }
+    // 已完成的任务优先归入「已完成」，不再重复出现在逾期 / 今天 / 本周 / 未安排里。
+    const completedTasks = filteredTasks.filter(t => t.status === 'done');
+    const activeTasks = filteredTasks.filter(t => t.status !== 'done');
+
     return {
-      overdueTasks: filteredTasks.filter(t => getTaskStatus(t) === 'overdue'),
-      todayTasks: filteredTasks.filter(t => t.dates.some(d => isToday(d))),
-      thisWeekTasks: filteredTasks.filter(t =>
+      overdueTasks: activeTasks.filter(t => getTaskStatus(t) === 'overdue'),
+      todayTasks: activeTasks.filter(t => t.dates.some(d => isToday(d))),
+      thisWeekTasks: activeTasks.filter(t =>
         t.dates.some(d => isThisWeek(d)) &&
         !t.dates.some(d => isToday(d)) &&
         getTaskStatus(t) !== 'overdue'
       ),
-      unscheduledTasks: filteredTasks.filter(t => t.dates.length === 0),
-      completedTasks: filteredTasks.filter(t => t.status === 'done'),
+      unscheduledTasks: activeTasks.filter(t => t.dates.length === 0),
+      completedTasks,
       pendingTasks: []
     };
   }, [filteredTasks, isPoolOnly]);
@@ -304,6 +355,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 onDelete={deleteTask}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                subtasksByParent={subtasksByParent}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}
                 onHoverTask={onHoverTask}
@@ -319,6 +371,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 onDelete={deleteTask}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                subtasksByParent={subtasksByParent}
                 collapsed={!expandedGroups.completed}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}
@@ -339,6 +392,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 onDelete={deleteTask}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                subtasksByParent={subtasksByParent}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}
                 onHoverTask={onHoverTask}
@@ -356,6 +410,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 onDelete={deleteTask}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                subtasksByParent={subtasksByParent}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}
                 onHoverTask={onHoverTask}
@@ -373,6 +428,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 onDelete={deleteTask}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                subtasksByParent={subtasksByParent}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}
                 onHoverTask={onHoverTask}
@@ -390,6 +446,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 onDelete={deleteTask}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                subtasksByParent={subtasksByParent}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}
                 onHoverTask={onHoverTask}
@@ -407,6 +464,7 @@ export function TaskPool({ hoveredTaskId, onHoverTask }: TaskPoolProps) {
                 onDelete={deleteTask}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                subtasksByParent={subtasksByParent}
                 collapsed={!expandedGroups.completed}
                 hoveredTaskId={hoveredTaskId}
                 selectedTaskId={state.selectedTaskId}

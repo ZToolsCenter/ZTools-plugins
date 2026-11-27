@@ -4,6 +4,7 @@ import { useTasks } from '../../hooks/useTasks';
 import { useAppContext } from '../../context/AppContext';
 import { DayCell } from './DayCell';
 import { isToday, getWeekStart, formatDate } from '../../utils/dateUtils';
+import { sortTasksByCompletion } from '../../utils/taskUtils';
 import { COLOR_SCHEMES } from '../../constants/colorSchemes';
 
 interface MonthViewProps {
@@ -35,6 +36,7 @@ export function MonthView({ hoveredTaskId, onHoverTask, onSelectTask, onDateClic
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
   const monthDays = getCurrentMonth();
+  // 子任务也是可排期的完整任务，和主任务一样按自己的日期出现在排期里
   const tasks = getCurrentTasks();
 
   const handleDrop = (date: string, e: React.DragEvent) => {
@@ -96,7 +98,8 @@ export function MonthView({ hoveredTaskId, onHoverTask, onSelectTask, onDateClic
       </div>
       <div className="month-grid">
         {monthDays.map(({ date, isCurrentMonth }) => {
-          const dayTasks = tasks.filter(t => t.dates.includes(date) && t.status !== 'done');
+          // 已完成的任务保留在当天，但置灰并排到最后
+          const dayTasks = sortTasksByCompletion(tasks.filter(t => t.dates.includes(date)));
           const isHoveredWeek = hoveredDate ? isSameWeek(date, hoveredDate) : false;
           return (
             <DayCell

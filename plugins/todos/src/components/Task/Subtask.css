@@ -1,0 +1,125 @@
+/* ═══════════════════════════════════════════════════════════
+   主任务 + 子任务（只支持两层，子任务本身是完整任务）
+   ═══════════════════════════════════════════════════════════ */
+.task-node {
+  position: relative;
+}
+
+.task-parent {
+  position: relative;
+}
+
+/* 行尾操作：收起 / 展开 + 添加子任务，绝对定位不占布局 */
+.task-parent-actions {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.subtask-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--color-border-light);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--graphite);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.subtask-toggle:hover {
+  color: var(--teal);
+  border-color: var(--teal-border);
+}
+
+.subtask-toggle.is-collapsed {
+  color: var(--teal);
+  border-color: var(--teal-border);
+}
+
+/* 添加子任务：悬浮在父任务行右侧的小图标，绝对定位不占布局 */
+.subtask-add-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--color-border-light);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--clay);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.task-parent:hover .subtask-add-icon,
+.subtask-add-icon:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.subtask-add-icon:hover {
+  color: var(--teal);
+  border-color: var(--teal-border);
+}
+
+.subtask-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: var(--sp-1) 0 0 14px;
+  padding-left: 8px;
+  border-left: 1px solid var(--color-border-light);
+}
+
+.subtask-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: none;
+  border-bottom: 1px solid var(--teal);
+  border-radius: 0;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.subtask-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  align-self: flex-start;
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--clay);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.subtask-add:hover {
+  color: var(--teal);
+  background: var(--color-background-light);
+}

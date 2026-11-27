@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
-import { AppState, AppAction, StorageData, Workspace } from '../types';
+import { AppState, AppAction, StorageData, TaskColorMode, Workspace } from '../types';
 import { appReducer, initialState } from '../reducers/appReducer';
 import { loadData, saveData, loadWorkspaceConfigs } from '../utils/storageUtils';
 import { generateMockData, isDevMode } from '../utils/mockData';
@@ -10,6 +10,14 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// 色条取色方式单独用一个带默认值的 context：任务卡片可以脱离 Provider 单独渲染（测试便利），
+// 默认值取 'random'，与默认设置一致。
+const TaskColorModeContext = createContext<TaskColorMode>('random');
+
+export function useTaskColorMode(): TaskColorMode {
+  return useContext(TaskColorModeContext);
+}
 
 // 开发模式使用独立的存储 key，避免模拟数据覆盖真实待办。
 const DATA_STORAGE_KEY = isDevMode ? 'todos-data-dev' : undefined;
@@ -28,6 +36,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         viewMode: 'week' as const,
         layoutMode: savedData?.layoutMode ?? init.layoutMode,
         taskViewMode: savedData?.taskViewMode ?? init.taskViewMode,
+        taskColorMode: savedData?.taskColorMode ?? init.taskColorMode,
         currentDate: init.currentDate,
       };
     }
@@ -49,6 +58,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     viewMode: state.viewMode,
     layoutMode: state.layoutMode,
     taskViewMode: state.taskViewMode,
+    taskColorMode: state.taskColorMode,
     currentDate: state.currentDate,
   }), [
     state.workspaces,
@@ -57,6 +67,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     state.viewMode,
     state.layoutMode,
     state.taskViewMode,
+    state.taskColorMode,
     state.currentDate,
   ]);
 
@@ -87,7 +98,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
-      {children}
+      <TaskColorModeContext.Provider value={state.taskColorMode}>
+        {children}
+      </TaskColorModeContext.Provider>
     </AppContext.Provider>
   );
 }

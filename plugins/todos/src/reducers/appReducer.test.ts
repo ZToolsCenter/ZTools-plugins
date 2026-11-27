@@ -97,6 +97,24 @@ describe('appReducer', () => {
     });
   });
   
+  describe('ADD_SUBTASK', () => {
+    it('should append subtasks after existing tasks', () => {
+      const parent = createTask('1', '主任务');
+      const first = { ...createTask('2', '子任务 A'), parentId: '1' };
+      const second = { ...createTask('3', '子任务 B'), parentId: '1' };
+      const state = createInitialState({
+        workspaces: { work: [parent, first], life: [], study: [] }
+      });
+
+      const result = appReducer(state, {
+        type: 'ADD_SUBTASK',
+        payload: { workspace: 'work', task: second }
+      });
+
+      expect(result.workspaces.work.map(task => task.id)).toEqual(['1', '2', '3']);
+    });
+  });
+
   describe('DELETE_TASK', () => {
     it('should remove task from all workspaces', () => {
       const task = createTask('1', 'Task to Delete');
@@ -151,6 +169,37 @@ describe('appReducer', () => {
       
       expect(result.selectedTaskId).toBe('1');
     });
+
+    it('should delete subtasks together with their parent', () => {
+      const parent = createTask('1', '主任务');
+      const subtask = { ...createTask('2', '子任务'), parentId: '1' };
+      const other = createTask('3', '另一个主任务');
+      const state = createInitialState({
+        workspaces: { work: [parent, subtask, other], life: [], study: [] }
+      });
+
+      const result = appReducer(state, {
+        type: 'DELETE_TASK',
+        payload: { taskId: '1' }
+      });
+
+      expect(result.workspaces.work.map(task => task.id)).toEqual(['3']);
+    });
+
+    it('should keep the parent when only a subtask is deleted', () => {
+      const parent = createTask('1', '主任务');
+      const subtask = { ...createTask('2', '子任务'), parentId: '1' };
+      const state = createInitialState({
+        workspaces: { work: [parent, subtask], life: [], study: [] }
+      });
+
+      const result = appReducer(state, {
+        type: 'DELETE_TASK',
+        payload: { taskId: '2' }
+      });
+
+      expect(result.workspaces.work.map(task => task.id)).toEqual(['1']);
+    });
   });
   
   describe('COMPLETE_TASK', () => {
@@ -180,6 +229,37 @@ describe('appReducer', () => {
       });
       
       expect(result.workspaces.study[0].status).toBe('done');
+    });
+
+    it('should complete subtasks together with their parent', () => {
+      const parent = createTask('1', '主任务');
+      const sub1 = { ...createTask('2', '子任务 A'), parentId: '1' };
+      const sub2 = { ...createTask('3', '子任务 B'), parentId: '1', status: 'done' as const };
+      const state = createInitialState({
+        workspaces: { work: [parent, sub1, sub2], life: [], study: [] }
+      });
+
+      const result = appReducer(state, {
+        type: 'COMPLETE_TASK',
+        payload: { taskId: '1' }
+      });
+
+      expect(result.workspaces.work.map(task => task.status)).toEqual(['done', 'done', 'done']);
+    });
+
+    it('should reopen subtasks when the parent is reopened', () => {
+      const parent = { ...createTask('1', '主任务'), status: 'done' as const };
+      const subtask = { ...createTask('2', '子任务'), parentId: '1', status: 'done' as const };
+      const state = createInitialState({
+        workspaces: { work: [parent, subtask], life: [], study: [] }
+      });
+
+      const result = appReducer(state, {
+        type: 'COMPLETE_TASK',
+        payload: { taskId: '1' }
+      });
+
+      expect(result.workspaces.work.map(task => task.status)).toEqual(['todo', 'todo']);
     });
   });
   

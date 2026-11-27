@@ -4,6 +4,7 @@ import { useTasks } from '../../hooks/useTasks';
 import { useAppContext } from '../../context/AppContext';
 import { DayRow } from './DayRow';
 import { isToday } from '../../utils/dateUtils';
+import { sortTasksByCompletion } from '../../utils/taskUtils';
 import { COLOR_SCHEMES } from '../../constants/colorSchemes';
 
 interface WeekViewProps {
@@ -25,6 +26,7 @@ export function WeekView({ hoveredTaskId, onHoverTask, onSelectTask }: WeekViewP
   const { getCurrentTasks, addDateToTask, removeDateFromTask, completeTask } = useTasks();
 
   const weekDays = getCurrentWeek();
+  // 子任务也是可排期的完整任务，和主任务一样按自己的日期出现在排期里
   const tasks = getCurrentTasks();
 
   const accentColor = useMemo(() => {
@@ -73,7 +75,8 @@ export function WeekView({ hoveredTaskId, onHoverTask, onSelectTask }: WeekViewP
   return (
     <div className="week-view">
       {weekDays.map(dayDate => {
-        const dayTasks = tasks.filter(t => t.dates.includes(dayDate) && t.status !== 'done');
+        // 已完成的任务保留在当天，但置灰并排到最后
+        const dayTasks = sortTasksByCompletion(tasks.filter(t => t.dates.includes(dayDate)));
         return (
           <DayRow
             key={dayDate}

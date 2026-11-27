@@ -12,6 +12,8 @@ const PREVIEW_OFFSET = 12;
 interface DragSession {
   taskId: string;
   sourceEl: HTMLElement;
+  /** 从日历的哪一天拖出；为 null 表示来自待办池 */
+  sourceDate: string | null;
   pointerId: number;
   startX: number;
   startY: number;
@@ -45,11 +47,11 @@ function getSourceTitle(sourceEl: HTMLElement): string {
 
 export function TaskDragController() {
   const { dispatch } = useAppContext();
-  const { completeTask, deleteTask, addDateToTask } = useTasks();
-  const actionsRef = useRef({ completeTask, deleteTask, addDateToTask });
+  const { completeTask, deleteTask, addDateToTask, removeDateFromTask } = useTasks();
+  const actionsRef = useRef({ completeTask, deleteTask, addDateToTask, removeDateFromTask });
   const sessionRef = useRef<DragSession | null>(null);
 
-  actionsRef.current = { completeTask, deleteTask, addDateToTask };
+  actionsRef.current = { completeTask, deleteTask, addDateToTask, removeDateFromTask };
 
   useEffect(() => {
     const updatePreview = (session: DragSession, x: number, y: number) => {
@@ -76,7 +78,8 @@ export function TaskDragController() {
         session.lastDropDate = date;
         dispatch({
           type: 'SET_DRAG_STATE',
-          payload: { taskId: session.taskId, dropTarget: date },
+          // 拖拽过程中要一直带着来源日期，否则经过日期格子时会被清空。
+          payload: { taskId: session.taskId, dropTarget: date, sourceDate: session.sourceDate },
         });
       }
     };
@@ -176,7 +179,7 @@ export function TaskDragController() {
         rememberDragStart({ clientX: session.startX, clientY: session.startY });
         dispatch({
           type: 'SET_DRAG_STATE',
-          payload: { taskId: session.taskId, dropTarget: null },
+          payload: { taskId: session.taskId, dropTarget: null, sourceDate: session.sourceDate },
         });
 
         const preview = document.createElement('div');
@@ -213,7 +216,12 @@ export function TaskDragController() {
         if (action === 'complete') {
           actionsRef.current.completeTask(session.taskId);
         } else if (action === 'delete') {
-          actionsRef.current.deleteTask(session.taskId);
+          // 从日历拖出的任务只移除当天安排；从待办池拖出的才是整条删除。
+          if (session.sourceDate) {
+            actionsRef.current.removeDateFromTask(session.taskId, session.sourceDate);
+          } else {
+            actionsRef.current.deleteTask(session.taskId);
+          }
         }
       } else {
         const dateEl = element?.closest('[data-date]') as HTMLElement | null;
@@ -268,9 +276,13 @@ export function TaskDragController() {
         return;
       }
 
+      // 日历里的任务卡片都放在 [data-date] 单元格内，借此区分拖拽来源。
+      const sourceDate = taskEl.closest('[data-date]')?.getAttribute('data-date') || null;
+
       sessionRef.current = {
         taskId,
         sourceEl: taskEl,
+        sourceDate,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,

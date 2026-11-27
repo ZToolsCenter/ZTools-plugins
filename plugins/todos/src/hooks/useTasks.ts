@@ -13,6 +13,26 @@ export function useTasks() {
     });
   };
 
+  /** 在主任务下新增子任务（只支持两层，子任务不再接受子任务） */
+  const addSubtask = (parentId: string, title: string) => {
+    const parent = (state.workspaces[state.currentWorkspace] || []).find(task => task.id === parentId);
+    if (!parent) {
+      return;
+    }
+
+    const subtask: Task = {
+      ...createTask(title),
+      parentId,
+      // 主任务已完成时，新增的子任务跟随其状态
+      status: parent.status === 'done' ? 'done' : 'todo',
+    };
+
+    dispatch({
+      type: 'ADD_SUBTASK',
+      payload: { workspace: state.currentWorkspace, task: subtask },
+    });
+  };
+
   const completeTask = (taskId: string) => {
     dispatch({ type: 'COMPLETE_TASK', payload: { taskId } });
   };
@@ -45,6 +65,7 @@ export function useTasks() {
 
   return {
     addTask,
+    addSubtask,
     completeTask,
     deleteTask,
     updateTask,

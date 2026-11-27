@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DayCell } from './DayCell';
 import { Task } from '../../types';
+import { getTaskColor } from '../../utils/colorUtils';
 
 const createMockTask = (overrides: Partial<Task> = {}): Task => ({
   id: '1',
@@ -134,7 +135,7 @@ describe('DayCell', () => {
     expect(container.querySelector('.cell-more')).toBeNull();
   });
 
-  it('uses the task priority color for the chip indicator', () => {
+  it('uses the auto-assigned task color for the chip indicator', () => {
     const tasks = [
       createMockTask({ id: '1', title: 'Task 1', priority: 'high' }),
     ];
@@ -149,7 +150,7 @@ describe('DayCell', () => {
       />
     );
     const chip = container.querySelector('.task-chip') as HTMLElement;
-    expect(chip.style.getPropertyValue('--task-color')).toBe('#DC2626');
+    expect(chip.style.getPropertyValue('--task-color')).toBe(getTaskColor(tasks[0]));
     expect(container.querySelector('.priority-bar')).toHaveAttribute('aria-label', '优先级：高');
   });
 

@@ -23,18 +23,28 @@ const task: Task = {
   updatedAt: '2026-11-24',
 };
 
-function TaskHarness() {
+// 同一条任务在两天都有安排，用来验证「从日历删除只移除当天」。
+const scheduledTask: Task = {
+  ...task,
+  dates: ['2026-11-24', '2026-11-25'],
+};
+
+function TaskHarness({ task: taskProp = task, date }: { task?: Task; date?: string } = {}) {
   const { dispatch } = useAppContext();
 
   useEffect(() => {
-    dispatch({ type: 'ADD_TASK', payload: { workspace: 'work', task } });
-  }, [dispatch]);
+    dispatch({ type: 'ADD_TASK', payload: { workspace: 'work', task: taskProp } });
+  }, [dispatch, taskProp]);
+
+  const item = (
+    <div data-task-id={taskProp.id} className="task-item">
+      <span className="task-title">{taskProp.title}</span>
+    </div>
+  );
 
   return (
     <>
-      <div data-task-id={task.id} className="task-item">
-        <span className="task-title">{task.title}</span>
-      </div>
+      {date ? <div data-date={date} className="day-row">{item}</div> : item}
       <TaskDragController />
       <Inspector />
     </>
@@ -48,16 +58,17 @@ function Inspector() {
   return (
     <>
       <span data-testid="dragged-task">{state.draggedTaskId ?? 'null'}</span>
+      <span data-testid="drag-source-date">{state.dragSourceDate ?? 'null'}</span>
       <span data-testid="task-status">{current?.status ?? 'missing'}</span>
       <span data-testid="task-dates">{current?.dates.join(',') ?? ''}</span>
     </>
   );
 }
 
-function renderHarness() {
+function renderHarness(options: { task?: Task; date?: string } = {}) {
   return render(
     <AppProvider>
-      <TaskHarness />
+      <TaskHarness {...options} />
     </AppProvider>
   );
 }
@@ -74,8 +85,8 @@ function dispatchPointer(type: string, target: EventTarget, init: PointerInit = 
   });
 }
 
-function startDrag(from: number, to: number) {
-  const taskEl = document.querySelector('.task-item') as HTMLElement;
+function startDrag(from: number, to: number, selector = '.task-item') {
+  const taskEl = document.querySelector(selector) as HTMLElement;
   dispatchPointer('pointerdown', taskEl, { button: 0, clientX: 20, clientY: 20, pointerId: 1 });
   dispatchPointer('pointermove', window, { clientX: 20 + from, clientY: 20 + from, pointerId: 1 });
   dispatchPointer('pointermove', window, { clientX: 20 + to, clientY: 20 + to, pointerId: 1 });
@@ -149,6 +160,97 @@ describe('TaskDragController', () => {
       expect(screen.getByTestId('task-status')).toHaveTextContent('missing');
       expect(screen.getByTestId('dragged-task')).toHaveTextContent('null');
     });
+
+    deleteTarget.remove();
+  });
+
+  it('deletes the whole task dropped from the pool even when it has dates', async () => {
+    const deleteTarget = document.createElement('div');
+    deleteTarget.setAttribute('data-drag-target', 'delete');
+    document.body.appendChild(deleteTarget);
+
+    renderHarness({ task: scheduledTask });
+    startDrag(10, 40);
+    endDrag(deleteTarget);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('task-status')).toHaveTextContent('missing');
+    });
+
+    deleteTarget.remove();
+  });
+
+  it('removes only the dragged day when a calendar task is dropped on delete', async () => {
+    const deleteTarget = document.createElement('div');
+    deleteTarget.setAttribute('data-drag-target', 'delete');
+    document.body.appendChild(deleteTarget);
+
+    renderHarness({ task: scheduledTask, date: '2026-11-24' });
+    startDrag(10, 40);
+    await waitFor(() => {
+      expect(screen.getByTestId('dragged-task')).toHaveTextContent('task-1');
+    });
+
+    endDrag(deleteTarget);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('task-dates')).toHaveTextContent('2026-11-25');
+    });
+    // 任务本身还在，只是不再排在这一天
+    expect(screen.getByTestId('task-status')).toHaveTextContent('todo');
+    expect(screen.getByTestId('task-dates')).not.toHaveTextContent('2026-11-24');
+
+    deleteTarget.remove();
+  });
+
+  it('keeps the calendar source day while the pointer passes over date cells', async () => {
+    const otherDate = document.createElement('div');
+    otherDate.setAttribute('data-date', '2026-11-25');
+    document.body.appendChild(otherDate);
+
+    const deleteTarget = document.createElement('div');
+    deleteTarget.setAttribute('data-drag-target', 'delete');
+    document.body.appendChild(deleteTarget);
+
+    renderHarness({ task: scheduledTask, date: '2026-11-24' });
+
+    const chip = document.querySelector('[data-date="2026-11-24"] [data-task-id="task-1"]') as HTMLElement;
+    (document as any).elementFromPoint = jest.fn(() => otherDate);
+    dispatchPointer('pointerdown', chip, { button: 0, clientX: 20, clientY: 20, pointerId: 1 });
+    dispatchPointer('pointermove', window, { clientX: 30, clientY: 30, pointerId: 1 });
+    dispatchPointer('pointermove', window, { clientX: 60, clientY: 60, pointerId: 1 });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('dragged-task')).toHaveTextContent('task-1');
+    });
+    // 经过别的日期格子后，来源日期仍要保留，否则操作区会误判为「删除任务」
+    expect(screen.getByTestId('drag-source-date')).toHaveTextContent('2026-11-24');
+
+    endDrag(deleteTarget);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('task-dates')).toHaveTextContent('2026-11-25');
+    });
+    expect(screen.getByTestId('task-status')).toHaveTextContent('todo');
+
+    otherDate.remove();
+    deleteTarget.remove();
+  });
+
+  it('keeps a single-date task in the pool after deleting its calendar day', async () => {
+    const deleteTarget = document.createElement('div');
+    deleteTarget.setAttribute('data-drag-target', 'delete');
+    document.body.appendChild(deleteTarget);
+
+    renderHarness({ task: task, date: '2026-11-24' });
+    startDrag(10, 40);
+    endDrag(deleteTarget);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('task-dates')).toHaveTextContent('');
+      expect(screen.getByTestId('dragged-task')).toHaveTextContent('null');
+    });
+    expect(screen.getByTestId('task-status')).toHaveTextContent('todo');
 
     deleteTarget.remove();
   });

@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Task } from '../../types';
 import { formatTaskDates } from '../../utils/taskUtils';
-import { getPriorityColor, getPriorityLabel } from '../../utils/colorUtils';
+import { getPriorityLabel, getTaskColor } from '../../utils/colorUtils';
+import { useTaskColorMode } from '../../context/AppContext';
 import { useTasks } from '../../hooks/useTasks';
 import './Task.css';
 
@@ -18,6 +19,9 @@ interface TaskItemProps {
   isSelected?: boolean;
   onHover?: (taskId: string | null) => void;
   onSelect?: (taskId: string) => void;
+  /** 子任务进度，有子任务时才传 */
+  subtaskDone?: number;
+  subtaskTotal?: number;
 }
 
 export const TaskItem = React.memo(function TaskItem({
@@ -30,7 +34,9 @@ export const TaskItem = React.memo(function TaskItem({
   isHighlighted,
   isSelected,
   onHover,
-  onSelect
+  onSelect,
+  subtaskDone,
+  subtaskTotal
 }: TaskItemProps) {
   const { updateTask } = useTasks();
   const [isEditing, setIsEditing] = useState(false);
@@ -43,7 +49,8 @@ export const TaskItem = React.memo(function TaskItem({
   const suppressSelectRef = useRef(false);
   const suppressDescSelectRef = useRef(false);
 
-  const taskColor = getPriorityColor(task.priority);
+  const colorMode = useTaskColorMode();
+  const taskColor = getTaskColor(task, colorMode);
   const priorityLabel = getPriorityLabel(task.priority);
   const itemRef = useRef<HTMLDivElement>(null);
   const callbacksRef = useRef({ onComplete, onDelete });
@@ -399,6 +406,14 @@ export const TaskItem = React.memo(function TaskItem({
           <div className="task-dates">
             {formatTaskDates(task.dates)}
           </div>
+        )}
+        {typeof subtaskTotal === 'number' && subtaskTotal > 0 && (
+          <span
+            className="task-subtask-progress"
+            title={`子任务 ${subtaskDone}/${subtaskTotal} 已完成`}
+          >
+            {subtaskDone}/{subtaskTotal}
+          </span>
         )}
       </div>
     </div>
