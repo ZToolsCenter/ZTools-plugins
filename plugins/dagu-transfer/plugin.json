@@ -1,0 +1,70 @@
+{
+  "name": "dagu-transfer",
+  "title": "大古快传",
+  "version": "1.0.0",
+  "description": "把图片或文件快速上传到本地目录、SSH 服务器，或从 SSH 服务器下载文件",
+  "author": "beierweiwei",
+  "logo": "icon.png",
+  "main": "index.html",
+  "preload": "preload.cjs",
+  "development": {
+    "main": "http://127.0.0.1:5174/index.html"
+  },
+  "width": 800,
+  "height": 600,
+  "features": [
+    {
+      "code": "share",
+      "explain": "上传到本地目录或 SSH 服务器",
+      "icon": "icon.png",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "接收分享",
+          "match": "/^dagu-transfer-share:[A-Za-z0-9._~%+-]+$/",
+          "minLength": 24,
+          "maxLength": 512
+        },
+        {
+          "type": "regex",
+          "label": "分享本地文件",
+          "match": "/^(?:\"([A-Za-z]:[\\\\/][^\"]+)\"|'([A-Za-z]:[\\\\/][^']+)'|[A-Za-z]:[\\\\/][^\"']+)$/",
+          "minLength": 4,
+          "maxLength": 4096
+        },
+        {
+          "type": "img",
+          "label": "分享图片"
+        },
+        {
+          "type": "files",
+          "label": "分享文件",
+          "fileType": "file",
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "download",
+      "explain": "从 SSH 服务器下载文件：输入远端路径直接下载，或先选服务器",
+      "icon": "download.png",
+      "cmds": [
+        "下载文件",
+        "Download File",
+        {
+          "type": "regex",
+          "label": "下载远端文件",
+          "match": "/^\\/.+$/",
+          "minLength": 2,
+          "maxLength": 4096
+        }
+      ]
+    },
+    {
+      "code": "setup",
+      "explain": "管理上传目标与下载目录",
+      "icon": "icon.png",
+      "cmds": ["快传配置", "Transfer Settings"]
+    }
+  ]
+}

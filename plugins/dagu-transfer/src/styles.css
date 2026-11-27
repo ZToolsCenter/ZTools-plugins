@@ -1,0 +1,109 @@
+@import './shared/theme.css';
+@import './shared/controls.css';
+
+* { box-sizing: border-box; }
+
+html, body, #app { min-height: 100%; margin: 0; }
+
+body {
+  overflow-x: hidden;
+  background: var(--surface);
+  color: var(--text-color);
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .45; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+svg { display: block; width: 16px; height: 16px; }
+
+/* ── 启动器里的下拉列表 ── */
+.transfer-list { padding: 4px 0; }
+.transfer-status { padding: 10px 16px; }
+.transfer-status-title { font-weight: 500; }
+.transfer-status-subtitle { color: var(--text-secondary); font-size: 12px; word-break: break-all; }
+.tone-danger .transfer-status-title { color: var(--danger-color); }
+
+.transfer-rows { max-height: 480px; overflow-y: auto; }
+.transfer-row { margin: 0 8px; padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; }
+.transfer-row-title { font-weight: 500; }
+.transfer-row-subtitle { color: var(--text-secondary); font-size: 12px; word-break: break-all; }
+.transfer-row:hover { background: var(--hover-bg); }
+.transfer-row.active, .transfer-row.active:hover { background: var(--primary-color); color: var(--primary-contrast); }
+.transfer-row.active .transfer-row-subtitle { color: var(--primary-contrast); opacity: .82; }
+
+/* ── 配置页 ──
+   按钮、字段、开关、卡片面板的样式与大古截图共用 controls.css，这里只放快传特有的部分。 */
+.setup-shell { min-height: 100vh; padding: 12px; display: flex; background: var(--bg-color); }
+.setup-shell .config-panel { flex: 1; width: 100%; max-height: calc(100vh - 24px); }
+
+.setup-header-side { display: flex; align-items: center; gap: 12px; }
+.setup-notice { color: var(--text-secondary); font-size: 12px; }
+.setup-notice[data-tone='warning'] { color: var(--warning-color); }
+.setup-notice[data-tone='danger'] { color: var(--danger-color); }
+.setup-actions { display: inline-flex; gap: 8px; }
+.setup-footer-note { color: var(--text-secondary); font-size: 12px; }
+
+.target-form {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.field-control { display: flex; gap: 8px; align-items: center; }
+.field-control input { flex: 1; min-width: 0; }
+/* 校验提示跟在对应的输入框下面（字段本身是纵向排列的 label）。 */
+.form-grid .field-error { color: var(--danger-color); font-size: 11px; }
+.form-actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+
+/* 编辑表单在被编辑行下方展开：缩进对齐行内容，边框弱化成从属观感。 */
+.target-edit-slot { list-style: none; }
+.target-form-inline { margin: -2px 0 0 0; padding: 10px; padding-left: 22px; }
+.target-form-inline .form-actions { justify-content: flex-end; }
+
+.target-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+/* 行内展开编辑表单时放开列表限高，让表单完整可见。 */
+.target-list-editing { max-height: none; overflow-y: visible; }
+.target-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.target-icon {
+  display: grid; place-items: center; flex: none;
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
+  background: var(--accent-soft); color: var(--primary-color);
+}
+.target-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.target-name { font-weight: 500; }
+/* 只标出登录方式，不显示密码。 */
+.target-auth {
+  margin-left: 6px; padding: 0 7px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft); color: var(--primary-color);
+  font-size: 11px; font-weight: 500;
+}
+.target-dest { color: var(--text-secondary); font-size: 12px; word-break: break-all; }
+.target-tools { display: flex; gap: 2px; }
+.tool-btn {
+  display: inline-grid; place-items: center;
+  width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary);
+}
+.tool-btn svg { width: 14px; height: 14px; }
+.tool-btn:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-color); }
+.tool-btn.danger:hover:not(:disabled) { color: var(--danger-color); background: rgba(239, 68, 68, .08); }
+.setup-empty {
+  margin: 0; padding: 16px; text-align: center; color: var(--text-secondary);
+  border: 1px dashed var(--border-color); border-radius: var(--radius-md);
+}
+
+.download-row { display: flex; align-items: center; gap: 12px; }
+.download-dir { flex: 1; min-width: 0; word-break: break-all; color: var(--text-secondary); }
