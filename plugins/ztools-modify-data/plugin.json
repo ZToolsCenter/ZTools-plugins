@@ -1,0 +1,14 @@
+{
+  "name": "ztools-modify-data",
+  "title": "插件数据编辑器",
+  "description": "浏览、搜索和修改已安装 ZTools 插件的数据库数据，保存前自动备份。",
+  "version": "1.0.0",
+  "main": "index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "features": [{
+    "code": "edit-data",
+    "explain": "查看和修改已安装插件的数据",
+    "cmds": ["插件数据", "修改插件数据", "数据编辑器", "modifydata"]
+  }]
+}
