@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 作者：木子
 import { onMounted, ref } from "vue";
 import { listByPrefix, putDoc, removeDoc, uid, svc, zt } from "../api";
 import type { Server } from "../types";
@@ -12,6 +13,31 @@ async function load() {
   servers.value = (await listByPrefix<Server>("server:")).sort((a, b) => a.createdAt - b.createdAt);
 }
 onMounted(load);
+
+function exportServers() {
+  const docs = servers.value.map((s) => {
+    const doc = JSON.parse(JSON.stringify(s)) as Record<string, unknown>;
+    delete doc._rev;
+    delete doc._deleted;
+    return doc;
+  });
+  const payload = {
+    app: "ztools",
+    type: "servers",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    docs,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "ztools-servers.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 function blank(): Partial<Server> {
   return { name: "", host: "", port: 22, username: "root", authType: "password", password: "", privateKey: "", passphrase: "" };
@@ -95,8 +121,10 @@ async function pickKeyFile() {
   <div>
     <div class="toolbar">
       <span class="muted">共 {{ servers.length }} 台服务器</span>
+      <button class="btn btn-ghost" :disabled="!servers.length" @click="exportServers">导出服务器配置</button>
       <button class="btn btn-primary" @click="add">新增服务器</button>
     </div>
+    <p class="muted tip">导出文件包含明文密码/私钥，仅供迁移到 DBX 使用，请妥善保管并及时删除。</p>
 
     <div v-if="!servers.length" class="card empty">还没有服务器，点击「新增服务器」添加第一台。</div>
 

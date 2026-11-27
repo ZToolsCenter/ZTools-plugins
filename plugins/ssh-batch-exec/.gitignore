@@ -6,6 +6,12 @@
 .vite/
 *.tsbuildinfo
 
+# DBX 是独立项目，不属于 ZTools 插件源码
+/dbx/
+
+# 本地 AI 文档
+/.trae/
+
 # 其他
 *.log
 .DS_Store
